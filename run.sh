@@ -3,13 +3,12 @@ set -euo pipefail
 
 cd "$(dirname "$0")"
 
-PORT="${PORT:-8123}"
+PORT="${PORT:-8124}"
 
 if [ ! -x .venv/bin/uvicorn ]; then
   echo "Creating the local virtual environment…"
-  python3 -m venv .venv
-  .venv/bin/python -m pip install --upgrade pip >/dev/null
-  .venv/bin/pip install -r requirements.txt
+  python3.12 -m venv .venv
+  .venv/bin/python -m pip install --require-hashes -r requirements.lock
 fi
 
 echo "Æion Mission Control  →  http://127.0.0.1:${PORT}"
