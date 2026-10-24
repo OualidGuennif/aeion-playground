@@ -2,8 +2,8 @@
 
 Two runtimes are implemented and both are real process executions:
 
-- `opencode-cli`: OpenCode 1.19.4, isolated XDG dirs, strict permission wall,
-  JSON event stream, real token/cost accounting.
+- `opencode-cli`: OpenCode 1.19.4; Docker roles and a credential mediator by
+  default, with explicit legacy native diagnostics. JSON event/usage capture.
 - `claude-cli`: Claude Code CLI with the operator's own session.
 
 There is no simulated model call. If a CLI is absent, logged out or misconfigured,
@@ -16,6 +16,7 @@ import hashlib
 import json
 import os
 import re
+import selectors
 import shutil
 import signal
 import subprocess
@@ -132,6 +133,7 @@ class AgentResult:
                 "agent", "model", "events", "steps", "tool_calls", "protocol", "source_digest", "finish_reason",
                 "session_id", "duration_ms",
                 "routing",
+                "inference",
             ) if key in self.raw},
         }
 
@@ -166,6 +168,11 @@ class AgentRunner:
     def probe(self) -> dict[str, Any]:
         runtime = settings.agent_runtime
         if runtime == "opencode-cli":
+            if settings.inference_backend == "docker":
+                from .container_inference import probe
+                return probe()
+            if settings.inference_backend != "native":
+                return {"ready": False, "runtime": runtime, "reason": "Unknown inference backend; no fallback"}
             return self._probe_opencode()
         if runtime == "claude-cli":
             return self._probe_claude()
@@ -352,12 +359,16 @@ class AgentRunner:
         source_context: str = "",
         model_override: str | None = None,
         timeout_seconds: float | None = None,
+        run_id: str | None = None,
     ) -> AgentResult:
-        run_id = f"run-{uuid.uuid4().hex[:12]}"
+        run_id = run_id or f"run-{uuid.uuid4().hex[:12]}"
         started = _now()
         if protocol and (protocol != PATCH_PROTOCOL or settings.agent_runtime != "opencode-cli"):
             return AgentResult(status="blocked", runtime=settings.agent_runtime, run_id=run_id,
                                error="The admitted patch protocol requires OpenCode; no runtime fallback.")
+        if settings.agent_runtime == "opencode-cli" and settings.inference_backend == "docker" and protocol != PATCH_PROTOCOL:
+            return AgentResult(status="blocked", runtime=settings.agent_runtime, run_id=run_id,
+                               error="Docker inference requires text-only patch/v1; no tool-enabled fallback.")
         ready = self.probe()
         if not ready.get("ready"):
             return AgentResult(
@@ -460,18 +471,28 @@ class AgentRunner:
             str(cwd),
         ]
         started = _now()
-        exit_code, stdout, stderr, elapsed_ms, timeout_error = _spawn(
-            argv,
-            cwd=cwd,
-            env=self._opencode_env(),
-            timeout=min(settings.agent_timeout, timeout_seconds) if timeout_seconds is not None else settings.agent_timeout,
-            failure_phrases=(
-                "Free usage limit reached", "Insufficient account funds",
-                "This Go model requires Global regions",
-                "free tier can only be used from within OpenCode",
-            ),
-            cancel_event=self._cancelled,
-        )
+        timeout = min(settings.agent_timeout, timeout_seconds) if timeout_seconds is not None else settings.agent_timeout
+        inference = None
+        exit_code, stdout, stderr, elapsed_ms, timeout_error = None, "", "", 0, None
+        spawn_options = {"cwd": cwd, "timeout": timeout, "cancel_event": self._cancelled,
+            "failure_phrases": ("Free usage limit reached", "Insufficient account funds",
+                "This Go model requires Global regions", "free tier can only be used from within OpenCode")}
+        if settings.inference_backend == "docker":
+            from .container_inference import isolated_opencode, LIMITS
+            token = ""
+            try:
+                with isolated_opencode(prompt=prompt, model=model, role="sentinel" if review else "forge", run_id=run_id, timeout=timeout) as execution:
+                    argv, env, inference, token = execution
+                    if ready.get("executor") and inference["executor"] != ready["executor"]:
+                        raise OSError("Inference executor changed since readiness; readmission required")
+                    spawn_options["timeout"] = min(timeout, LIMITS["deadline_seconds"])
+                    exit_code, stdout, stderr, elapsed_ms, timeout_error = _spawn(argv, env=env, **spawn_options)
+            except OSError as error:
+                timeout_error = str(error)
+            if token:
+                stdout, stderr = stdout.replace(token, "[capability redacted]"), stderr.replace(token, "[capability redacted]")
+        else:
+            exit_code, stdout, stderr, elapsed_ms, timeout_error = _spawn(argv, env=self._opencode_env(), **spawn_options)
         ended = _now()
         stdout_path = self.log_dir / f"{run_id}.stdout.jsonl"
         stderr_path = self.log_dir / f"{run_id}.stderr.txt"
@@ -487,7 +508,7 @@ class AgentRunner:
             status = "failed"
         elif exit_code not in (0, None):
             status = "failed"
-            error = (stderr or result_text or f"opencode exited {exit_code}").strip()
+            error = (stats["error"] or stderr or result_text or f"opencode exited {exit_code}").strip()
         elif not events:
             status = "failed"
             error = (stderr or "OpenCode produced no JSON events.").strip()
@@ -500,6 +521,10 @@ class AgentRunner:
         elif stats["finish_reason"] != "stop":
             status = "failed"
             error = f"OpenCode did not finish normally ({stats['finish_reason'] or 'no final step'})."
+        if status == "completed" and inference:
+            usage = inference.get("usage") or {}
+            if inference.get("state") != "completed" or stats["tokens_in"] != usage.get("prompt_tokens") or stats["tokens_out"] != usage.get("completion_tokens"):
+                status, error = "failed", "Mediated usage does not match the completed CLI session; no retry."
         tool_calls = sum(event.get("type") == "tool_use" or (event.get("part") or {}).get("type") == "tool" for event in events)
         if status == "completed" and protocol == PATCH_PROTOCOL:
             finishes = sum(event.get("type") == "step_finish" for event in events)
@@ -554,6 +579,7 @@ class AgentRunner:
                 "session_id": stats["session_id"],
                 "duration_ms": elapsed_ms or stats["duration_ms"],
                 **({"protocol": protocol, "source_digest": hashlib.sha256(source_context.encode()).hexdigest()} if protocol else {}),
+                **({"inference": inference} if inference else {}),
             },
         )
 
@@ -742,8 +768,9 @@ def _spawn(
     timeout: int,
     failure_phrases: tuple[str, ...] = (),
     cancel_event: threading.Event | None = None,
+    output_limit: int = 2 * 1024 * 1024,
 ) -> tuple[int | None, str, str, int, str | None]:
-    """Run a CLI in its own process group and kill the whole group on timeout."""
+    """Bound both pipes and kill the process group on cancellation/deadline/flood."""
     started = time.monotonic()
     if cancel_event and cancel_event.is_set():
         return None, "", "", 0, "Agent cancelled during shutdown"
@@ -753,7 +780,7 @@ def _spawn(
             cwd=str(cwd),
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            text=True,
+            stdin=subprocess.DEVNULL,
             env=env,
             start_new_session=True,
         )
@@ -761,33 +788,52 @@ def _spawn(
         return None, "", str(error), 0, f"could not start: {error}"
     with _PROCESS_LOCK:
         _ACTIVE_PROCESSES.add(process)
+    buffers = {"stdout": bytearray(), "stderr": bytearray()}
+    total = 0
     try:
         failure = None
-        while True:
-            if cancel_event and cancel_event.is_set():
-                failure = "Agent cancelled during shutdown"
-                break
-            remaining = timeout - (time.monotonic() - started)
-            try:
-                stdout, stderr = process.communicate(timeout=max(0.01, min(1.0, remaining)))
+        with selectors.DefaultSelector() as selector:
+            for name in buffers:
+                selector.register(getattr(process, name), selectors.EVENT_READ, name)
+            while selector.get_map() and not failure:
                 if cancel_event and cancel_event.is_set():
                     failure = "Agent cancelled during shutdown"
-                break
-            except subprocess.TimeoutExpired as pending:
-                partial = pending.stderr or ""
-                if isinstance(partial, bytes):
-                    partial = partial.decode("utf-8", errors="replace")
-                failure = next((f"OpenCode provider: {phrase}" for phrase in failure_phrases if phrase in partial), None)
-                if failure or time.monotonic() - started >= timeout:
-                    failure = failure or f"Agent timed out after {timeout}s"
                     break
+                remaining = timeout - (time.monotonic() - started)
+                if remaining <= 0:
+                    failure = f"Agent timed out after {timeout}s"
+                    break
+                for key, _ in selector.select(min(.1, remaining)):
+                    chunk = os.read(key.fd, min(65536, output_limit - total + 1))
+                    if not chunk:
+                        selector.unregister(key.fileobj)
+                        continue
+                    retained = chunk[:output_limit - total]
+                    buffers[key.data].extend(retained)
+                    total += len(retained)
+                    if len(chunk) != len(retained):
+                        failure = f"Agent output exceeded {output_limit} combined bytes"
+                        break
+                    partial = buffers["stderr"].decode("utf-8", errors="replace")
+                    failure = next((f"OpenCode provider: {phrase}" for phrase in failure_phrases if phrase in partial), None)
+                    if failure:
+                        break
+        if cancel_event and cancel_event.is_set():
+            failure = "Agent cancelled during shutdown"
         if failure:
             _kill_process_group(process)
-            stdout, stderr = process.communicate()
+        try:
+            process.wait(timeout=max(.01, timeout - (time.monotonic() - started)))
+        except subprocess.TimeoutExpired:
+            failure = f"Agent timed out after {timeout}s"
+            _kill_process_group(process)
+            process.wait(timeout=5)
         elapsed = int((time.monotonic() - started) * 1000)
-        return process.returncode, stdout or "", stderr or "", elapsed, failure
+        return process.returncode, buffers["stdout"].decode("utf-8", errors="replace"), buffers["stderr"].decode("utf-8", errors="replace"), elapsed, failure
     finally:
         _kill_process_group(process)
+        process.stdout.close()
+        process.stderr.close()
         with _PROCESS_LOCK:
             _ACTIVE_PROCESSES.discard(process)
 

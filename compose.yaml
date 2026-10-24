@@ -7,6 +7,31 @@ x-logging: &bounded-logging
     max-file: '2'
 
 services:
+  inference-gateway:
+    image: aeion-playground-gateway:1
+    restart: unless-stopped
+    user: '${AEION_OPERATOR_UID:-1000}:${AEION_OPERATOR_GID:-1000}'
+    ports: ['127.0.0.1:8130:8130']
+    networks: [control, inference]
+    secrets: [gateway_admin]
+    volumes: ['./runtime/gateway:/data']
+    read_only: true
+    tmpfs: ['/tmp:rw,noexec,nosuid,nodev,size=16m']
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 256m
+    cpus: 1
+    pids_limit: 64
+    ulimits:
+      nofile: {soft: 128, hard: 128}
+      fsize: {soft: 16777216, hard: 16777216}
+    logging: *bounded-logging
+    healthcheck:
+      test: [CMD, python, -I, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8130/health',timeout=2).close()"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
   postgres:
     restart: unless-stopped
     image: postgres:17-alpine@sha256:eee6c6e1b0894fa4fe0075eb054af9fd1cf39a35321c2d4110626cfe506411fb
@@ -78,12 +103,19 @@ networks:
   control: {}
   workboard:
     internal: true
+  inference:
+    name: aeion-playground-inference
+    internal: true
+    driver_opts:
+      com.docker.network.bridge.gateway_mode_ipv4: isolated
 
 volumes:
   postgres_data:
   paperclip_data:
 
 secrets:
+  gateway_admin:
+    file: ./runtime/secrets/gateway_admin
   postgres_password:
     file: ./runtime/secrets/postgres_password
   paperclip_auth:

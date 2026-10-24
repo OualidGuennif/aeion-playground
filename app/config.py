@@ -70,6 +70,7 @@ class Settings:
     paperclip_company_id: str = field(default_factory=lambda: os.environ.get("PAPERCLIP_COMPANY_ID", ""))
 
     agent_runtime: str = field(default_factory=lambda: os.environ.get("AEION_AGENT_RUNTIME", "opencode-cli"))
+    inference_backend: str = field(default_factory=lambda: os.environ.get("AEION_INFERENCE_BACKEND", "docker"))
     agent_model: str = field(default_factory=lambda: os.environ.get("AEION_AGENT_MODEL", ""))
     agent_timeout: int = field(default_factory=lambda: int(operator_value("agent_timeout_seconds", _int("AEION_AGENT_TIMEOUT_SECONDS", 900))))
     agent_max_turns: int = field(default_factory=lambda: _int("AEION_AGENT_MAX_TURNS", 12))
@@ -137,6 +138,11 @@ class Settings:
         """Return an honest readiness report for the configured agent runtime."""
         runtime = self.agent_runtime
         if runtime == "opencode-cli":
+            if self.inference_backend == "docker":
+                from .container_inference import probe
+                return probe()
+            if self.inference_backend != "native":
+                return {"ready": False, "runtime": runtime, "reason": "Unknown inference backend; no fallback"}
             binary = self.opencode_bin_path()
             if not binary.is_file():
                 return {
