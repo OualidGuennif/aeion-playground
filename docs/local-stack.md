@@ -41,6 +41,28 @@ factory reports authenticated API operations as unavailable/denied. Health alone
 not establish company/task access. Never copy a browser cookie into model context or Git.
 An authenticated workboard account/token is separate from a Gate approval to merge code.
 
+The supported local connection flow also avoids copying a token manually:
+
+```sh
+.venv/bin/python scripts/connect_paperclip.py
+```
+
+This uses Paperclip's [board CLI authorization protocol](https://github.com/paperclipai/paperclip/blob/412914cfa78d5abefcc34d3eb8d4bb86e461caac/cli/src/client/board-auth.ts#L208).
+It opens the short-lived pairing page directly in your browser, requests board access
+(not instance administration), and waits at most five minutes for your real account to
+approve. The application never calls the approval endpoint. Only after approval and an
+authenticated identity check does it save the board credential in an owner-only file at
+`runtime/secrets/paperclip-board-auth.json`. No API key is printed or copied into Git,
+model context, worker environment or Docker image. `PAPERCLIP_AUTH_STORE` can select a
+separate private profile; the credential is bound to its exact loopback API origin.
+The controller disables environment proxies and redirects for workboard requests.
+
+Paperclip is the workboard in this setup. The Factory owns model routing, disposable
+author/reviewer execution, tests, Gate and proofs. Paperclip's generic first-agent/provider
+wizard is for its own execution engine; it is not required to configure Factory model
+access. The existing **ParcelDesk** organization is reused, including its returned issue
+prefix. A browser authorization grant does not approve a model-generated code change.
+
 ```sh
 # Opt-in: restarts ONLY this Compose project's services, creates/restores throwaway DBs.
 AEION_STACK_TESTS=1 .venv/bin/python -m pytest -q tests/test_compose_stack.py

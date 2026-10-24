@@ -13,6 +13,7 @@ from typing import Any
 import httpx
 
 from .config import settings
+from .paperclip_auth import load_board_token
 from .store import store
 
 COMPANY_NAME = "ParcelDesk"
@@ -26,8 +27,9 @@ class PaperclipClient:
     # ------------------------------------------------------------------ basics
     def _headers(self) -> dict[str, str]:
         headers = {"Content-Type": "application/json"}
-        if settings.paperclip_api_token:
-            headers["Authorization"] = f"Bearer {settings.paperclip_api_token}"
+        token = settings.paperclip_api_token or load_board_token(self.base_url)
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
         return headers
 
     def _request(self, method: str, path: str, **kwargs: Any) -> dict[str, Any]:
@@ -38,11 +40,15 @@ class PaperclipClient:
                 url,
                 headers=self._headers(),
                 timeout=8.0,
+                trust_env=False,
+                follow_redirects=False,
                 **kwargs,
             )
         except httpx.HTTPError as error:
             return {"ok": False, "error": f"Paperclip unreachable: {error}", "status": None}
-        if response.status_code >= 400:
+        except (ValueError, OSError):
+            return {"ok": False, "error": "Paperclip local authorization unavailable; reconnect the controller", "status": None}
+        if response.status_code >= 300:
             try:
                 detail = response.json()
             except ValueError:
