@@ -43,7 +43,7 @@ from .observability import emit, kpis as build_kpis, start_exporter, stop_export
 from .paperclip import paperclip
 from .policy_engine import PolicyEngine
 from .patch_protocol import PATCH_PROTOCOL, parse_patch, source_context
-from .sandbox import sandbox
+from .sandbox import TestResult, sandbox
 from .store import InferenceBudgetError, store, utc_now
 
 VERSION = "1.10.0-real"
@@ -140,6 +140,13 @@ def _now() -> str:
 
 def _sha(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def _tests_complete(tests: TestResult) -> bool:
+    return bool(
+        tests.available and not tests.error and tests.exit_code == 0 and tests.total > 0
+        and tests.passed == tests.total and not (tests.failed or tests.errors or tests.skipped)
+    )
 
 
 def _loads(value: str | None, default: Any) -> Any:
@@ -1009,14 +1016,52 @@ class RealEngine:
             )
         )
 
+        # 4 · Gate-owned acceptance -------------------------------------------
+        acceptance = None
+        tests_complete = _tests_complete(tests)
+        if tests_complete:
+            try:
+                acceptance_path = sandbox.acceptance_checkout(Path(run["path"]))
+            except Exception as error:
+                self._block(mission_id, "EXTERNAL_ACCEPTANCE", f"Trusted acceptance checkout failed: {error}", step_index=4)
+                return
+            try:
+                acceptance = self.executor.run_tests(
+                    acceptance_path, expected_executor=contract.get("test_executor")
+                )
+            except Exception as error:
+                acceptance = TestResult(available=False, error=f"Trusted acceptance run failed: {error}")
+            finally:
+                shutil.rmtree(acceptance_path, ignore_errors=True)
+            combined = tests.to_dict()
+            combined["acceptance"] = acceptance.to_dict()
+            store.update_mission(mission_id, tests_json=combined, progress=0.73)
+            self._step(
+                mission_id,
+                3,
+                "gate",
+                "Tests",
+                f"Worker {tests.summary()} · trusted {acceptance.summary()}",
+                "done" if _tests_complete(acceptance) else "failed",
+                evidence_path=acceptance.junit_path,
+            )
+            emit(
+                store.add_event(
+                    type="acceptance.completed",
+                    actor="gate",
+                    mission=mission_id,
+                    fixture=scenario["fixture"],
+                    message="Trusted acceptance: " + acceptance.summary(),
+                    severity="success" if _tests_complete(acceptance) else "error",
+                    payload={"total": acceptance.total, "passed": acceptance.passed,
+                             "failed": acceptance.failed, "errors": acceptance.errors},
+                )
+            )
+
         # 4 · Review ---------------------------------------------------------
         review_verdict = None
         review_independent = False
-        tests_complete = (
-            tests.available and not tests.error and tests.exit_code == 0 and tests.total > 0
-            and tests.passed == tests.total and not (tests.failed or tests.errors or tests.skipped)
-        )
-        if scenario["kind"] == "agent" and tests_complete:
+        if scenario["kind"] == "agent" and acceptance is not None and _tests_complete(acceptance):
             store.update_mission(mission_id, current_step="Review", current_agent="sentinel", progress=0.78)
             self._step(
                 mission_id,
@@ -1132,6 +1177,7 @@ class RealEngine:
         store.update_mission(mission_id, current_step="Gate", current_agent="gate", progress=0.82)
         policy = PolicyEngine(sandbox.read_policy())
         decision = policy.evaluate(
+            acceptance=acceptance,
             diff=diff,
             tests=tests,
             risk=scenario["risk"],

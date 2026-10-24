@@ -78,6 +78,7 @@ class PolicyEngine:
         review_independent: bool,
         allowed_paths: list[str] | None = None,
         minimum_tests: int = 1,
+        acceptance: TestResult | None = None,
     ) -> GateDecision:
         checks: list[GateCheck] = []
 
@@ -185,6 +186,37 @@ class PolicyEngine:
             checks.append(GateCheck("tests_pass", "Tests pass", "fail", "The suite did not pass completely with exit code 0."))
             return GateDecision("deny", "TESTS_INCOMPLETE", "Every collected test must pass with exit code 0; skipped or incomplete tests are not accepted.", checks)
         checks.append(GateCheck("tests_pass", "Tests pass", "pass", f"{tests.passed}/{tests.total} passed"))
+
+        if acceptance is None:
+            checks.append(GateCheck("acceptance", "Gate-owned trusted tests", "fail",
+                                    "No trusted acceptance run was recorded."))
+            return GateDecision(
+                "deny", "EXTERNAL_ACCEPTANCE",
+                "The worker report was not checked against a Gate-owned trusted test run.",
+                checks,
+            )
+        if acceptance.executor != tests.executor:
+            checks.append(GateCheck("acceptance", "Gate-owned trusted tests", "fail",
+                                    "The acceptance run used a different executor identity."))
+            return GateDecision(
+                "deny", "ACCEPTANCE_EXECUTOR_CHANGED",
+                "The trusted acceptance run did not use the admitted executor.",
+                checks,
+            )
+        if (
+            not acceptance.available or acceptance.error or acceptance.exit_code != 0
+            or not acceptance.total or acceptance.passed != acceptance.total
+            or acceptance.failed or acceptance.errors or acceptance.skipped
+        ):
+            checks.append(GateCheck("acceptance", "Gate-owned trusted tests", "fail",
+                                    acceptance.summary()))
+            return GateDecision(
+                "deny", "EXTERNAL_ACCEPTANCE",
+                "The trusted tests failed against the submitted application: " + acceptance.summary(),
+                checks,
+            )
+        checks.append(GateCheck("acceptance", "Gate-owned trusted tests", "pass",
+                                f"{acceptance.passed}/{acceptance.total} trusted tests passed"))
 
         if cost_usd > self.budget_usd:
             checks.append(
