@@ -518,15 +518,22 @@ class RealEngine:
         self._wake.set()
         return store.mission(mission_id) or record
 
-    @staticmethod
-    def _runtime_contract() -> dict[str, Any]:
+    def _runtime_contract(self) -> dict[str, Any]:
         result = {
             "runtime": settings.agent_runtime, "author": settings.opencode_model if settings.agent_runtime == "opencode-cli" else settings.agent_model,
             "reviewer": settings.opencode_review_model if settings.agent_runtime == "opencode-cli" else settings.agent_model,
         }
         if settings.agent_runtime == "opencode-cli" and settings.inference_backend == "docker":
-            from .container_inference import executor_identity
-            result["inference_executor"] = executor_identity()
+            # The cockpit has no Docker socket. The trusted executor reports which
+            # qualified image/network it would launch, and that identity is frozen in
+            # the mission contract. Inspecting Docker here would either fail closed
+            # forever or require the socket we deliberately refuse.
+            probe = self.executor.inference_probe()
+            identity = probe.get("executor") if isinstance(probe, dict) else None
+            if not isinstance(identity, dict) or not identity or not probe.get("ready"):
+                reason = probe.get("reason") if isinstance(probe, dict) else None
+                raise RuntimeError(f"Canonical inference executor unavailable: {reason or 'no qualified identity'}")
+            result["inference_executor"] = identity
         return result
 
     def _create_issue(self, record: dict[str, Any]) -> None:

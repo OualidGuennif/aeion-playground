@@ -6,6 +6,7 @@ what makes a remote executor possible without changing the mission flow.
 """
 from __future__ import annotations
 
+import dataclasses
 import json
 from pathlib import Path
 
@@ -18,10 +19,13 @@ from app.executor import ExecutorClient, ExecutorUnavailable, InProcessExecutor
 
 
 class RecordingExecutor:
-    def __init__(self, identity: dict[str, Any] | None = None):
+    def __init__(self, identity: dict[str, Any] | None = None,
+                 inference: dict[str, Any] | None = None):
         self.identity = identity or {"executor": "recording", "isolation": "none", "limits": {}}
+        self.inference = inference or {"ready": True, "runtime": "recording"}
         self.probes: list[float] = []
         self.runs: list[dict[str, Any]] = []
+        self.inference_probes = 0
 
     def probe(self, *, timeout: float = 180) -> dict[str, Any]:
         self.probes.append(timeout)
@@ -33,7 +37,8 @@ class RecordingExecutor:
         raise AssertionError("No test run expected in this test")
 
     def inference_probe(self) -> dict[str, Any]:
-        return {"ready": True, "runtime": "recording"}
+        self.inference_probes += 1
+        return self.inference
 
     def run_role(self, **kwargs: Any) -> Any:
         raise AssertionError("No role run expected in this test")
@@ -69,6 +74,31 @@ def test_admission_freezes_the_identity_of_the_injected_executor(runtime):
     assert injected.probes == [180]
     assert injected.runs == []
     assert mission["status"] == "queued"
+
+
+def test_docker_runtime_identity_comes_from_the_executor_not_local_docker(runtime, monkeypatch):
+    identity = {"backend": "docker-opencode/v1", "image_id": "sha256:" + "a" * 64,
+                "user": "65532:65532", "mounts": []}
+    injected = RecordingExecutor(inference={"ready": True, "runtime": "opencode-cli", "executor": identity})
+    monkeypatch.setattr(real_engine, "settings",
+                        dataclasses.replace(real_engine.settings, inference_backend="docker"))
+    engine = real_engine.RealEngine(executor=injected)
+    mission = engine.launch_mission("PD01", request_id="remote-inference-identity", defer=True)
+    contract = json.loads(mission["contract_json"])
+    assert contract["runtime"]["inference_executor"] == identity
+    assert injected.inference_probes == 1
+    assert injected.probes == [180]
+
+
+def test_docker_runtime_fails_closed_when_the_executor_has_no_identity(runtime, monkeypatch):
+    injected = RecordingExecutor(inference={"ready": False, "runtime": "opencode-cli",
+                                            "reason": "qualified image missing"})
+    monkeypatch.setattr(real_engine, "settings",
+                        dataclasses.replace(real_engine.settings, inference_backend="docker"))
+    engine = real_engine.RealEngine(executor=injected)
+    with pytest.raises(RuntimeError, match="Canonical inference executor unavailable"):
+        engine.launch_mission("PD01", request_id="missing-inference-identity", defer=True)
+    assert runtime.store.queued_missions() == []
 
 
 def test_delivery_accepts_an_injected_executor(runtime):
