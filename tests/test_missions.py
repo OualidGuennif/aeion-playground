@@ -1,5 +1,6 @@
 """Regression checks for real sandbox execution and fail-closed acceptance."""
 import json
+import uuid
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -10,7 +11,7 @@ from app.evidence import EvidenceWriter
 
 
 def result(agent, **fields):
-    return AgentResult(status="completed", runtime="test-runner", run_id=f"test-{agent}", **fields)
+    return AgentResult(status="completed", runtime="test-runner", run_id=f"test-{agent}-{uuid.uuid4().hex[:12]}", **fields)
 
 
 def run_scenario(runtime, fixture, runner=None):

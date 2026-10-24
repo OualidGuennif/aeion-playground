@@ -595,11 +595,8 @@ class RealEngine:
                                              "selected_model": model, "task_class": plan["analysis"]["task_class"],
                                              "rule": plan["rule"], "skipped": plan["skipped"], "analysis": plan["analysis"]}
                     router.observe(model, result)
-                store.add_run({"mission_id": mission_id, "agent": agent_id, **result.to_dict()})
-                measured = store.mission(mission_id)
-                store.update_mission(mission_id, cost_usd=measured["cost_usd"] + result.cost_usd,
-                                     tokens_in=measured["tokens_in"] + result.tokens_in,
-                                     tokens_out=measured["tokens_out"] + result.tokens_out)
+                store.add_run({"mission_id": mission_id, "agent": agent_id, **result.to_dict(),
+                               "cost_usd": result.cost_usd})
                 if result.status == "completed" or not router or not availability_error(result.error):
                     return result
             return result

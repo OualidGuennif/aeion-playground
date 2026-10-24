@@ -18,7 +18,9 @@ result, not a guarantee against unknown vulnerabilities.
 Local complete suites with the corrected dependency: **264 Docker cases passed, 7 native
 cases skipped**; **266 macOS cases passed, 5 Docker cases skipped**. The CI workflow runs
 both plus full Git history secret scanning and dependency auditing. Hosted CI must pass on
-the exact PR revision before merge. Private local run data is not published as evidence.
+the exact PR revision before merge. PR #1 passed all four hosted checks on
+`aeed0bb5f65198dd98d4a3b00159f747582c87c8` and was squash-merged as
+`2dce9f24dbb96277a0dacfd37d3d73f437f85e82`. Private local run data is not published as evidence.
 
 See [the roadmap](roadmap.md) for uncompleted gates. The trusted native model CLI/controller,
 independent acceptance oracle, usage reservations/outbox and scoped GitHub delivery remain
