@@ -42,6 +42,7 @@ def runtime(tmp_path, monkeypatch):
     for name, value in [("store", ledger), ("memory_store", memory), ("sandbox", workspace), ("graph_projection", graph), ("paperclip", workboard), ("evidence_writer", EvidenceWriter(tmp_path / "packets")), ("emit", lambda event: None)]:
         monkeypatch.setattr(real_engine, name, value)
     monkeypatch.setattr(observability, "store", ledger)
+    monkeypatch.setattr(observability, "collector_health", lambda: {"available": False, "url": "http://127.0.0.1:13133"})
     monkeypatch.setattr(main, "store", ledger)
     engine = real_engine.RealEngine()
     # Legacy regression cases keep their admitted pinned-runtime behavior.

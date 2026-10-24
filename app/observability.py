@@ -1,25 +1,24 @@
-"""Local observability projection.
-
-Events are written as OTel-shaped JSONL under `runtime/otel/events.jsonl`. No
-collector is running; the file is a local, inspectable projection of the same
-SQLite ledger. KPIs are computed from real mission rows and agent runs.
-"""
+"""Canonical ledger metrics and metadata-only export to a real local collector."""
 
 from __future__ import annotations
 
-import json
+import os
 import threading
 import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+import httpx
+
 from .config import settings
 from .store import store
+from .event_export import EventExporter
 
-OTEL_PATH = settings.poc_dir / "runtime" / "otel" / "events.jsonl"
 AUDIT_PATH = settings.audit_path
 _lock = threading.Lock()
+_exporter = None
+_collector_cache = None
 
 
 def _now() -> str:
@@ -27,30 +26,48 @@ def _now() -> str:
 
 
 def emit(event: dict[str, Any]) -> None:
-    """Append one event to the JSONL audit trail and OTel-shaped projection."""
-    OTEL_PATH.parent.mkdir(parents=True, exist_ok=True)
-    AUDIT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    timestamp = event.get("ts") or _now()
-    nano = int(time.time() * 1_000_000_000)
-    otel = {
-        "ts": timestamp,
-        "observedTimeUnixNano": str(nano),
-        "severityText": str(event.get("severity", "info")).upper(),
-        "body": event.get("message"),
-        "attributes": {
-            "service.name": "aeion-parceldesk-poc",
-            "aeion.event.type": event.get("type"),
-            "aeion.actor": event.get("actor"),
-            "aeion.mission.id": event.get("mission"),
-            "aeion.fixture": event.get("fixture"),
-            "aeion.payload": event.get("payload") or {},
-        },
-    }
+    """Wake delivery; the event and outbox already committed together in Store."""
+    if _exporter:
+        _exporter.wake.set()
+
+
+def start_exporter():
+    global _exporter
     with _lock:
-        with OTEL_PATH.open("a", encoding="utf-8") as stream:
-            stream.write(json.dumps(otel, ensure_ascii=False) + "\n")
-        with AUDIT_PATH.open("a", encoding="utf-8") as stream:
-            stream.write(json.dumps(event, ensure_ascii=False) + "\n")
+        if _exporter is None:
+            _exporter = EventExporter(store, AUDIT_PATH, os.environ.get("AEION_OTLP_ENDPOINT", "http://127.0.0.1:4318"))
+        _exporter.start()
+
+
+def stop_exporter():
+    global _exporter
+    with _lock:
+        if _exporter:
+            _exporter.stop()
+            _exporter = None
+
+
+def collector_health():
+    """Probe the actual local receiver, not merely the presence of a file."""
+    global _collector_cache
+    now = time.monotonic()
+    if _collector_cache and now - _collector_cache[0] < 5:
+        return _collector_cache[1]
+    try:
+        with httpx.Client(timeout=1, trust_env=False, follow_redirects=False) as client:
+            with client.stream("GET", "http://127.0.0.1:13133/") as response:
+                available = response.status_code == 200
+    except httpx.HTTPError:
+        available = False
+    result = {"available": available, "url": "http://127.0.0.1:13133"}
+    _collector_cache = (now, result)
+    return result
+
+
+def delivery_status():
+    return {**store.outbox_status(), "worker_running": bool(_exporter and _exporter.thread and _exporter.thread.is_alive()),
+            "last_error": _exporter.failure if _exporter else None, "collector": collector_health(),
+            "export": "local OTLP HTTP, metadata only; delivery is at least once"}
 
 
 def kpis(agent_rows: list[dict[str, Any]], budget_total: float) -> dict[str, Any]:

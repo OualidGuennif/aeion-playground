@@ -36,3 +36,15 @@ also require their targeted qualification.
 See [the roadmap](roadmap.md) for uncompleted gates. The trusted controller remains
 native; independent acceptance, budget reservations/outbox and scoped GitHub product
 delivery are separate work. Test/container counts do not qualify those boundaries.
+
+The durable-telemetry checkpoint passed **393 cases with 12 skips** on macOS
+(Python 3.12.8). Eleven skips are the existing opt-in container/stack checks; the twelfth
+is the collector qualification below, which was run separately and passed. The opt-in
+qualification used the pinned local collector container and asserted its read-only root
+filesystem, dropped capabilities, no-new-privileges, memory/CPU/PID limits, loopback-only
+ports, metadata privacy (a canary message and payload never reached the receiver), duplicate
+identity on explicit replay, collector-outage backoff, and recovery across a controller and
+collector restart. The events it submitted are marked `controlled-qualification`; no model
+provider was called, and a receiving collector is not evidence of isolated inference. These
+are local results: hosted CI must pass on the final PR revision, and the telemetry path is
+not an acceptance oracle.

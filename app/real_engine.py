@@ -38,7 +38,7 @@ from .memory import memory_store
 from .model_routing import ModelRouter, RoutingBlocked, availability_error
 from .operator_settings import load_routing_policy
 from .observability import charts as build_charts
-from .observability import emit, kpis as build_kpis
+from .observability import emit, kpis as build_kpis, start_exporter, stop_exporter, delivery_status
 from .paperclip import paperclip
 from .policy_engine import PolicyEngine
 from .patch_protocol import PATCH_PROTOCOL, parse_patch, source_context
@@ -175,6 +175,7 @@ class RealEngine:
         self.recover_interrupted()
         agent_runner.resume()
         self._started = True
+        start_exporter()
         memory_store.seed_sources()
         emit(
             store.add_event(
@@ -197,6 +198,7 @@ class RealEngine:
         agent_runner.cancel_all()
         if self._worker:
             self._worker.join(timeout=5)
+        stop_exporter()
 
     def recover_interrupted(self) -> None:
         """Never replay an external call whose result was lost in a restart."""
@@ -1957,12 +1959,22 @@ class RealEngine:
             "name": "Mission ledger", "status": "ready", "detail": "Persistent missions, checks and evidence",
             "execution": "SQLite file", "location": "runtime/aeion.db",
         }
+        telemetry = delivery_status()
+        ready = telemetry["collector"]["available"] and telemetry["worker_running"] and not telemetry["failed"]
+        components["observability"] = {
+            "name": "OpenTelemetry", "status": "ready" if ready else "partial",
+            "detail": f"Collector {'reachable' if telemetry['collector']['available'] else 'unavailable'}; "
+                      f"audit pending {telemetry['audit_pending']}, collector pending {telemetry['collector_pending']}",
+            "execution": "SQLite outbox → native exporter → local OTLP collector",
+            "location": "http://127.0.0.1:13133", "delivery": telemetry,
+        }
         return components
 
     def _frameworks(self) -> list[dict[str, Any]]:
         ops = self._ops or {}
         croa = self._croa or {}
         health = paperclip.health()
+        telemetry = delivery_status()
         return [
             {
                 "id": "factory",
@@ -1995,10 +2007,12 @@ class RealEngine:
                 "id": "observability",
                 "name": "Æion Observability",
                 "role": "Task-level cost, time and outcome contract.",
-                "used": "OTel-shaped JSONL + SQLite metrics. No collector is running.",
-                "status": "partial",
+                "used": f"SQLite outbox, private audit and metadata-only OTLP; collector "
+                        f"{'reachable' if telemetry['collector']['available'] else 'unavailable'}, "
+                        f"{telemetry['collector_pending']} pending. At-least-once delivery.",
+                "status": "active" if telemetry["collector"]["available"] and telemetry["worker_running"] and not telemetry["failed"] else "partial",
                 "color": "#22d3ee",
-                "path": "../Æion_Observability",
+                "path": "infra/otel/collector.yaml",
             },
             {
                 "id": "spaceship",
