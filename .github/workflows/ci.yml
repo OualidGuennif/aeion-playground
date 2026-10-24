@@ -79,6 +79,9 @@ jobs:
       - run: docker compose up -d --wait --wait-timeout 420 postgres paperclip cockpit
       - name: Verify real authentication, persistence and database restore
         run: AEION_STACK_TESTS=1 .venv/bin/python -m pytest -q tests/test_compose_stack.py
+      - name: Cockpit diagnostics on failure
+        if: failure()
+        run: docker compose logs --tail=120 cockpit
       - name: Remove this disposable CI stack
         if: always()
         run: docker compose down --volumes
