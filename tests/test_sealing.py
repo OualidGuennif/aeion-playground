@@ -85,7 +85,7 @@ def test_database_abort_rolls_back_completion_evidence_and_step_together(runtime
     assert runtime.engine.approve(mission_id)
     assert runtime.store.mission(mission_id)["status"] == "running"
     assert runtime.store.evidence_for(mission_id)["status"] == "draft"
-    assert next(step for step in runtime.store.steps(mission_id) if step["idx"] == 6)["status"] == "running"
+    assert next(step for step in runtime.store.steps(mission_id) if step["label"] == "Owner approval")["status"] == "running"
     packet = runtime.store.pending_seal(mission_id)
     path = Path(packet["path"])
     original = path.read_bytes()
@@ -97,7 +97,7 @@ def test_database_abort_rolls_back_completion_evidence_and_step_together(runtime
     try:
         assert reopened.mission(mission_id)["status"] == "completed"
         assert reopened.evidence_for(mission_id)["status"] == "sealed"
-        assert next(step for step in reopened.steps(mission_id) if step["idx"] == 6)["status"] == "done"
+        assert next(step for step in reopened.steps(mission_id) if step["label"] == "Owner approval")["status"] == "done"
         assert path.read_bytes() == original  # Recovery indexes the exact original seal.
     finally:
         reopened._conn.close()
