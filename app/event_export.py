@@ -88,8 +88,9 @@ class EventExporter:
         self.ledger, self.audit_path = ledger, Path(audit_path)
         endpoint = endpoint.rstrip("/")
         url = urlparse(endpoint)
-        if url.scheme != "http" or url.hostname != "127.0.0.1" or not url.port or url.path or url.username or url.password or url.query or url.fragment:
-            raise ValueError("Telemetry export requires a loopback HTTP origin")
+        allowed = {host.strip() for host in os.environ.get("AEION_OTLP_ALLOWED_HOSTS", "").split(",") if host.strip()}
+        if url.scheme != "http" or url.hostname not in ({"127.0.0.1"} | allowed) or not url.port or url.path or url.username or url.password or url.query or url.fragment:
+            raise ValueError("Telemetry export requires a loopback or explicitly allowed collector origin")
         self.endpoint = endpoint
         self.wake = threading.Event()
         self.stopped = threading.Event()

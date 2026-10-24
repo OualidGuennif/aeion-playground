@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from urllib.parse import urlparse
 import threading
 import time
 from datetime import datetime, timezone
@@ -53,13 +54,18 @@ def collector_health():
     now = time.monotonic()
     if _collector_cache and now - _collector_cache[0] < 5:
         return _collector_cache[1]
+    target = os.environ.get("AEION_OTEL_HEALTH_URL", "http://127.0.0.1:13133").rstrip("/")
+    parsed = urlparse(target)
+    allowed = {host.strip() for host in os.environ.get("AEION_OTLP_ALLOWED_HOSTS", "").split(",") if host.strip()}
+    if parsed.scheme != "http" or parsed.hostname not in ({"127.0.0.1"} | allowed) or parsed.path not in ("", "/"):
+        target = "http://127.0.0.1:13133"
     try:
         with httpx.Client(timeout=1, trust_env=False, follow_redirects=False) as client:
-            with client.stream("GET", "http://127.0.0.1:13133/") as response:
+            with client.stream("GET", target + "/") as response:
                 available = response.status_code == 200
     except httpx.HTTPError:
         available = False
-    result = {"available": available, "url": "http://127.0.0.1:13133"}
+    result = {"available": available, "url": target}
     _collector_cache = (now, result)
     return result
 

@@ -13,7 +13,8 @@ def prepare(root: Path) -> None:
     if directory.stat().st_uid != os.getuid():
         raise ValueError("Secret directory must belong to the current operator")
     directory.chmod(0o700)
-    for name in ("postgres_password", "paperclip_auth", "paperclip_actions", "gateway_admin"):
+    for name in ("postgres_password", "paperclip_auth", "paperclip_actions", "gateway_admin",
+                 "executor_agent"):
         target = directory / name
         try:
             descriptor = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)

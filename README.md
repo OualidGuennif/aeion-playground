@@ -38,6 +38,26 @@ python3.12 -m venv .venv
 
 Then open <http://127.0.0.1:8124> and <http://127.0.0.1:8124/parceldesk>.
 
+### Or run the cockpit in Docker
+
+The cockpit has its own image and **no Docker socket**. Test workers, author and reviewer
+containers are launched by a trusted agent that stays on the host:
+
+```sh
+.venv/bin/python scripts/prepare_stack.py
+.venv/bin/python -m app.executor_agent --bind 127.0.0.1 --port 8131 &
+docker compose up -d --wait postgres paperclip otel-collector inference-gateway cockpit
+```
+
+Open <http://127.0.0.1:8124>. The cockpit reaches the agent through a capability token in
+`runtime/secrets/executor_agent`; nothing else from the host is mounted into it. On Linux,
+bind the Docker bridge gateway instead (`--bind 172.17.0.1`) and start Compose with
+`AEION_EXECUTOR_URL=http://172.17.0.1:8131`. Without the agent the UI still boots and
+reports the executor unavailable; there is no automatic fallback to a socket.
+
+The full mission loop also needs the worker image, the gateway image and an explicitly
+authorized routing policy. See [running the demo in containers](docs/demo-deployment.md).
+
 What to click, in order:
 
 1. **Launch PD01** — a deliberately broken pricing rule. The model proposes a patch; a

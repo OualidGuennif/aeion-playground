@@ -96,6 +96,7 @@ services:
       PAPERCLIP_BIND: lan
       PAPERCLIP_AUTH_RATE_LIMIT_ENABLED: 'true'
       PAPERCLIP_PUBLIC_URL: http://127.0.0.1:3101
+      PAPERCLIP_ALLOWED_HOSTNAMES: paperclip,host.docker.internal
       PAPERCLIP_TELEMETRY_DISABLED: '1'
     secrets: [postgres_password, paperclip_auth, paperclip_actions]
     ports: ['127.0.0.1:3101:3101']
@@ -122,6 +123,49 @@ services:
       timeout: 5s
       retries: 30
 
+  cockpit:
+    image: aeion-playground-cockpit:1
+    build:
+      context: .
+      dockerfile: infra/cockpit/Dockerfile
+    restart: unless-stopped
+    user: '1000:1000'
+    environment:
+      PAPERCLIP_BASE_URL: http://paperclip:3101
+      AEION_OTLP_ENDPOINT: http://otel-collector:4318
+      AEION_OTLP_ALLOWED_HOSTS: otel-collector
+      AEION_OTEL_HEALTH_URL: http://otel-collector:13133
+      AEION_EXECUTOR_URL: ${AEION_EXECUTOR_URL:-http://host.docker.internal:8131}
+      AEION_EXECUTOR_TOKEN_FILE: /run/secrets/executor_agent
+      AEION_MAX_ACTIVE_MISSIONS: '1'
+    secrets: [executor_agent]
+    ports: ['127.0.0.1:8124:8124']
+    networks: [control, workboard]
+    volumes:
+      - cockpit_runtime:/app/runtime
+      - ./config:/app/config:ro
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    read_only: true
+    tmpfs: ['/tmp:rw,noexec,nosuid,nodev,size=64m']
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 1024m
+    cpus: 2
+    pids_limit: 256
+    stop_grace_period: 30s
+    logging: *bounded-logging
+    depends_on:
+      otel-collector:
+        condition: service_started
+      paperclip:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, python, -I, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8124/api/health',timeout=2).close()"]
+      interval: 5s
+      timeout: 3s
+      retries: 24
+
 networks:
   control: {}
   workboard:
@@ -135,10 +179,13 @@ networks:
 volumes:
   postgres_data:
   paperclip_data:
+  cockpit_runtime:
 
 secrets:
   gateway_admin:
     file: ./runtime/secrets/gateway_admin
+  executor_agent:
+    file: ./runtime/secrets/executor_agent
   postgres_password:
     file: ./runtime/secrets/postgres_password
   paperclip_auth:

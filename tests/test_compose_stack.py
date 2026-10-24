@@ -76,3 +76,20 @@ def test_database_survives_restart_and_backup_restores():
     finally:
         for database in (source, restored):
             sql("postgres", f"DROP DATABASE IF EXISTS {database} WITH (FORCE)")
+
+
+def test_cockpit_has_no_socket_or_host_home_and_serves_both_surfaces():
+    identity = docker("compose", "ps", "-q", "cockpit").decode().strip()
+    config = json.loads(docker("inspect", identity, "--format", "{{json .HostConfig}}"))
+    assert config["ReadonlyRootfs"] and config["Privileged"] is False
+    assert "ALL" in config["CapDrop"]
+    assert config["Memory"] > 0 and config["PidsLimit"] > 0 and config["NanoCpus"] > 0
+    assert "no-new-privileges:true" in config["SecurityOpt"]
+    assert config["PortBindings"] == {"8124/tcp": [{"HostIp": "127.0.0.1", "HostPort": "8124"}]}
+    binds = config.get("Binds") or []
+    assert not any("docker.sock" in mount for mount in binds)
+    assert not any(mount.startswith("/Users/") or mount.startswith("/home/") for mount in binds)
+    with httpx.Client(base_url="http://127.0.0.1:8124", trust_env=False, timeout=10) as client:
+        assert client.get("/").status_code == 200
+        assert client.get("/parceldesk").status_code == 200
+        assert client.get("/api/health").json()["ok"] is True
