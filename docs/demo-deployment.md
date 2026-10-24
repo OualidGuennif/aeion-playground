@@ -102,7 +102,7 @@ Implemented properties:
 | 3 | missing/wrong token refused; a world-readable host token is refused at startup | covered by `tests/test_executor_agent.py` |
 | 4 | worker launched by the agent has `--network none`, read-only root, non-root, dropped caps, documented limits | **not written** — requires an opt-in Docker qualification |
 | 5 | killing the agent mid-run leaves no orphan container and records a blocked mission | **not written** |
-| 6 | cockpit serves Mission Control and ParcelDesk with the agent stopped, reporting `executor unavailable` | **not written** — observed manually only |
+| 6 | cockpit serves Mission Control and ParcelDesk with the agent stopped, reporting `executor unavailable` | covered by the hosted `stack-tests` job: it starts the cockpit with no host agent and checks `/`, `/parceldesk`, `/warehouse` and `/api/health` |
 
 The unit tests use a fake workspace and a fake role runner. They prove the protocol and
 the refusals; they do not prove container isolation. What was measured with real

@@ -57,12 +57,12 @@ est la référence : toute décision doit pouvoir être rattachée à une ligne 
 | P0 | `CURRENT.md` + plan | Ce fichier relu et cohérent | fait |
 | P1 | Guidelines du repo : `CONTRIBUTING.md`, templates d'issue/PR, `SECURITY` complété | Un contributeur sait coder, tester, proposer ; un ticket ParcelDesk a un format que les agents peuvent lire | **fait** — PR #9, `6d15bde` |
 | P2 | README : comprendre la démo, la lancer, voir le parcours, créer un ticket | Un lecteur froid lance la démo en < 10 min | **fait** — PR #9 |
-| P3 | Écosystème en Docker : cockpit + services, sans socket dans les rôles | `docker compose up` sert le cockpit sur 127.0.0.1 ; tests de frontière négatifs | **fait** — PR #12 + #13 (merge #13 en cours ; health sans agent corrigé). Cockpit sain sur 127.0.0.1:8124, agent hôte (probe/run_tests/run_role), PD00 et PD03 mesurés via l'agent. Limites : test agent-kill non écrit, inférence live non qualifiée. |
+| P3 | Écosystème en Docker : cockpit + services, sans socket dans les rôles | `docker compose up` sert le cockpit sur 127.0.0.1 ; tests de frontière négatifs | **fait** — PR #12 + #13 (`574d8d0`). Cockpit sain sur 127.0.0.1:8124, agent hôte (probe/run_tests/run_role), PD00 et PD03 mesurés via l'agent. Limites : test agent-kill non écrit, inférence live non qualifiée. |
 | P4 | Diagramme `knowledge/` (archify/tt-a1i ou équivalent local) | Diagramme versionné, cohérent avec le code | **fait** — PR #14 (`3c015ac`), Archify 3.2.0, validate/deliver/check/browser-check pass. |
 | P5 | Gate externe (external acceptance) | Un rapport de worker n'est jamais accepté seul | **fait** — PR #15 mergée (`c3b6bdf`). Le Gate rejoue les tests de confiance sur `app/` patché ; un worker seul est refusé `EXTERNAL_ACCEPTANCE`. |
 | P6 | Livraison GitHub (issue → PR → CI → merge) | Parcours réel démontré, autorité humaine séparée | à faire — non implémenté ; le README dit explicitement que GitHub delivery est *Pending*. |
 | P7 | Qualification finale : install fraîche, backup/restore, limites | Rapport daté, limites explicites | à faire |
-| P8 | **ParcelDesk** démo 3D + support, tickets délégués à la Factory | La démo s'améliore via ses propres tickets | **fait** — PR #16 (merge en cours). `/warehouse` Three.js, commandes/remboursements/support, onglet Factory → mission `agent` bornée (patch → tests worker → acceptance Gate → review → Gate → release locale). Limites : le patch accepté n'est pas hot-déployé ; le contexte libre reste pricing. |
+| P8 | **ParcelDesk** démo 3D + support, tickets délégués à la Factory | La démo s'améliore via ses propres tickets | **fait** — PR #16 (`c37a479`). `/warehouse` Three.js, commandes/remboursements/support, onglet Factory → mission `agent` bornée (patch → tests worker → acceptance Gate → review → Gate → release locale). Limites : le patch accepté n'est pas hot-déployé ; le contexte libre reste pricing. |
 
 ## Journal
 
@@ -83,3 +83,5 @@ est la référence : toute décision doit pouvoir être rattachée à une ligne 
   un worker seul ; test de mission avec tests affaiblis bloqué avant review.
 
 - 2026-10-25 00:xx : PR #15 mergée (`c3b6bdf`) — acceptance Gate-owned ; mission avec tests remplacés bloquée `EXTERNAL_ACCEPTANCE` avant review. PR #13 (cockpit Docker) : health sans agent corrigé, stack CI relancée. PR #16 (ParcelDesk 3D + Factory) : `/warehouse` rendu (capture navigateur), remboursement PD-1035 mesuré 24,00 €, 418 tests mesurés. Diagramme Archify et agent hôte déjà sur `main`.
+
+- 2026-10-25 00:xx : PR #13 mergée (`574d8d0`) — cockpit Docker, binds `runtime/cockpit` + token, stack CI verte avec `/`, `/parceldesk`, `/warehouse` et `/api/health` sans agent. PR #16 mergée (`c37a479`) — `/warehouse` 3D + Factory. Suite finale : 422 passed, 13 skipped. Étapes restantes : P6 (GitHub delivery) et P7 (qualification fraîche/agent-kill), plus l'inférence live non exercée.
