@@ -260,7 +260,11 @@ class RealEngine:
         now = time.time()
         if not force and self._agent_probe and now - self._agent_probe[0] < 30:
             return self._agent_probe[1]
-        probe = self.executor.inference_probe()
+        try:
+            probe = self.executor.inference_probe()
+        except Exception as error:
+            probe = {"ready": False, "runtime": "executor-unavailable",
+                     "reason": f"Executor agent unavailable: {error}"}
         self._agent_probe = (now, probe)
         return probe
 
@@ -393,6 +397,10 @@ class RealEngine:
                 if minimum > 1000:
                     raise ValueError("The admitted minimum test count cannot exceed 1000 cases.")
                 scenario = {**scenario, "minimum_tests": minimum}
+        try:
+            test_executor = self.executor.probe()
+        except Exception as error:
+            raise RuntimeError(f"Canonical test executor unavailable: {error}") from error
         record = {
             "scenario": scenario["kind"],
             "fixture": scenario["fixture"],
@@ -414,7 +422,7 @@ class RealEngine:
                 "template_digest": source_release["tree_digest"] if source_release else sandbox.template_digest(),
                 "policy_digest": sandbox.policy_digest(),
                 "runtime": self._runtime_contract() if scenario["kind"] == "agent" else {"runtime": "local"},
-                "test_executor": self.executor.probe(),
+                "test_executor": test_executor,
                 "source_release": source_release,
                 "request": request,
                 **({"routing": routing} if routing else {}),
