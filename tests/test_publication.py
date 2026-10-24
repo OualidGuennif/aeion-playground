@@ -18,6 +18,12 @@ def test_public_index_refuses_sensitive_or_linked_state(mode, name):
     assert publication.violation(mode, name)
 
 
-@pytest.mark.parametrize("name", [".env.example", "config/model-routing.example.json", "app/main.py"])
+@pytest.mark.parametrize("name", [".env.example", "config/model-routing.example.json", "app/main.py",
+                                  "app/static/vendor/three/three.module.min.js"])
 def test_public_index_permits_source_and_safe_examples(name):
     assert not publication.violation("100644", name)
+
+
+@pytest.mark.parametrize("name", ["vendor/private/repo.py", "nested/vendor/private.py", "app/static/other/vendor/file.js"])
+def test_public_index_still_refuses_private_vendor_clones(name):
+    assert publication.violation("100644", name)
