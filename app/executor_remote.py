@@ -188,6 +188,13 @@ class RemoteExecutor:
             raise ExecutorUnavailable("Executor agent returned no executor identity")
         return executor
 
+    def inference_probe(self) -> dict[str, Any]:
+        payload = self._json("GET", "/v1/probe", timeout=min(self.timeout, 30))
+        probe = payload.get("inference")
+        if not isinstance(probe, dict):
+            return {"ready": False, "runtime": "unknown", "reason": "Executor agent returned no inference probe"}
+        return probe
+
     def run_tests(self, path: Path, *, timeout: float = 180,
                   expected_executor: dict[str, Any] | None = None) -> TestResult:
         archive, digest = build_snapshot(path)

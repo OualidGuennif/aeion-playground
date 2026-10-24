@@ -71,13 +71,17 @@ class ExecutorClient(Protocol):
     def run_role(self, **kwargs: Any) -> AgentResult:
         """Run one bounded author or reviewer role and return its result."""
 
+    def inference_probe(self) -> dict[str, Any]:
+        """Report whether the model role runtime is ready, without provider calls."""
+
 
 class InProcessExecutor:
     """Trusted-host executor: the current behaviour, behind the boundary."""
 
-    def __init__(self, workspace: SandboxManager, role_runner=None):
+    def __init__(self, workspace: SandboxManager, role_runner=None, inference_probe=None):
         self._workspace = workspace
         self._role_runner = role_runner
+        self._inference_probe = inference_probe
 
     def probe(self, *, timeout: float = 180) -> dict[str, Any]:
         return self._workspace.executor_contract(timeout=timeout)
@@ -98,12 +102,19 @@ class InProcessExecutor:
             return agent_runner.run(**kwargs)
         return self._role_runner(**kwargs)
 
+    def inference_probe(self) -> dict[str, Any]:
+        if self._inference_probe is not None:
+            return self._inference_probe()
+        from .agent_runner import agent_runner
 
-def default_executor(workspace: SandboxManager, role_runner) -> ExecutorClient:
+        return agent_runner.probe()
+
+
+def default_executor(workspace: SandboxManager, role_runner, inference_probe=None) -> ExecutorClient:
     """Use the remote agent when a URL is configured, never as a silent fallback."""
     url = os.environ.get("AEION_EXECUTOR_URL", "").strip()
     if not url:
-        return InProcessExecutor(workspace, role_runner=role_runner)
+        return InProcessExecutor(workspace, role_runner=role_runner, inference_probe=inference_probe)
     from .executor_remote import RemoteExecutor
 
     token_file = Path(os.environ.get("AEION_EXECUTOR_TOKEN_FILE", str(POC_DIR / "runtime/secrets/executor_agent")))

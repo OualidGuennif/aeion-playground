@@ -155,7 +155,8 @@ def _loads(value: str | None, default: Any) -> Any:
 class RealEngine:
     def __init__(self, executor: ExecutorClient | None = None) -> None:
         self._lock = threading.RLock()
-        self.executor: ExecutorClient = executor or default_executor(sandbox, lambda **kwargs: agent_runner.run(**kwargs))
+        self.executor: ExecutorClient = executor or default_executor(
+            sandbox, lambda **kwargs: agent_runner.run(**kwargs), lambda: agent_runner.probe())
         self._started = False
         self._wake = threading.Event()
         self._worker: threading.Thread | None = None
@@ -259,7 +260,7 @@ class RealEngine:
         now = time.time()
         if not force and self._agent_probe and now - self._agent_probe[0] < 30:
             return self._agent_probe[1]
-        probe = agent_runner.probe()
+        probe = self.executor.inference_probe()
         self._agent_probe = (now, probe)
         return probe
 
@@ -1967,8 +1968,8 @@ class RealEngine:
             "name": "OpenTelemetry", "status": "ready" if ready else "partial",
             "detail": f"Collector {'reachable' if telemetry['collector']['available'] else 'unavailable'}; "
                       f"audit pending {telemetry['audit_pending']}, collector pending {telemetry['collector_pending']}",
-            "execution": "SQLite outbox → native exporter → local OTLP collector",
-            "location": "http://127.0.0.1:13133", "delivery": telemetry,
+            "execution": "SQLite outbox → exporter → local OTLP collector",
+            "location": telemetry["collector"]["url"], "delivery": telemetry,
         }
         return components
 

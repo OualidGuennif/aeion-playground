@@ -78,7 +78,8 @@ def checkout(tmp_path):
 @pytest.fixture()
 def agent(tmp_path):
     workspace = FakeWorkspace()
-    instance = ExecutorAgent(tmp_path / "agent", TOKEN, workspace=workspace, role_runner=role_result)
+    instance = ExecutorAgent(tmp_path / "agent", TOKEN, workspace=workspace, role_runner=role_result,
+                             inference_probe=lambda: {"ready": True, "runtime": "fake", "reason": None})
     server = BoundedServer(("127.0.0.1", 0), handler(instance))
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
@@ -108,6 +109,8 @@ def test_probe_requires_the_capability_and_health_leaks_nothing(agent):
     assert raw_status(base + "/v1/probe", token="c" * 64)[0] == 401
     status, body = raw_status(base + "/v1/probe", token=TOKEN)
     assert status == 200 and body["executor"] == IDENTITY
+    assert body["inference"] == {"ready": True, "runtime": "fake", "reason": None}
+    assert RemoteExecutor(base, token=TOKEN).inference_probe() == body["inference"]
 
 
 def test_an_unprepared_snapshot_is_refused_before_any_test_run(agent):

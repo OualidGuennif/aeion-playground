@@ -138,7 +138,7 @@ def _bounded_text(body: dict[str, Any], key: str, limit: int, *, required: bool 
 
 class ExecutorAgent:
     def __init__(self, root: Path, token: str, *, workspace: SandboxManager | None = None,
-                 role_runner=None):
+                 role_runner=None, inference_probe=None):
         if not re.fullmatch(r"[0-9a-f]{64}", token):
             raise Denied("Invalid executor capability", 500)
         self.token = token
@@ -148,6 +148,7 @@ class ExecutorAgent:
         self.roles = _owner_directory(self.root / "roles")
         self.workspace = workspace or SandboxManager(self.runs / "workspace")
         self.role_runner = role_runner
+        self._inference_probe = inference_probe
         self._store_lock = threading.Lock()
 
     # ------------------------------------------------------------------ probe
@@ -159,6 +160,18 @@ class ExecutorAgent:
         if not isinstance(identity, dict) or not identity:
             raise Denied("Executor identity is empty", 503)
         return identity
+
+    def inference_probe(self) -> dict[str, Any]:
+        try:
+            if self._inference_probe is not None:
+                probe = self._inference_probe()
+            else:
+                from .agent_runner import agent_runner
+
+                probe = agent_runner.probe()
+        except Exception as error:
+            return {"ready": False, "runtime": "unknown", "reason": f"Inference probe failed: {type(error).__name__}"}
+        return probe if isinstance(probe, dict) else {"ready": False, "runtime": "unknown", "reason": "Invalid inference probe"}
 
     # ------------------------------------------------------------------ snapshots
     def _snapshot_path(self, digest: str) -> Path:
@@ -239,7 +252,9 @@ class ExecutorAgent:
             result = self.workspace.run_tests(root, timeout=timeout, expected_executor=expected_executor)
         payload = result.to_dict()
         payload["junit_path"] = None
-        return _redact(payload, (str(self.root), temporary))
+        system_temp = tempfile.gettempdir()
+        paths = (str(self.root), temporary) + ((system_temp,) if system_temp not in {"/tmp", "/var/tmp"} else ())
+        return _redact(payload, paths)
 
     # ------------------------------------------------------------------ roles
     def run_role(self, body: dict[str, Any]) -> dict[str, Any]:
@@ -358,7 +373,8 @@ def handler(agent: ExecutorAgent):
                 return
             if self.path == "/v1/probe":
                 try:
-                    return self._send(200, {"schema": SCHEMA, "executor": agent.probe()})
+                    return self._send(200, {"schema": SCHEMA, "executor": agent.probe(),
+                                            "inference": agent.inference_probe()})
                 except Denied as error:
                     return self._send(error.status, {"error": str(error)})
             return self._send(404, {"error": "unknown operation"})
