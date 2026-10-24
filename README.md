@@ -51,7 +51,8 @@ containers are launched by a trusted agent that stays on the host:
 ```sh
 .venv/bin/python scripts/prepare_stack.py
 .venv/bin/python -m app.executor_agent --bind 127.0.0.1 --port 8131 &
-docker compose up -d --wait postgres paperclip otel-collector inference-gateway cockpit
+AEION_OPERATOR_UID=$(id -u) AEION_OPERATOR_GID=$(id -g) \
+  docker compose up -d --wait postgres paperclip otel-collector inference-gateway cockpit
 ```
 
 Open <http://127.0.0.1:8124>. The cockpit reaches the agent through a capability token in
