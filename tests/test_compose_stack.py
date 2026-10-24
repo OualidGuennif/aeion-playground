@@ -35,6 +35,13 @@ def test_real_stack_health_authentication_and_restricted_mounts():
         assert health.json()["deploymentMode"] == "authenticated"
         assert client.get("/api/companies").status_code in {401, 403}
         assert client.get("/").status_code == 200
+        # Complete schema, invalid password: exercises the origin middleware
+        # without creating an operator account or claiming ownership.
+        invalid_signup = {"name": "Origin validation probe", "email": "origin-probe@example.invalid", "password": "x"}
+        local = client.post("/api/auth/sign-up/email", headers={"Origin": "http://127.0.0.1:3101"}, json=invalid_signup)
+        assert local.status_code == 400 and local.json()["code"] == "PASSWORD_TOO_SHORT"
+        foreign = client.post("/api/auth/sign-up/email", headers={"Origin": "https://foreign.example"}, json=invalid_signup)
+        assert foreign.status_code == 403 and foreign.json()["code"] == "INVALID_ORIGIN"
     for service in ("paperclip", "postgres"):
         identity = docker("compose", "ps", "-q", service).decode().strip()
         # Select fields explicitly; never inspect or print the secret environment.
@@ -46,7 +53,7 @@ def test_real_stack_health_authentication_and_restricted_mounts():
         assert config["LogConfig"]["Config"] == {"max-file": "2", "max-size": "1m"}
         assert not any("docker.sock" in mount for mount in config.get("Binds") or [])
         if service == "paperclip":
-            assert config["PortBindings"] == {"3100/tcp": [{"HostIp": "127.0.0.1", "HostPort": "3101"}]}
+            assert config["PortBindings"] == {"3101/tcp": [{"HostIp": "127.0.0.1", "HostPort": "3101"}]}
         else:
             assert not config["PortBindings"]
 

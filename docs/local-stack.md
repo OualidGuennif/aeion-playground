@@ -26,6 +26,16 @@ Create a real browser account and choose **Claim this instance**. No factory pro
 claims human ownership. Keep this first-claim setup on the local host. See the
 [upstream bootstrap contract](https://github.com/paperclipai/paperclip/blob/412914cfa78d5abefcc34d3eb8d4bb86e461caac/doc/DEPLOYMENT-MODES.md).
 
+Paperclip listens on **3101 inside the container as well as on the host**. The pinned
+[upstream server](https://github.com/paperclipai/paperclip/blob/412914cfa78d5abefcc34d3eb8d4bb86e461caac/server/src/index.ts#L721)
+rewrites loopback authentication URLs to its actual listening port,
+even in explicit URL mode. Mapping host 3101 to container 3100 therefore caused
+**Invalid origin**; changing the public URL or mode alone did not fix it. Keep the
+listening port, published port and canonical URL aligned when changing this setup.
+Qualification checks a same-origin signup with a deliberately too-short password
+(no account created) and confirms a foreign origin remains rejected. Use the canonical
+`http://127.0.0.1:3101` address when registering or signing in.
+
 Until an operator supplies a scoped `PAPERCLIP_API_TOKEN` in local configuration, the
 factory reports authenticated API operations as unavailable/denied. Health alone does
 not establish company/task access. Never copy a browser cookie into model context or Git.
