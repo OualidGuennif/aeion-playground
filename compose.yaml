@@ -141,9 +141,7 @@ services:
     secrets:
       - source: executor_agent
         target: executor_agent
-        uid: '1000'
-        gid: '1000'
-        mode: 0400
+        mode: 0444
     ports: ['127.0.0.1:8124:8124']
     networks: [control, workboard]
     volumes:
