@@ -28,8 +28,20 @@ AEION_TEST_BACKEND=docker AEION_DOCKER_TESTS=1 .venv/bin/python -m pytest -q
 ./run.sh
 ```
 
-Open [Mission Control](http://127.0.0.1:8123) or [ParcelDesk](http://127.0.0.1:8123/parceldesk).
+Open [Mission Control](http://127.0.0.1:8124) or [ParcelDesk](http://127.0.0.1:8124/parceldesk).
 The trusted controller binds loopback only. Do not expose it publicly.
+
+For the persistent workboard, run:
+
+```sh
+.venv/bin/python scripts/prepare_stack.py
+docker compose up -d --wait postgres paperclip
+```
+
+Open [Paperclip](http://127.0.0.1:3101), create your account and choose **Claim this
+instance**. This is a fresh authenticated instance, with PostgreSQL and application data
+in named volumes. It does not import another installation or impersonate its operator.
+See [the stack runbook](docs/local-stack.md) for integration and recovery boundaries.
 
 `scripts/build_worker.py` resolves the built image to an immutable local ID. That ID,
 executor code and execution limits are frozen at task admission. A missing image or Docker

@@ -64,7 +64,7 @@ class Settings:
     graph_output_dir: Path = field(default_factory=lambda: _path("GRAPHIFY_OUTPUT", "runtime/graphify"))
     paperclip_dir: Path = field(default_factory=lambda: _path("PAPERCLIP_DIR", "vendor/paperclip"))
     paperclip_base_url: str = field(
-        default_factory=lambda: os.environ.get("PAPERCLIP_BASE_URL", "http://127.0.0.1:3100").rstrip("/")
+        default_factory=lambda: os.environ.get("PAPERCLIP_BASE_URL", "http://127.0.0.1:3101").rstrip("/")
     )
     paperclip_api_token: str = field(default_factory=lambda: os.environ.get("PAPERCLIP_API_TOKEN", ""))
     paperclip_company_id: str = field(default_factory=lambda: os.environ.get("PAPERCLIP_COMPANY_ID", ""))

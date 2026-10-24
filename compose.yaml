@@ -1,0 +1,92 @@
+name: aeion-playground
+
+x-logging: &bounded-logging
+  driver: json-file
+  options:
+    max-size: 1m
+    max-file: '2'
+
+services:
+  postgres:
+    restart: unless-stopped
+    image: postgres:17-alpine@sha256:eee6c6e1b0894fa4fe0075eb054af9fd1cf39a35321c2d4110626cfe506411fb
+    environment:
+      POSTGRES_USER: paperclip
+      POSTGRES_DB: paperclip
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    secrets: [postgres_password]
+    networks: [workboard]
+    volumes: [postgres_data:/var/lib/postgresql/data]
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=64m
+      - /var/run/postgresql:rw,noexec,nosuid,nodev,size=16m,mode=3777
+    cap_drop: [ALL]
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER, SETGID, SETUID]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 512m
+    cpus: 1
+    pids_limit: 256
+    logging: *bounded-logging
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U paperclip -d paperclip]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+  paperclip:
+    restart: unless-stopped
+    image: ghcr.io/paperclipai/paperclip@sha256:30894af7ea4a08aaab9921fabe787eabcf1946d608a2460a1eb7a29ea66135bd
+    entrypoint: [/usr/bin/tini, -s, --, /bin/sh, /opt/aeion/entrypoint.sh]
+    environment:
+      HOST: 0.0.0.0
+      PORT: '3100'
+      SERVE_UI: 'true'
+      PAPERCLIP_HOME: /paperclip
+      PAPERCLIP_DEPLOYMENT_MODE: authenticated
+      PAPERCLIP_DEPLOYMENT_EXPOSURE: private
+      PAPERCLIP_BIND: lan
+      PAPERCLIP_AUTH_RATE_LIMIT_ENABLED: 'true'
+      PAPERCLIP_PUBLIC_URL: http://127.0.0.1:3101
+      PAPERCLIP_TELEMETRY_DISABLED: '1'
+    secrets: [postgres_password, paperclip_auth, paperclip_actions]
+    ports: ['127.0.0.1:3101:3100']
+    networks: [workboard, control]
+    volumes:
+      - paperclip_data:/paperclip
+      - ./infra/paperclip-entrypoint.sh:/opt/aeion/entrypoint.sh:ro
+    read_only: true
+    tmpfs: ['/tmp:rw,nosuid,nodev,size=128m']
+    cap_drop: [ALL]
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER, SETGID, SETUID]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 1536m
+    cpus: 2
+    pids_limit: 512
+    stop_grace_period: 90s
+    logging: *bounded-logging
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:3100/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+networks:
+  control: {}
+  workboard:
+    internal: true
+
+volumes:
+  postgres_data:
+  paperclip_data:
+
+secrets:
+  postgres_password:
+    file: ./runtime/secrets/postgres_password
+  paperclip_auth:
+    file: ./runtime/secrets/paperclip_auth
+  paperclip_actions:
+    file: ./runtime/secrets/paperclip_actions

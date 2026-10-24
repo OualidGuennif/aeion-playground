@@ -62,6 +62,26 @@ jobs:
           ghcr.io/gitleaks/gitleaks@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f
           git /repo --redact --no-banner
 
+  stack-tests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.12'
+      - run: python -m venv .venv
+      - run: .venv/bin/python -m pip install --require-hashes -r requirements.lock
+      - run: .venv/bin/python scripts/prepare_stack.py
+      - run: docker compose up -d --wait --wait-timeout 180 postgres paperclip
+      - name: Verify real authentication, persistence and database restore
+        run: AEION_STACK_TESTS=1 .venv/bin/python -m pytest -q tests/test_compose_stack.py
+      - name: Remove this disposable CI stack
+        if: always()
+        run: docker compose down --volumes
+
   dependencies:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
