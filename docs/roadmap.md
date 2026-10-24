@@ -12,9 +12,9 @@ evidence; they are not copied into this public repository or replayed for activi
 | Isolated inference | Separate OpenCode role execution, minimal context, mediated credentials/egress, no approval authority | Four local real-container/CLI qualifications passed with controlled responses; hosted CI and new provider-backed run still required |
 | Accounting | Atomic run/usage records, idempotency, held unknown exposure, reservations and bounded fallback | Canonical reservations/atomic settlement implemented with controlled concurrency/crash tests; complete reconciliation tooling pending |
 | External acceptance | Gate-owned read-only checks, worker results insufficient by themselves | Pending |
-| Durable events | Transactional event outbox, idempotent recovery, trace-linked evidence | Partial |
-| Workboard | Real Paperclip task linkage, persistent service and health; one decision authority | Persistent authenticated Compose stack and restart/DB restore qualification; operator account/token needed for new instance |
-| Observability | Real collector/export with task/run/digest linkage and unavailable states | Partial |
+| Durable events | Transactional event outbox, idempotent recovery, trace-linked evidence | Implemented for new events; fenced replay and actual collector restart qualified |
+| Workboard | Real Paperclip task linkage, persistent service and health; one decision authority | Persistent authenticated Compose stack and restart/DB restore qualification; browser-approved controller connection and a real Codex development task verified locally |
+| Observability | Real collector/export with task/run/digest linkage and unavailable states | Local pinned collector, metadata-only logs/spans, real outage/restart and privacy qualification; at-least-once IDs |
 | Context | Scoped provenance/freshness, no automatic private sibling sources | Partial |
 | GitHub delivery | Dedicated demo scope, branch/PR/checks tied to exact head, separate human merge authority | Pending |
 | Qualification | Fresh install, escape/failure/recovery tests, backup/restore and documented limits | Pending |

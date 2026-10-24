@@ -2,7 +2,7 @@
 
 SQLite is the canonical local ledger. Every mission, step, agent run, gate
 decision, event and evidence packet is stored here. The JSONL audit trail and
-the OTel-shaped event file are projections of the same facts.
+the metadata-only OTLP stream are projections of the same facts.
 """
 
 from __future__ import annotations
@@ -10,8 +10,13 @@ from __future__ import annotations
 import fcntl
 import json
 import math
+import os
+import random
 import sqlite3
+import stat
 import threading
+import time
+import uuid
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from decimal import Decimal
@@ -19,6 +24,7 @@ from pathlib import Path
 from typing import Any, Iterable
 
 from .config import settings
+from .event_protocol import metadata as event_metadata
 
 SCHEMA = """
 PRAGMA journal_mode=WAL;
@@ -115,6 +121,20 @@ CREATE TABLE IF NOT EXISTS agent_runs (
     raw_json TEXT
 );
 
+CREATE TABLE IF NOT EXISTS event_outbox (
+    event_id INTEGER PRIMARY KEY REFERENCES events(id),
+    metadata_json TEXT NOT NULL,
+    audit_sent INTEGER NOT NULL DEFAULT 0,
+    collector_sent INTEGER NOT NULL DEFAULT 0,
+    owner TEXT,
+    lease_until REAL NOT NULL DEFAULT 0,
+    retry_at REAL NOT NULL DEFAULT 0,
+    attempts INTEGER NOT NULL DEFAULT 0,
+    last_error TEXT
+);
+CREATE INDEX IF NOT EXISTS event_outbox_pending ON event_outbox(retry_at,lease_until,event_id)
+    WHERE audit_sent=0 OR collector_sent=0;
+
 CREATE TABLE IF NOT EXISTS evidence (
     id TEXT PRIMARY KEY,
     mission TEXT NOT NULL,
@@ -162,7 +182,24 @@ class InferenceBudgetError(ValueError):
 class Store:
     def __init__(self, path: Path | None = None) -> None:
         self.path = path or settings.db_path
-        self.path.parent.mkdir(parents=True, exist_ok=True)
+        self.path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        # Full event content stays in the private ledger. SQLite creates new WAL/
+        # SHM files with the database mode; also restrict existing sidecars.
+        for target in (self.path, Path(str(self.path) + "-wal"), Path(str(self.path) + "-shm")):
+            flags = os.O_RDWR | os.O_NOFOLLOW | os.O_NONBLOCK
+            if target == self.path:
+                flags |= os.O_CREAT
+            try:
+                descriptor = os.open(target, flags, 0o600)
+            except FileNotFoundError:
+                continue
+            try:
+                info = os.fstat(descriptor)
+                if not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid() or info.st_nlink != 1:
+                    raise ValueError("Ledger files must be regular operator-owned files without hard links")
+                os.fchmod(descriptor, 0o600)
+            finally:
+                os.close(descriptor)
         self._conn = sqlite3.connect(self.path, check_same_thread=False, timeout=10.0)
         self._conn.row_factory = sqlite3.Row
         self._conn.execute("PRAGMA busy_timeout = 10000")
@@ -176,6 +213,8 @@ class Store:
                 if name not in columns:
                     self._conn.execute(f"ALTER TABLE missions ADD COLUMN {name} TEXT")
             self._conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS missions_request_id ON missions(request_id)")
+            self._conn.execute("INSERT OR IGNORE INTO kv(key,value) VALUES('observability:instance_id',?)", (uuid.uuid4().hex,))
+            self.instance_id = self._conn.execute("SELECT value FROM kv WHERE key='observability:instance_id'").fetchone()[0]
             self._conn.commit()
 
     # ------------------------------------------------------------------ generic
@@ -390,30 +429,76 @@ class Store:
         ts: str | None = None,
     ) -> dict[str, Any]:
         timestamp = ts or utc_now()
-        self._execute(
-            """INSERT INTO events (ts, type, actor, mission, fixture, message, severity, payload)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-            (
-                timestamp,
-                type,
-                actor,
-                mission,
-                fixture,
-                message,
-                severity,
-                json.dumps(payload, ensure_ascii=False) if payload else None,
-            ),
-        )
-        return {
-            "ts": timestamp,
-            "type": type,
-            "actor": actor,
-            "mission": mission,
-            "fixture": fixture,
-            "message": message,
-            "severity": severity,
-            "payload": payload or {},
-        }
+        event = {"ts": timestamp, "type": type, "actor": actor, "mission": mission, "fixture": fixture,
+                 "message": message, "severity": severity, "payload": payload or {}}
+        with self._lock, self._conn:
+            self._conn.execute("BEGIN IMMEDIATE")
+            cursor = self._conn.execute(
+                """INSERT INTO events (ts, type, actor, mission, fixture, message, severity, payload)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                (timestamp, type, actor, mission, fixture, message, severity,
+                 json.dumps(payload, ensure_ascii=False) if payload else None),
+            )
+            event["id"] = int(cursor.lastrowid)
+            record = event_metadata(self.instance_id, event)
+            self._conn.execute("INSERT INTO event_outbox(event_id,metadata_json) VALUES(?,?)",
+                               (event["id"], json.dumps(record, sort_keys=True, ensure_ascii=False, allow_nan=False)))
+        event["event_id"] = record["event_id"]
+        return event
+
+    def claim_outbox(self, *, now: float | None = None) -> dict | None:
+        now = time.time() if now is None else now
+        owner = uuid.uuid4().hex
+        with self._lock, self._conn:
+            self._conn.execute("BEGIN IMMEDIATE")
+            row = self._conn.execute("""SELECT * FROM event_outbox WHERE (audit_sent=0 OR collector_sent=0)
+                AND (last_error IS NULL OR last_error!='collector_rejected')
+                AND retry_at<=? AND lease_until<=? ORDER BY event_id LIMIT 1""", (now, now)).fetchone()
+            if not row:
+                return None
+            self._conn.execute("UPDATE event_outbox SET owner=?,lease_until=? WHERE event_id=?", (owner, now + 30, row["event_id"]))
+            result = dict(row)
+            event = dict(self._conn.execute("SELECT * FROM events WHERE id=?", (row["event_id"],)).fetchone())
+        event["payload"] = json.loads(event["payload"]) if event["payload"] else {}
+        result.update(owner=owner, lease_until=now + 30, event=event, metadata=json.loads(result["metadata_json"]))
+        return result
+
+    def acknowledge_outbox(self, event_id: int, owner: str, sink: str) -> bool:
+        column = {"audit": "audit_sent", "collector": "collector_sent"}[sink]
+        with self._lock, self._conn:
+            changed = self._conn.execute(f"UPDATE event_outbox SET {column}=1 WHERE event_id=? AND owner=?", (event_id, owner))
+            return changed.rowcount == 1
+
+    def release_outbox(self, event_id: int, owner: str, error: str | None = None, *, now: float | None = None, retry_at: float | None = None) -> bool:
+        now = time.time() if now is None else now
+        # Diagnostics are codes, not exception messages or raw HTTP response bodies.
+        if error not in {None, "audit_unavailable", "collector_unavailable", "collector_rejected", "persistence_unavailable"}:
+            raise ValueError("Unknown outbox error code")
+        with self._lock, self._conn:
+            row = self._conn.execute("SELECT attempts FROM event_outbox WHERE event_id=? AND owner=?", (event_id, owner)).fetchone()
+            if not row:
+                return False
+            delay = min(60, 2 ** min(6, row["attempts"])) * random.uniform(.5, 1.5) if error else 0
+            due = max(now + delay, retry_at or 0)
+            self._conn.execute("""UPDATE event_outbox SET owner=NULL,lease_until=0,retry_at=?,
+                attempts=attempts+?,last_error=? WHERE event_id=? AND owner=?""",
+                (due, int(error is not None), error, event_id, owner))
+            return True
+
+    def outbox_status(self) -> dict:
+        with self._lock:
+            row = self._conn.execute("""SELECT COUNT(*) AS total,
+                COALESCE(SUM(audit_sent=0),0) AS audit_pending,COALESCE(SUM(collector_sent=0),0) AS collector_pending,
+                COALESCE(SUM(last_error IS NOT NULL AND (audit_sent=0 OR collector_sent=0)),0) AS failed
+                FROM event_outbox""").fetchone()
+        return dict(row)
+
+    def requeue_rejected_event(self, event_id: int) -> bool:
+        """Explicit operator retry after correcting a permanent OTLP rejection."""
+        with self._lock, self._conn:
+            result = self._conn.execute("""UPDATE event_outbox SET last_error=NULL,retry_at=0,owner=NULL,lease_until=0
+                WHERE event_id=? AND last_error='collector_rejected'""", (event_id,))
+            return result.rowcount == 1
 
     def events(self, limit: int = 120) -> list[dict[str, Any]]:
         rows = self._query("SELECT * FROM events ORDER BY id DESC LIMIT ?", (limit,))

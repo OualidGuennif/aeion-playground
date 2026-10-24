@@ -7,6 +7,28 @@ x-logging: &bounded-logging
     max-file: '2'
 
 services:
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib@sha256:7f22d2a6748110ffb6a59bc0df448bccbf501cdb667d610ede4c61d3863d5849
+    restart: unless-stopped
+    user: '${AEION_OPERATOR_UID:-1000}:${AEION_OPERATOR_GID:-1000}'
+    command: [--config=/etc/otelcol/config.yaml]
+    ports: ['127.0.0.1:4318:4318', '127.0.0.1:13133:13133']
+    networks: [control]
+    volumes:
+      - ./infra/otel/collector.yaml:/etc/otelcol/config.yaml:ro
+      - ./runtime/otel/collector:/data
+    read_only: true
+    tmpfs: ['/tmp:rw,noexec,nosuid,nodev,size=16m']
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 256m
+    cpus: 1
+    pids_limit: 64
+    ulimits:
+      nofile: {soft: 128, hard: 128}
+      fsize: {soft: 16777216, hard: 16777216}
+    logging: *bounded-logging
+
   inference-gateway:
     image: aeion-playground-gateway:1
     restart: unless-stopped

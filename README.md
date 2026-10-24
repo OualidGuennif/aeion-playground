@@ -45,6 +45,12 @@ Open [Paperclip](http://127.0.0.1:3101), create your account and choose **Claim 
 instance**. This is a fresh authenticated instance, with PostgreSQL and application data
 in named volumes. It does not import another installation or impersonate its operator.
 See [the stack runbook](docs/local-stack.md) for integration and recovery boundaries.
+The native controller connects through browser-approved board access; no second provider
+is needed for the Factory roles.
+
+A pinned local OpenTelemetry collector receives metadata through a transactional SQLite
+outbox, with separate private audit delivery and explicit pending/unavailable states.
+See [telemetry operations and qualification](docs/observability.md).
 
 Build and start the isolated inference runtime separately:
 
