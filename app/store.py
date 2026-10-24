@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import fcntl
 import json
+import math
 import sqlite3
 import threading
 from contextlib import contextmanager
@@ -407,35 +408,49 @@ class Store:
         return int(rows[0]["count"]) if rows else 0
 
     # --------------------------------------------------------------- agent runs
-    def add_run(self, run: dict[str, Any]) -> None:
-        self._execute(
-            """INSERT OR REPLACE INTO agent_runs
-               (run_id, mission_id, agent, runtime, model, status, started_at, ended_at,
-                cost_usd, tokens_in, tokens_out, exit_code, error, stdout_path, stderr_path,
-                result_text, verdict, reason, raw_json)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (
-                run["run_id"],
-                run["mission_id"],
-                run["agent"],
-                run["runtime"],
-                run.get("model"),
-                run["status"],
-                run.get("started_at"),
-                run.get("ended_at"),
-                float(run.get("cost_usd") or 0),
-                int(run.get("tokens_in") or 0),
-                int(run.get("tokens_out") or 0),
-                run.get("exit_code"),
-                run.get("error"),
-                run.get("stdout_path"),
-                run.get("stderr_path"),
-                run.get("result_text"),
-                run.get("verdict"),
-                run.get("reason"),
-                json.dumps(run.get("raw") or {}, ensure_ascii=False),
-            ),
+    def add_run(self, run: dict[str, Any]) -> bool:
+        """Record one immutable result and settle its known usage in one transaction."""
+        if not isinstance(run.get("run_id"), str) or not 1 <= len(run["run_id"]) <= 128:
+            raise ValueError("A bounded nonempty run identity is required")
+        cost = run.get("cost_usd", 0)
+        if isinstance(cost, bool) or not isinstance(cost, (int, float)) or not math.isfinite(cost) or cost < 0:
+            raise ValueError("Reported run cost must be finite and nonnegative")
+        tokens = [run.get(key, 0) for key in ("tokens_in", "tokens_out")]
+        if any(type(value) is not int or value < 0 for value in tokens):
+            raise ValueError("Reported token counts must be nonnegative integers")
+        columns = ("run_id", "mission_id", "agent", "runtime", "model", "status", "started_at", "ended_at",
+                   "cost_usd", "tokens_in", "tokens_out", "exit_code", "error", "stdout_path", "stderr_path",
+                   "result_text", "verdict", "reason", "raw_json")
+        values = (
+            run["run_id"], run["mission_id"], run["agent"], run["runtime"], run.get("model"), run["status"],
+            run.get("started_at"), run.get("ended_at"), float(cost), *tokens,
+            run.get("exit_code"), run.get("error"), run.get("stdout_path"), run.get("stderr_path"),
+            run.get("result_text"), run.get("verdict"), run.get("reason"),
+            json.dumps(run.get("raw") or {}, sort_keys=True, ensure_ascii=False, allow_nan=False),
         )
+        with self._lock, self._conn:
+            self._conn.execute("BEGIN IMMEDIATE")
+            existing = self._conn.execute("SELECT * FROM agent_runs WHERE run_id = ?", (run["run_id"],)).fetchone()
+            if existing:
+                original = dict(existing)
+                original["raw_json"] = json.dumps(json.loads(original["raw_json"] or "{}"), sort_keys=True, ensure_ascii=False, allow_nan=False)
+                if tuple(original[column] for column in columns) != values:
+                    raise ValueError("Run identity already belongs to a different immutable result")
+                return False
+            mission = self._conn.execute("SELECT status FROM missions WHERE id = ?", (run["mission_id"],)).fetchone()
+            if not mission or mission["status"] != "running":
+                raise ValueError("A new agent result requires its running mission")
+            self._conn.execute(
+                """INSERT INTO agent_runs
+                   (run_id, mission_id, agent, runtime, model, status, started_at, ended_at,
+                    cost_usd, tokens_in, tokens_out, exit_code, error, stdout_path, stderr_path,
+                    result_text, verdict, reason, raw_json)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                values,
+            )
+            self._conn.execute("""UPDATE missions SET cost_usd = cost_usd + ?, tokens_in = tokens_in + ?,
+                               tokens_out = tokens_out + ? WHERE id = ?""", (float(cost), *tokens, run["mission_id"]))
+            return True
 
     def runs(self, mission_id: str | None = None, limit: int = 50) -> list[dict[str, Any]]:
         if mission_id:
