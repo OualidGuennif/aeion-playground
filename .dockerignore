@@ -5,6 +5,9 @@
 .audit
 runtime
 vendor
+!app/static/vendor/
+!app/static/vendor/three/
+!app/static/vendor/three/**
 references
 **/__pycache__
 **/*.pyc

@@ -12,11 +12,12 @@ from fastapi import Body, FastAPI, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from .config import settings
 from .evidence import EvidenceWriter
+from .parceldesk import parceldesk_store
 from .pricing import quote_or_error
 from .real_engine import VERSION, engine
 from .store import store
@@ -82,6 +83,11 @@ def parceldesk(request: Request) -> HTMLResponse:
     return page(request, "parceldesk.html", "parceldesk", "ParcelDesk")
 
 
+@app.get("/warehouse", response_class=HTMLResponse)
+def warehouse(request: Request) -> HTMLResponse:
+    return page(request, "warehouse.html", "parceldesk", "ParcelDesk Warehouse")
+
+
 @app.get("/observability", response_class=HTMLResponse)
 def observability(request: Request) -> HTMLResponse:
     return page(request, "observability.html", "observability", "Observability")
@@ -112,12 +118,87 @@ def api_health() -> JSONResponse:
     return JSONResponse(engine.health())
 
 
+def _decorate_ticket(ticket: dict[str, Any]) -> dict[str, Any]:
+    mission = store.mission(ticket["mission_id"]) if ticket.get("mission_id") else None
+    brief = None
+    if mission:
+        brief = {key: mission.get(key) for key in (
+            "id", "status", "current_step", "progress", "gate_reason_code", "gate_reason", "outcome",
+        )}
+    return {**ticket, "mission": brief}
+
+
+@app.get("/api/parceldesk/summary")
+def api_parceldesk_summary() -> JSONResponse:
+    return JSONResponse({"ok": True, **parceldesk_store.summary()})
+
+
+@app.get("/api/parceldesk/orders")
+def api_parceldesk_orders() -> JSONResponse:
+    return JSONResponse({"ok": True, "orders": parceldesk_store.orders()})
+
+
+@app.post("/api/parceldesk/orders/{order_id}/refund")
+def api_parceldesk_refund(order_id: str, payload: dict[str, Any] = Body(...)) -> JSONResponse:
+    try:
+        request = RefundRequest(**payload)
+        refund = parceldesk_store.refund(order_id, request.reason)
+    except ValidationError as error:
+        return JSONResponse({"ok": False, "error": "Invalid refund: " + error.errors()[0]["msg"]}, status_code=422)
+    except ValueError as error:
+        return JSONResponse({"ok": False, "error": str(error)}, status_code=422)
+    return JSONResponse({"ok": True, "refund": refund, "orders": parceldesk_store.orders(),
+                         "summary": parceldesk_store.summary()})
+
+
+@app.get("/api/parceldesk/tickets")
+def api_parceldesk_tickets() -> JSONResponse:
+    return JSONResponse({"ok": True, "tickets": [_decorate_ticket(ticket) for ticket in parceldesk_store.tickets()]})
+
+
+@app.post("/api/parceldesk/tickets")
+def api_parceldesk_ticket(payload: dict[str, Any] = Body(...)) -> JSONResponse:
+    try:
+        data = TicketRequest(**payload).model_dump()
+    except ValidationError as error:
+        return JSONResponse({"ok": False, "error": "Invalid ticket: " + error.errors()[0]["msg"]}, status_code=422)
+    try:
+        ticket = parceldesk_store.create_ticket(**data)
+    except ValueError as error:
+        return JSONResponse({"ok": False, "error": str(error)}, status_code=422)
+    try:
+        mission = engine.launch_ticket(request_id=f"ticket-{ticket['id']}", **data)
+    except ValueError as error:
+        ticket = parceldesk_store.fail_ticket(ticket["id"], str(error))
+        return JSONResponse({"ok": False, "ticket": _decorate_ticket(ticket), "error": str(error)}, status_code=422)
+    except RuntimeError as error:
+        ticket = parceldesk_store.fail_ticket(ticket["id"], str(error))
+        return JSONResponse({"ok": False, "ticket": _decorate_ticket(ticket), "error": str(error)}, status_code=409)
+    ticket = parceldesk_store.link_ticket(ticket["id"], mission["id"])
+    return JSONResponse({"ok": True, "ticket": _decorate_ticket(ticket), "mission": mission})
+
+
 @app.get("/api/quote")
 def api_quote(
     grams: int = Query(default=1_200, ge=0, le=30_000),
     buggy: bool = Query(default=False),
 ) -> JSONResponse:
     return JSONResponse(quote_or_error(grams, buggy=buggy))
+
+
+class RefundRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    reason: str = Field(default="", max_length=500)
+
+
+class TicketRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    title: str = Field(min_length=4, max_length=120)
+    outcome: str = Field(min_length=10, max_length=500)
+    area: str = Field(pattern=r"^(pricing|orders|refunds|warehouse|support|accessibility)$")
+    risk: str = Field(pattern=r"^(low|medium|high)$")
+    acceptance: str = Field(min_length=10, max_length=2000)
+    constraints: str = Field(default="", max_length=1000)
 
 
 class MissionRequest(BaseModel):

@@ -6,9 +6,11 @@ import subprocess
 
 def violation(mode: str, name: str) -> bool:
     path = PurePosixPath(name)
-    blocked = {"runtime", "vendor", "references", "secrets", ".venv", "node_modules", "__pycache__"}
+    blocked = {"runtime", "references", "secrets", ".venv", "node_modules", "__pycache__"}
+    vendored_public_asset = path.parts[:3] == ("app", "static", "vendor")
     return (
         mode not in {"100644", "100755"}
+        or "vendor" in path.parts and not vendored_public_asset
         or bool(set(path.parts) & blocked)
         or path.name == "auth.json"
         or path.suffix in {".db", ".pem", ".key", ".pyc"}

@@ -278,6 +278,35 @@ class SandboxManager:
             "template": str(self.template_dir),
         }
 
+    def acceptance_checkout(self, path: Path) -> Path:
+        """Pair the patched application with the trusted tests.
+
+        The worker's own suite may have been weakened by the patch. This checkout
+        keeps the submitted `app/` but restores `tests/`, `pytest.ini` and `policy/`
+        from the trusted template, so a passing worker report is never the only
+        evidence. The caller runs it and removes the directory.
+        """
+        path = path.resolve()
+        if not (path / "app").is_dir():
+            raise RuntimeError("Acceptance checkout requires a patched app directory")
+        for item in (path / "app").rglob("*"):
+            if item.is_symlink():
+                raise RuntimeError(f"Symlink in patched app refused: {item.relative_to(path)}")
+        target = Path(tempfile.mkdtemp(prefix="acceptance-", dir=self.runs_dir))
+        try:
+            shutil.copytree(path / "app", target / "app", ignore=IGNORE)
+            shutil.copytree(self.template_dir / "tests", target / "tests", ignore=IGNORE)
+            for name in ("pytest.ini", "policy", "conftest.py"):
+                source = self.template_dir / name
+                if source.is_dir():
+                    shutil.copytree(source, target / name, ignore=IGNORE)
+                elif source.is_file():
+                    shutil.copy2(source, target / name)
+        except Exception:
+            shutil.rmtree(target, ignore_errors=True)
+            raise
+        return target
+
     def remove_run(self, mission_id: str) -> None:
         target = self.runs_dir / mission_id
         if target.exists():

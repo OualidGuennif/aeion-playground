@@ -303,3 +303,26 @@ body.client-body {
 .repair-status[data-status="running"] { color: var(--c-lime); }
 .repair-agent { border: 1px solid transparent; }
 .repair-check.pending { opacity: 0.62; }
+
+.client-warehouse-link { color: var(--c-accent) !important; }
+.client-warehouse-cta {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 22px;
+  padding: 13px 17px;
+  border-radius: 12px;
+  background: var(--c-ink);
+  color: var(--c-paper);
+  box-shadow: 0 14px 34px rgba(18, 37, 29, 0.22);
+  transition: transform 160ms ease, background 160ms ease;
+}
+.client-warehouse-cta span {
+  color: var(--c-lime);
+  font-family: var(--c-mono);
+  font-size: 8px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.client-warehouse-cta strong { font-size: 13px; font-weight: 560; }
+.client-warehouse-cta:hover { transform: translateY(-2px); background: var(--c-green); }
