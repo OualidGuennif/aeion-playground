@@ -33,6 +33,7 @@ from .agent_runner import AgentResult, agent_runner, model_family
 from .config import settings
 from .delivery import LocalDelivery
 from .evidence import evidence_writer
+from .executor import ExecutorClient, InProcessExecutor
 from .graphify import graph_projection
 from .memory import memory_store
 from .model_routing import ModelRouter, RoutingBlocked, availability_error
@@ -152,8 +153,9 @@ def _loads(value: str | None, default: Any) -> Any:
 
 
 class RealEngine:
-    def __init__(self) -> None:
+    def __init__(self, executor: ExecutorClient | None = None) -> None:
         self._lock = threading.RLock()
+        self.executor: ExecutorClient = executor or InProcessExecutor(sandbox)
         self._started = False
         self._wake = threading.Event()
         self._worker: threading.Thread | None = None
@@ -381,7 +383,7 @@ class RealEngine:
             head = _loads(store.get_kv("product_head"), {})
             if not head:
                 raise RuntimeError("No accepted local product release. Deliver an approved mission first.")
-            verified = LocalDelivery(store, sandbox).verify(head["mission"], head["packet_digest"])
+            verified = LocalDelivery(store, sandbox, executor=self.executor).verify(head["mission"], head["packet_digest"])
             source_release = {key: verified[key] for key in ("mission", "packet_digest", "commit", "tree_digest", "path", "tests")}
             if scenario.get("new_test_file"):
                 if (Path(source_release["path"]) / scenario["new_test_file"]).exists():
@@ -411,7 +413,7 @@ class RealEngine:
                 "template_digest": source_release["tree_digest"] if source_release else sandbox.template_digest(),
                 "policy_digest": sandbox.policy_digest(),
                 "runtime": self._runtime_contract() if scenario["kind"] == "agent" else {"runtime": "local"},
-                "test_executor": sandbox.executor_contract(),
+                "test_executor": self.executor.probe(),
                 "source_release": source_release,
                 "request": request,
                 **({"routing": routing} if routing else {}),
@@ -554,7 +556,7 @@ class RealEngine:
                         self._block(mission_id, "CONTRACT_CHANGED", "The trusted template or policy changed, or the persisted admission contract is missing. Submit a new task.")
                     elif admitted.get("kind") == "agent" and contract.get("runtime") != self._runtime_contract():
                         self._block(mission_id, "RUNTIME_CHANGED", "The model runtime changed after admission. Submit a new task explicitly.")
-                    elif "test_executor" in contract and contract["test_executor"] != sandbox.executor_contract():
+                    elif "test_executor" in contract and contract["test_executor"] != self.executor.probe():
                         self._block(mission_id, "TEST_EXECUTOR_CHANGED", "The canonical test executor changed after admission; no model or test call started.")
                     elif contract.get("routing") and contract["routing"]["digest"] != (load_routing_policy() or {}).get("digest"):
                         self._block(mission_id, "ROUTING_CHANGED", "The authorized model-routing policy changed after admission")
@@ -590,7 +592,7 @@ class RealEngine:
             for index, model in enumerate(candidates):
                 if contract.get("runtime") and contract["runtime"] != self._runtime_contract():
                     raise RoutingBlocked("RUNTIME_CHANGED", "The admitted inference runtime changed before the next model call")
-                if "test_executor" in contract and contract["test_executor"] != sandbox.executor_contract():
+                if "test_executor" in contract and contract["test_executor"] != self.executor.probe():
                     raise RoutingBlocked("TEST_EXECUTOR_CHANGED", "The canonical test executor changed before the next model call")
                 latest = load_routing_policy()
                 if frozen and frozen["digest"] != (latest or {}).get("digest"):
@@ -952,7 +954,7 @@ class RealEngine:
             return
         store.update_mission(mission_id, current_step="Tests", current_agent="probe", progress=0.58)
         self._step(mission_id, 3, "probe", "Tests", "pytest is running the contract suite.", "running")
-        tests = sandbox.run_tests(Path(run["path"]), expected_executor=contract.get("test_executor"))
+        tests = self.executor.run_tests(Path(run["path"]), expected_executor=contract.get("test_executor"))
         store.update_mission(mission_id, tests_json=tests.to_dict(), progress=0.68)
         if "test_executor" in contract and tests.executor != contract["test_executor"]:
             self._block(mission_id, "TEST_EXECUTOR_CHANGED", "The executed test identity differs from admission; no review or acceptance issued.")
@@ -1123,7 +1125,7 @@ class RealEngine:
         if sandbox.policy_digest() != contract.get("policy_digest"):
             self._block(mission_id, "CONTRACT_CHANGED", "The trusted policy changed during execution; no acceptance is issued.")
             return
-        if "test_executor" in contract and contract["test_executor"] != sandbox.executor_contract():
+        if "test_executor" in contract and contract["test_executor"] != self.executor.probe():
             self._block(mission_id, "TEST_EXECUTOR_CHANGED", "The canonical test executor changed after testing; no acceptance issued.")
             return
         store.update_mission(mission_id, current_step="Gate", current_agent="gate", progress=0.82)
@@ -1377,7 +1379,7 @@ class RealEngine:
 
     def _deliver_local(self, mission_id: str) -> None:
         try:
-            receipt = LocalDelivery(store, sandbox).deliver(mission_id)
+            receipt = LocalDelivery(store, sandbox, executor=self.executor).deliver(mission_id)
             store.set_kv(f"delivery_error:{mission_id}", "")
             emit(store.add_event(type="delivery.verified", actor="gate", mission=mission_id, severity="success",
                                  message=f"Verified local product commit {receipt['commit']}.", payload=receipt))
@@ -1493,7 +1495,7 @@ class RealEngine:
             not diff.available or diff.digest != mission.get("diff_digest")
             or sandbox.policy_digest() != body.get("contract", {}).get("policy_digest")
             or "test_executor" in body.get("contract", {})
-            and body["contract"]["test_executor"] != sandbox.executor_contract()
+            and body["contract"]["test_executor"] != self.executor.probe()
         ):
             self._block(mission_id, "CHECKPOINT_CHANGED", "The patch, trusted policy or test executor changed after verification. Run a new mission.")
             return False
