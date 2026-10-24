@@ -134,6 +134,7 @@ class AgentResult:
                 "session_id", "duration_ms",
                 "routing",
                 "inference",
+                "dispatch",
             ) if key in self.raw},
         }
 
@@ -360,15 +361,17 @@ class AgentRunner:
         model_override: str | None = None,
         timeout_seconds: float | None = None,
         run_id: str | None = None,
+        on_lease=None,
     ) -> AgentResult:
         run_id = run_id or f"run-{uuid.uuid4().hex[:12]}"
         started = _now()
+        selected_model = model_override or getattr(settings, "opencode_review_model" if review else "opencode_model", "")
         if protocol and (protocol != PATCH_PROTOCOL or settings.agent_runtime != "opencode-cli"):
             return AgentResult(status="blocked", runtime=settings.agent_runtime, run_id=run_id,
-                               error="The admitted patch protocol requires OpenCode; no runtime fallback.")
+                               model=selected_model, error="The admitted patch protocol requires OpenCode; no runtime fallback.", raw={"dispatch": "not_started"})
         if settings.agent_runtime == "opencode-cli" and settings.inference_backend == "docker" and protocol != PATCH_PROTOCOL:
             return AgentResult(status="blocked", runtime=settings.agent_runtime, run_id=run_id,
-                               error="Docker inference requires text-only patch/v1; no tool-enabled fallback.")
+                               model=selected_model, error="Docker inference requires text-only patch/v1; no tool-enabled fallback.", raw={"dispatch": "not_started"})
         ready = self.probe()
         if not ready.get("ready"):
             return AgentResult(
@@ -378,6 +381,8 @@ class AgentRunner:
                 error=str(ready.get("reason") or "Agent runtime not ready"),
                 started_at=started,
                 ended_at=started,
+                raw={"dispatch": "not_started"},
+                model=selected_model,
             )
 
         task_text = REVIEW_TASK.format(task=task, diff=diff_text.strip() or "(empty diff)") if review else task
@@ -423,6 +428,7 @@ class AgentRunner:
                 source_context=source_context,
                 model_override=model_override,
                 timeout_seconds=timeout_seconds,
+                on_lease=on_lease,
             )
         return self._run_claude(
             run_id=run_id,
@@ -446,6 +452,7 @@ class AgentRunner:
         source_context: str = "",
         model_override: str | None = None,
         timeout_seconds: float | None = None,
+        on_lease=None,
     ) -> AgentResult:
         binary = settings.opencode_bin_path()
         model = model_override or (settings.opencode_review_model if review else settings.opencode_model)
@@ -481,7 +488,7 @@ class AgentRunner:
             from .container_inference import isolated_opencode, LIMITS
             token = ""
             try:
-                with isolated_opencode(prompt=prompt, model=model, role="sentinel" if review else "forge", run_id=run_id, timeout=timeout) as execution:
+                with isolated_opencode(prompt=prompt, model=model, role="sentinel" if review else "forge", run_id=run_id, timeout=timeout, on_lease=on_lease) as execution:
                     argv, env, inference, token = execution
                     if ready.get("executor") and inference["executor"] != ready["executor"]:
                         raise OSError("Inference executor changed since readiness; readmission required")

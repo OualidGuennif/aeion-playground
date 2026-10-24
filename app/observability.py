@@ -64,6 +64,7 @@ def kpis(agent_rows: list[dict[str, Any]], budget_total: float) -> dict[str, Any
     unknown = by_outcome.get("unknown", 0)
     mature = autonomous + assisted + failed
     cost = metrics["cost"]
+    budget = store.budget_snapshot()
     tokens = metrics["tokens_in"] + metrics["tokens_out"]
     gate_rows = [mission for mission in store.missions(500) if mission.get("gate_decision")]
     approvals = [mission for mission in store.missions(500) if mission.get("human_approval")]
@@ -90,8 +91,10 @@ def kpis(agent_rows: list[dict[str, Any]], budget_total: float) -> dict[str, Any
         "corrective_minutes": 0,
         "events_total": store.count_events(),
         "budget_total": budget_total,
-        "budget_used": round(cost, 4),
-        "budget_remaining": round(max(0.0, budget_total - cost), 4),
+        "budget_used": round(budget["reported_usd"] + budget["carried_usd"], 4),
+        "budget_held": budget["held_usd"],
+        "budget_unsettled_attempts": budget["unsettled_attempts"],
+        "budget_remaining": round(max(0.0, budget_total - budget["exposure_usd"]), 4),
     }
 
 

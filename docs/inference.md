@@ -80,8 +80,9 @@ termination. Their upstream responses and token counts are explicitly **controll
 they are not provider-backed independent model work. Unit tests also cover concurrent
 lease consumption, restart, missing usage, key reflection, strict schema and fixed egress.
 
-The gateway's persisted unknown outcome is not yet a global budget reservation. That
-accounting gate must be completed before claiming crash-safe financial settlement. The
+Canonical admissions now bind that lease to a pre-call reservation in the Gate ledger;
+unknown/mismatched usage blocks acceptance and further calls. See [accounting](accounting.md)
+for the conservative envelope and remaining reconciliation limits. The
 explicit native inference setting is legacy diagnostics, not an alternative qualified
 sandbox. These controls do not prove kernel security, upstream model independence,
 arbitrary code correctness or production readiness.

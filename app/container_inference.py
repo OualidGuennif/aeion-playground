@@ -107,7 +107,7 @@ def probe():
 
 
 @contextmanager
-def isolated_opencode(*, prompt, model, role, run_id, timeout):
+def isolated_opencode(*, prompt, model, role, run_id, timeout, on_lease=None):
     if role not in {"forge", "sentinel"} or len(prompt.encode()) > 512 * 1024:
         raise OSError("Invalid bounded inference role/prompt")
     client = GatewayClient()
@@ -134,6 +134,8 @@ def isolated_opencode(*, prompt, model, role, run_id, timeout):
         "--title", run_id, "--auto", "--pure", "--format", "json", "--print-logs", "--log-level", "ERROR"]
     metadata["container"] = name
     try:
+        if on_lease:
+            on_lease(lease["id"])
         yield argv, {**docker_env(), "OPENCODE_CONFIG_CONTENT": json.dumps(config)}, metadata, token
     finally:
         cleanup = None

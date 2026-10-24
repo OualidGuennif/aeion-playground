@@ -15,7 +15,8 @@ and CPU/RAM/PID/scratch/file/deadline bounds. Worker and delivery use distinct c
 The author and reviewer CLI now default to separate disposable Docker jobs, with no
 source mount or provider credential. A trusted mediator limits each capability to one
 admitted completion and keeps provider credentials outside the roles. The trusted
-controller is native. Budget reservations and full GitHub delivery are being completed. See
+controller is native. Canonical calls reserve the remaining mission envelope before IO;
+unknown usage stays held. Complete reconciliation and GitHub delivery are still work. See
 [the phase gates](docs/roadmap.md); pending controls remain explicit.
 
 ## Install and run

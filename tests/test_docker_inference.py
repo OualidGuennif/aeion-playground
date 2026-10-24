@@ -71,11 +71,18 @@ def test_real_cli_uses_distinct_author_reviewer_containers_and_mediated_usage(qu
     runner = agent_runner.AgentRunner()
     runner.log_dir = tmp_path
     results = []
+    linked = []
+    def bind(identity):
+        assert qualified_gateway.request("GET", "/admin/leases/" + identity)["state"] == "issued"
+        linked.append(identity)
     for review, model in [(False, "opencode/deepseek-v4.1-flash-free"), (True, "opencode-go/glm-5.3-flash")]:
+        owned_id = "run-" + uuid.uuid4().hex
         result = runner.run(mission_id="controlled", agent_id="sentinel" if review else "forge", role="reviewer" if review else "author",
             title="Controlled CLI transport qualification", scenario="controlled", risk="low", task="Return the controlled JSON fixture.",
-            cwd=tmp_path, review=review, protocol=PATCH_PROTOCOL, source_context="[]", model_override=model, timeout_seconds=40)
+            cwd=tmp_path, review=review, protocol=PATCH_PROTOCOL, source_context="[]", model_override=model, timeout_seconds=40,
+            run_id=owned_id, on_lease=bind)
         assert result.status == "completed", result.error
+        assert result.run_id == owned_id
         assert result.tokens_in == 30 and result.tokens_out == 10
         assert result.num_turns == 1 and result.raw["tool_calls"] == 0
         inference = result.to_dict()["raw"]["inference"]
@@ -85,6 +92,7 @@ def test_real_cli_uses_distinct_author_reviewer_containers_and_mediated_usage(qu
     assert results[0].raw["inference"]["container"] != results[1].raw["inference"]["container"]
     assert results[0].raw["inference"]["lease_id"] != results[1].raw["inference"]["lease_id"]
     assert results[1].verdict == "OK"
+    assert linked == [result.raw["inference"]["lease_id"] for result in results]
 
 
 def node_execution(execution, script):
