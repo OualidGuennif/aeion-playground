@@ -1,0 +1,6 @@
+{
+  "url": "https://models.opencode.ai/api.json",
+  "retrieved_at": "2026-10-24T17:19:37.207901+00:00",
+  "source_sha256": "fc937d5d862547851ca12cc46e80cb9c4931b915324a53a2ce5ecef193cc4a40",
+  "scope": "Four authorized OpenCode Flash models only; no runtime catalog fetch"
+}

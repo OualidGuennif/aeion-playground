@@ -137,6 +137,9 @@ class ModelRouter:
         if previous.get("observed_at", 0) > observed_at:
             return
         classification = availability_error(result.error) if result.status != "completed" else None
+        mediated = (getattr(result, "raw", {}) or {}).get("inference")
+        if mediated and mediated.get("state") != "refused" and result.status != "completed":
+            classification = "unknown_outcome"
         if classification is None and result.status != "completed" and not (getattr(result, "raw", {}) or {}).get("finish_reason") == "stop":
             classification = "unknown_outcome"
         state = {"model": model, "observed_at": observed_at, "run_id": result.run_id,

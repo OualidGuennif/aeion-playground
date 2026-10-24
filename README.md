@@ -12,8 +12,10 @@ historical runtime databases. The accepted cockpit and ParcelDesk design are pre
 Canonical test execution defaults to disposable Docker workers with a frozen image identity,
 non-root user, read-only root/source snapshot, no network, no host home or Docker socket,
 and CPU/RAM/PID/scratch/file/deadline bounds. Worker and delivery use distinct containers.
-The model CLI and trusted controller are still native processes. Isolated inference,
-transactional accounting and full GitHub delivery are being completed. See
+The author and reviewer CLI now default to separate disposable Docker jobs, with no
+source mount or provider credential. A trusted mediator limits each capability to one
+admitted completion and keeps provider credentials outside the roles. The trusted
+controller is native. Budget reservations and full GitHub delivery are being completed. See
 [the phase gates](docs/roadmap.md); pending controls remain explicit.
 
 ## Install and run
@@ -42,6 +44,18 @@ Open [Paperclip](http://127.0.0.1:3101), create your account and choose **Claim 
 instance**. This is a fresh authenticated instance, with PostgreSQL and application data
 in named volumes. It does not import another installation or impersonate its operator.
 See [the stack runbook](docs/local-stack.md) for integration and recovery boundaries.
+
+Build and start the isolated inference runtime separately:
+
+```sh
+.venv/bin/python scripts/build_agents.py
+.venv/bin/python scripts/stack.py up
+AEION_INFERENCE_TESTS=1 .venv/bin/python -m pytest -q tests/test_docker_inference.py
+```
+
+This qualification uses a controlled local response, with the real OpenCode CLI and
+container boundary. It does not call a provider. See [the inference contract](docs/inference.md)
+before explicitly connecting an OpenCode account and authorizing tasks.
 
 `scripts/build_worker.py` resolves the built image to an immutable local ID. That ID,
 executor code and execution limits are frozen at task admission. A missing image or Docker

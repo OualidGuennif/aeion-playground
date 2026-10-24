@@ -1,0 +1,13 @@
+# Explicit opt-in: only the trusted mediator can read this application secret.
+# No source/default points at an existing/private installation.
+services:
+  inference-gateway:
+    environment:
+      OPENCODE_AUTH_FILE: /run/provider-auth/auth.json
+    volumes:
+      - type: bind
+        source: '${OPENCODE_AUTH_SOURCE:?Choose the operator-owned OpenCode auth file}'
+        target: /run/provider-auth/auth.json
+        read_only: true
+        bind:
+          create_host_path: false

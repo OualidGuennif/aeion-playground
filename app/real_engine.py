@@ -438,11 +438,15 @@ class RealEngine:
         return store.mission(mission_id) or record
 
     @staticmethod
-    def _runtime_contract() -> dict[str, str]:
-        return {
+    def _runtime_contract() -> dict[str, Any]:
+        result = {
             "runtime": settings.agent_runtime, "author": settings.opencode_model if settings.agent_runtime == "opencode-cli" else settings.agent_model,
             "reviewer": settings.opencode_review_model if settings.agent_runtime == "opencode-cli" else settings.agent_model,
         }
+        if settings.agent_runtime == "opencode-cli" and settings.inference_backend == "docker":
+            from .container_inference import executor_identity
+            result["inference_executor"] = executor_identity()
+        return result
 
     def _create_issue(self, record: dict[str, Any]) -> None:
         mission_id = record["id"]
@@ -580,6 +584,8 @@ class RealEngine:
                 emit(store.add_event(type="model.route", actor="engine", mission=mission_id,
                                     message=f"Selected bounded {agent_id} route from actual session outcomes.", payload=plan))
             for index, model in enumerate(candidates):
+                if contract.get("runtime") and contract["runtime"] != self._runtime_contract():
+                    raise RoutingBlocked("RUNTIME_CHANGED", "The admitted inference runtime changed before the next model call")
                 if "test_executor" in contract and contract["test_executor"] != sandbox.executor_contract():
                     raise RoutingBlocked("TEST_EXECUTOR_CHANGED", "The canonical test executor changed before the next model call")
                 latest = load_routing_policy()
@@ -597,7 +603,11 @@ class RealEngine:
                     router.observe(model, result)
                 store.add_run({"mission_id": mission_id, "agent": agent_id, **result.to_dict(),
                                "cost_usd": result.cost_usd})
-                if result.status == "completed" or not router or not availability_error(result.error):
+                refusal = availability_error(result.error)
+                mediated = result.raw.get("inference")
+                if mediated and mediated.get("state") != "refused":
+                    refusal = None
+                if result.status == "completed" or not router or not refusal:
                     return result
             return result
         except RoutingBlocked as error:

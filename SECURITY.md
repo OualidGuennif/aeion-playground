@@ -15,8 +15,18 @@ The trusted native controller launches Docker; no container receives a Docker so
 Timeout cleanup removes the container even when the Docker client was killed. Missing
 backend/image fails closed. Escape attempts and cgroup limits have real-container tests.
 
-The native model CLI is still outside that boundary. Isolated inference, constrained egress
-and external acceptance checks remain explicit gates in [the roadmap](docs/roadmap.md).
+Canonical inference now uses separate tool-denied OpenCode containers: no host/source
+mount, no provider key, no Docker socket, non-root, read-only root, bounded resources and
+scratch. Their isolated internal bridge has no host gateway; external DNS forwarding is
+disabled. Only the trusted mediator has provider egress and access to its explicitly
+mounted credential file. It rebuilds a minimal request for fixed OpenCode HTTPS routes,
+never follows redirects, and consumes an expiring prompt/model/role-bound lease atomically
+before dispatch. CLI retries cannot cause a second upstream call with the same lease.
+See [the inference contract](docs/inference.md) for qualification and remaining limits.
+
+Explicit native inference is a legacy diagnostic path, outside this container qualification;
+it is never an automatic fallback. Budget reservations and external acceptance checks
+remain explicit gates in [the roadmap](docs/roadmap.md).
 No container or test report establishes JUnit honesty, kernel security or production safety.
 
 Do not mount a host home, Docker socket, provider credential store or unrelated project

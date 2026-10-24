@@ -22,6 +22,17 @@ the exact PR revision before merge. PR #1 passed all four hosted checks on
 `aeed0bb5f65198dd98d4a3b00159f747582c87c8` and was squash-merged as
 `2dce9f24dbb96277a0dacfd37d3d73f437f85e82`. Private local run data is not published as evidence.
 
-See [the roadmap](roadmap.md) for uncompleted gates. The trusted native model CLI/controller,
-independent acceptance oracle, usage reservations/outbox and scoped GitHub delivery remain
-separate work; test isolation alone does not qualify those boundaries.
+PR #3 passed all five hosted checks on `cd14b945ae3cfe92e4f9be21b4f22e0b28a9963f`
+and was merged as `e8fd867`. Its real-stack tests cover authenticated API refusal,
+restart persistence and a PostgreSQL dump/restore into a throwaway database.
+
+The isolated-inference checkpoint passed **335 Docker cases with 7 native-only skips**
+(including four real CLI/role checks and two actual-stack checks), and **331 macOS cases
+with 11 opt-in container/stack skips**. The OpenCode npm lock audit reported zero known
+vulnerabilities. Inference qualification uses controlled local responses, not live model
+work. Hosted checks must pass on the final PR revision; later focused transport changes
+also require their targeted qualification.
+
+See [the roadmap](roadmap.md) for uncompleted gates. The trusted controller remains
+native; independent acceptance, budget reservations/outbox and scoped GitHub product
+delivery are separate work. Test/container counts do not qualify those boundaries.

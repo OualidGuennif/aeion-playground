@@ -125,6 +125,7 @@ def test_shutdown_cancels_real_agent_process_and_retains_its_output(tmp_path):
 def test_timeout_terminates_descendants_after_the_cli_parent_has_exited(tmp_path):
     import os
     import signal
+    import subprocess
     import sys
     from concurrent.futures import ThreadPoolExecutor
     from app.agent_runner import _spawn
@@ -145,5 +146,22 @@ def test_timeout_terminates_descendants_after_the_cli_parent_has_exited(tmp_path
                     os.killpg(int(marker.read_text()), signal.SIGKILL)
                 except ProcessLookupError:
                     pass
+                except PermissionError:
+                    # macOS can transfer a dead orphan/zombie to launchd before
+                    # its process group disappears. Refuse to ignore a live member.
+                    rows = subprocess.run(["ps", "-ax", "-o", "pgid=,stat="], capture_output=True, text=True, check=True).stdout.splitlines()
+                    states = [row.split()[1] for row in rows if row.split() and row.split()[0] == marker.read_text()]
+                    assert all(state.startswith("Z") for state in states)
     assert "parent exited" in stdout
     assert "timed out" in error
+
+
+def test_agent_combined_output_is_bounded_and_flood_process_is_killed(tmp_path):
+    import os
+    import sys
+    from app.agent_runner import _spawn
+    code = "import os;\nwhile True:\n os.write(1,b'x'*1024);os.write(2,b'y'*1024)"
+    exit_code, stdout, stderr, _, error = _spawn([sys.executable, "-c", code], cwd=tmp_path,
+        env=dict(os.environ), timeout=5, output_limit=4096)
+    assert exit_code != 0 and "output exceeded" in error
+    assert len(stdout.encode()) + len(stderr.encode()) == 4096
