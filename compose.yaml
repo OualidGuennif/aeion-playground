@@ -138,7 +138,12 @@ services:
       AEION_EXECUTOR_URL: ${AEION_EXECUTOR_URL:-http://host.docker.internal:8131}
       AEION_EXECUTOR_TOKEN_FILE: /run/secrets/executor_agent
       AEION_MAX_ACTIVE_MISSIONS: '1'
-    secrets: [executor_agent]
+    secrets:
+      - source: executor_agent
+        target: executor_agent
+        uid: '1000'
+        gid: '1000'
+        mode: 0400
     ports: ['127.0.0.1:8124:8124']
     networks: [control, workboard]
     volumes:
