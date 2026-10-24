@@ -7,8 +7,8 @@ evidence; they are not copied into this public repository or replayed for activi
 
 | Gate | Required behavior | Initial status |
 | --- | --- | --- |
-| Reproducible source | Public clean repository, pinned dependencies/actions, secret scan, CI | Public baseline CI passed; hash-locked fresh install and Docker CI added |
-| Isolated execution | Non-root disposable workers, read-only root/source, no host/socket/secrets, resource/deadline bounds, negative boundary tests | Real Docker qualification passed; full regression in progress |
+| Reproducible source | Public clean repository, pinned dependencies/actions, secret scan, CI | Public baseline CI passed; hash-locked fresh install, Docker and dependency CI added |
+| Isolated execution | Non-root disposable workers, read-only root/source, no host/socket/secrets, resource/deadline bounds, negative boundary tests | Local full suites passed: 264 Docker / 266 macOS; exact-head hosted CI required |
 | Isolated inference | Separate OpenCode role execution, minimal context, mediated credentials/egress, no approval authority | Pending |
 | Accounting | Atomic run/usage records, idempotency, held unknown exposure, reservations and bounded fallback | Partial |
 | External acceptance | Gate-owned read-only checks, worker results insufficient by themselves | Pending |

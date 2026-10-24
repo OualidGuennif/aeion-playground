@@ -56,6 +56,20 @@ Native and Docker full logs are in ignored `runtime/logs/`. Current Docker manif
 `sha256:0bb48e4bee59e4e67c9f2f3e56c2ea5cd9d8c4ae017723234b519ab62714e203`.
 No actual provider inference has been made in the public project.
 
+Dependency audit (pip-audit 2.10.1) found one distinct known pytest vulnerability in the
+inherited 8.4.2 pin (duplicate advisory records): GHSA-6w46-j5rx-g56g / CVE-2025-71176,
+medium, fixed in 9.0.3. Confirmed via GitHub's primary advisory API. Upgrading both host
+and worker to 9.0.3 and regenerating locks; do not merge the worker PR before the new
+complete tests and dependency audit pass. Added a hash-locked audit tool environment and
+CI dependency job. Original private POC source/runtime was not changed.
+
+PR #1: https://github.com/OualidGuennif/aeion-playground/pull/1 (attached to this chat).
+Initial worker head d40b480; CI still needs a final run after the dependency update.
+An empty follow-up branch `feat/atomic-usage-ledger` exists at d40b480, but has no changes.
+Current active branch is back to `feat/isolated-workers` to finish the security update.
+GitHub secret scanning and push protection are on; private vulnerability reporting and
+dependency vulnerability alerts were enabled. The Codex scheduler stays deleted.
+
 Local `uv==0.13.5` is installed only in ignored `runtime/build-tools`; requirements.lock
 was generated with hashes. Review it and use hash-enforced installs in CI/images.
 Gitleaks image is pinned at
