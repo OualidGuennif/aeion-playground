@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>ParcelDesk · Shipping quotes, verified</title>
+  <link rel="stylesheet" href="/static/css/client.css?v={{ asset_version }}">
+</head>
+<body class="client-body">
+  <header class="client-header">
+    <a class="client-brand" href="/parceldesk">
+      <span class="client-logo" aria-hidden="true">
+        <svg viewBox="0 0 40 40" fill="none"><path d="m20 4 14 8v16l-14 8-14-8V12l14-8Z" stroke="currentColor" stroke-width="1.6"/><path d="m6 12 14 8 14-8M20 20v16" stroke="currentColor" stroke-width="1.6"/></svg>
+      </span>
+      <span><strong>ParcelDesk</strong><small>shipping, verified</small></span>
+    </a>
+    <nav class="client-nav">
+      <a href="#quote">Get a quote</a>
+      <a href="#how">How it works</a>
+      <a href="#agents">Agents at work</a>
+    </nav>
+    <a class="client-cta" href="/" target="_blank" rel="noreferrer">Mission Control ↗</a>
+  </header>
+
+  <main>
+    <section class="client-hero">
+      <div class="client-hero-copy">
+        <div class="client-eyebrow"><span class="client-dot"></span> LIVE MISSION STATUS</div>
+        <h1>Shipping quotes<br><em>that don't round<br>against you.</em></h1>
+        <p>Transparent pricing, independent checks and a repair history you can actually inspect.
+          ParcelDesk is the client-facing surface of the Æion POC.</p>
+        <div class="client-trust">
+          <span>19 contract tests</span>
+          <span>visible mission ledger</span>
+          <span>human checkpoint</span>
+        </div>
+      </div>
+
+      <div class="quote-card" id="quote">
+        <div class="quote-card-head">
+          <div><span class="mini-label">Instant quote</span><h2>What does it cost?</h2></div>
+          <span class="quote-badge">€ / parcel</span>
+        </div>
+        <label class="quote-label" for="grams">Weight in grams</label>
+        <div class="quote-input-row">
+          <input id="grams" type="number" min="1" max="30000" step="1" value="1200" inputmode="numeric">
+          <span class="quote-unit">g</span>
+          <button class="quote-button" id="quote-button" type="button">Calculate</button>
+        </div>
+        <div class="quick-weights">
+          <button type="button" data-grams="500">500 g</button>
+          <button type="button" data-grams="1000">1 kg</button>
+          <button type="button" data-grams="1200">1.2 kg</button>
+          <button type="button" data-grams="2000">2 kg</button>
+          <button type="button" data-grams="30000">30 kg</button>
+        </div>
+
+        <div class="quote-result" id="quote-result">
+          <div class="quote-price"><span id="quote-euros">8,00 €</span><small id="quote-grams">for 1 200 g</small></div>
+          <div class="quote-breakdown" id="quote-breakdown">
+            <div><span>First kilogram</span><strong>5,00 €</strong></div>
+            <div><span>1 additional started kg</span><strong>3,00 €</strong></div>
+          </div>
+        </div>
+        <p class="quote-rule" id="quote-rule">5 € first kg + 3 € per additional started kg · 1 g to 30 kg</p>
+        <button class="bug-toggle" id="bug-toggle" type="button">Compare the sandbox baseline →</button>
+        <div class="bug-note" id="bug-note" hidden>
+          <strong>Before the fix:</strong> <span id="buggy-grams">1 200 g</span> returned <span id="buggy-price">5,00 €</span>
+          <span id="buggy-explain">because the baseline code rounds down. The live panel shows whether a repair has been verified.</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="client-band" id="how">
+      <div class="client-band-head">
+        <span class="mini-label">How it works</span>
+        <h2>Small contract. Real evidence.</h2>
+      </div>
+      <div class="client-steps">
+        <article><span>01</span><h3>Quote</h3><p>Integer grams in, integer cents out. No floating-point surprises.</p></article>
+        <article><span>02</span><h3>Repair</h3><p>An agent fleet reproduces the defect, patches it and runs independent boundary checks.</p></article>
+        <article><span>03</span><h3>Verify</h3><p>A different model family reviews the diff. The gate records the authority and the evidence.</p></article>
+      </div>
+    </section>
+
+    <section class="client-agents-section" id="agents">
+      <div class="client-agents-copy">
+        <span class="mini-label">Agents at work</span>
+        <h2>You see the work,<br>not just the result.</h2>
+        <p>Every mission exposes its current step, the agent responsible and the checks that passed.
+          This panel is live — it reads the same ledger as Mission Control.</p>
+        <a class="client-link" href="/observability" target="_blank" rel="noreferrer">Open the evidence ledger ↗</a>
+      </div>
+      <div class="repair-card">
+        <div class="repair-card-head">
+          <div><span class="mini-label">Live repair</span><h3 id="client-mission-title">No pricing repair mission yet</h3></div>
+          <span class="repair-status" id="client-status">idle</span>
+        </div>
+        <div class="repair-progress"><span id="client-progress-bar"></span></div>
+        <div class="repair-meta"><span id="client-mission-id">—</span><span id="client-outcome">outcome pending</span></div>
+        <div class="repair-checklist" id="client-checklist"></div>
+        <div class="repair-agents" id="client-agents"></div>
+      </div>
+    </section>
+
+    <section class="client-band client-band-dark">
+      <div class="client-band-head">
+        <span class="mini-label">Built with Æion</span>
+        <h2>Five frameworks. One vertical mission.</h2>
+      </div>
+      <div class="client-frameworks" id="client-frameworks">
+        <span>Factory</span><span>Agentic OPS</span><span>CROA</span><span>Observability</span><span>SpaceShip</span>
+      </div>
+      <p class="client-footnote">Local POC · real mission ledger · model calls through the configured CLI · no production customers. The quote calculator is a reference contract; accepted sandbox patches are not deployed to it.</p>
+    </section>
+  </main>
+
+  <footer class="client-footer">
+    <div><strong>ParcelDesk</strong><span>a proof surface for Æion SpaceShip</span></div>
+    <div class="client-footer-links"><a href="/paperclip" target="_blank" rel="noreferrer">Workboard</a><a href="/ops" target="_blank" rel="noreferrer">OPS &amp; CROA</a><a href="/" target="_blank" rel="noreferrer">Mission Control</a></div>
+  </footer>
+
+  <div id="client-toast" class="client-toast" role="status" aria-live="polite"></div>
+  <script id="initial-snapshot" type="application/json">{{ snapshot | tojson }}</script>
+  <script src="/static/js/client.js?v={{ asset_version }}"></script>
+</body>
+</html>

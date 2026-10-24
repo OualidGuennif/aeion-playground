@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block page_title %}Overview{% endblock %}
+{% block content %}
+<section class="hero hero-overview">
+  <div class="hero-copy">
+    <div class="eyebrow"><span class="live-dot"></span> Your workspace, in perspective</div>
+    <h1>A clearer view.<br><span>For every mission.</span></h1>
+    <p>Room to create. A clear path from the first idea<br class="desktop-break"> to work you can trust.</p>
+    <div class="hero-links"><a class="text-link" href="#missions">Explore your missions <span aria-hidden="true">↘</span></a><a class="muted-link" href="#system-status">Workspace status</a></div>
+  </div>
+  <div class="orbital-window" aria-hidden="true"><div class="orbital-orbit"></div><div class="orbital-horizon"></div><span class="orbital-star"></span><span class="orbital-caption">An open space. A clear direction.</span></div>
+</section>
+
+<section class="kpi-grid kpi-grid-4 overview-stats" aria-label="Mission overview">
+  <article class="kpi-card"><div class="kpi-head"><span>In progress</span></div><strong data-kpi="running_missions">—</strong><small>missions under way</small></article>
+  <article class="kpi-card"><div class="kpi-head"><span>Completed</span></div><strong data-kpi="completed">—</strong><small>verified outcomes</small></article>
+  <article class="kpi-card"><div class="kpi-head"><span>Recorded spend</span></div><strong data-kpi="cost_total">—</strong><small>USD · all attempts</small></article>
+  <article class="kpi-card"><div class="kpi-head"><span>Evidence coverage</span></div><strong data-kpi="evidence_coverage">—</strong><small>sealed completion packets</small></article>
+</section>
+
+<section class="grid overview-work" id="missions">
+  <div class="panel mission-panel"><div class="panel-head"><div><span class="section-kicker">The work</span><h2>Your missions</h2></div><span class="section-note">A trace for every step</span></div><div id="mission-list" class="mission-list"></div></div>
+  <div class="panel event-panel"><div class="panel-head"><div><span class="section-kicker">The signal</span><h2>Recent activity</h2></div><span class="live-dot" aria-label="Live ledger"></span></div><div id="event-stream" class="event-stream"></div><a class="text-link section-link" href="/observability">Open the full ledger <span aria-hidden="true">↗</span></a></div>
+</section>
+
+<details class="panel disclosure runtime-panel" id="system-status"><summary><span><span class="section-kicker">Behind the scenes</span><span class="disclosure-title">Workspace status</span><span class="disclosure-caption">See what is running, and where.</span></span><span class="disclosure-indicator" aria-hidden="true">+</span></summary><div class="disclosure-content"><p class="panel-sub">Native processes on this Mac. Paperclip uses embedded PostgreSQL; the mission ledger uses SQLite. This app starts no containers.</p><div id="runtime-grid" class="runtime-grid"></div><p class="context-footnote">CLI readiness checks configuration. Provider quota is confirmed by a real call. Local checkouts and CLI permissions provide no OS or network isolation.</p><span id="engine-state" class="sr-only"></span><span id="engine-tick" class="sr-only"></span></div></details>
+
+<details class="panel disclosure"><summary><span><span class="section-kicker">Roles & process</span><span class="disclosure-title">Execution roles</span><span class="disclosure-caption">The tools and checks behind each mission.</span></span><span class="disclosure-indicator" aria-hidden="true">+</span></summary><div class="disclosure-content"><div class="panel-head"><p class="panel-sub">Each role has a clear responsibility. Only the patch author and reviewer call models.</p><span class="badge" id="agent-count">—</span></div><div id="agent-grid" class="agent-grid"></div></div></details>
+
+<section class="grid grid-2-1"><div class="panel chart-panel"><div class="panel-head"><div><span class="section-kicker">Perspective</span><h2>Mission outcomes</h2></div><a class="text-link" href="/observability">All insights ↗</a></div><div id="chart-outcomes" class="chart"></div></div><details class="panel disclosure policy-panel"><summary><span><span class="section-kicker">The guardrails</span><span class="disclosure-title">Policy & budget</span><span class="disclosure-caption">The conditions behind every decision.</span></span><span class="disclosure-indicator" aria-hidden="true">+</span></summary><div class="disclosure-content" id="policy-panel"></div></details></section>
+
+<section class="panel framework-strip"><div class="panel-head"><div><span class="section-kicker">Built on clear foundations</span><h2>One workspace. Shared principles.</h2></div><a class="text-link" href="/frameworks">Meet the frameworks ↗</a></div><div id="framework-strip" class="framework-strip-grid"></div></section>
+{% endblock %}

@@ -1,0 +1,30 @@
+{
+  "schema": "aeion.model-routing/v1",
+  "budget_usd": 5,
+  "authorization_expires_at": "2000-01-01T00:00:00Z",
+  "default_author": "opencode-go/deepseek-v4.1-flash",
+  "default_reviewer": "opencode-go/glm-5.3-flash",
+  "agent_timeout_seconds": 180,
+  "cooldown_seconds": 3600,
+  "history_window": 20,
+  "roles": {
+    "forge": {
+      "preferred_family": "deepseek",
+      "models": [
+        "opencode/deepseek-v4.1-flash-free",
+        "opencode/glm-5.3-flash-free",
+        "opencode-go/deepseek-v4.1-flash",
+        "opencode-go/glm-5.3-flash"
+      ]
+    },
+    "sentinel": {
+      "preferred_family": "glm",
+      "models": [
+        "opencode/glm-5.3-flash-free",
+        "opencode/deepseek-v4.1-flash-free",
+        "opencode-go/glm-5.3-flash",
+        "opencode-go/deepseek-v4.1-flash"
+      ]
+    }
+  }
+}

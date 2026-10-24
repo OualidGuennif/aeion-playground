@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block page_title %}Framework Map{% endblock %}
+
+{% block content %}
+<section class="hero panel hero-compact">
+  <div class="hero-copy">
+    <div class="eyebrow"><span class="live-dot"></span> The foundations</div>
+    <h1>Different parts.<br><span>One shared direction.</span></h1>
+    <p>Five sets of principles guide a single workspace. Explore what each
+      framework contributes, what is running, and what remains a contract.</p>
+  </div>
+  <div class="hero-side hero-side-row">
+    <div class="hero-side-stat"><span class="mini-label">Repos</span><strong>5 + Paperclip</strong><small>read-only references</small></div>
+    <div class="hero-side-stat"><span class="mini-label">Scope</span><strong>ParcelDesk</strong><small>local pilot</small></div>
+  </div>
+</section>
+
+<section class="panel">
+  <div class="panel-head"><div><h2>Framework map</h2><p class="panel-sub">What each framework contributes to the local pilot.</p></div></div>
+  <div id="framework-grid" class="framework-grid"></div>
+</section>
+
+<section class="grid grid-2-1">
+  <div class="panel">
+    <div class="panel-head"><div><h2>Contract → implementation mapping</h2><p class="panel-sub">Where the evidence lands.</p></div></div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead><tr><th>Contract</th><th>Local surface</th><th>What it proves</th></tr></thead>
+        <tbody>
+          <tr><td>Factory task contract</td><td>Mission intake, checks, review</td><td>Acceptance is external to the agent</td></tr>
+          <tr><td>OPS deny precedence</td><td>Gate decisions, protected paths</td><td>An agent cannot widen authority</td></tr>
+          <tr><td>CROA evidence packet</td><td>Sealed packet per mission</td><td>Evidence is bound to an artifact</td></tr>
+          <tr><td>Observability outcome</td><td>Cost / success, p95, coverage</td><td>Autonomy is measured, not claimed</td></tr>
+          <tr><td>SpaceShip gate</td><td>G0–G7 progression</td><td>The vertical mission stays bounded</td></tr>
+          <tr><td>Memory + Graphify context</td><td>Recall trace, AST graph</td><td>Context is advisory and cannot grant authority</td></tr>
+          <tr><td>Paperclip workboard</td><td>Tasks, routines, budget</td><td>Work projection, not a second authority</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="panel-head"><div><h2>What runs and what remains a contract</h2><p class="panel-sub">Be explicit about the evidence class.</p></div></div>
+    <div class="scope-notes">
+      <p><strong>Executed:</strong> model CLI calls when available, git diffs, pytest, SQLite FTS5, Graphify AST extraction, local Paperclip API, OPS integrity checker and CROA structure audit.</p>
+      <p><strong>Deterministic:</strong> pricing rule, gate decisions, check counts, evidence binding, task identity.</p>
+      <p><strong>Not claimed:</strong> a production security boundary, a CROA certification, OS isolation, a collector, Hindsight or a GitHub release.</p>
+      <p><strong>Next:</strong> qualify each additional integration against its own contract before claiming it is active.</p>
+    </div>
+  </div>
+</section>
+
+<section class="panel runbook-panel">
+  <div class="panel-head"><div><h2>Run it locally</h2><p class="panel-sub">Mission Control on port 8123; Paperclip is a separate local service.</p></div></div>
+  <pre class="code-block"><code>cd POC_AEION
+./run.sh
+# open http://127.0.0.1:8123</code></pre>
+  <p class="muted">Missions persist in <code>runtime/aeion.db</code>; events are projected to <code>runtime/events.jsonl</code>. Reset is disabled to preserve the ledger.</p>
+</section>
+{% endblock %}

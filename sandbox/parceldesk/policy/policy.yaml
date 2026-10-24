@@ -1,0 +1,25 @@
+version: 1
+id: parceldesk-sandbox-policy
+protected_paths:
+  - "policy/**"
+  - ".github/**"
+  - "AGENTS.md"
+  - "secrets/**"
+limits:
+  max_changed_files: 6
+  max_diff_lines: 200
+  budget_usd: 2.00
+approval:
+  checkpoint_paths:
+    - "app/pricing.py"
+  required_for_risk:
+    - high
+    - critical
+tests:
+  command:
+    - "python"
+    - "-m"
+    - "pytest"
+    - "-q"
+    - "--junitxml"
+    - "junit.xml"

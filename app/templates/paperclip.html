@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block page_title %}Paperclip Workboard{% endblock %}
+
+{% block content %}
+<section class="hero panel hero-compact">
+  <div class="hero-copy">
+    <div class="eyebrow"><span class="live-dot"></span> The work, in one place</div>
+    <h1>Work, with a<br><span>clear direction.</span></h1>
+    <p>See what is moving, what needs a decision, and what is done.
+      These missions are linked to the real Paperclip workboard; the gate keeps approval authority.</p>
+  </div>
+  <div class="hero-side hero-side-row">
+    <div class="company-chip">
+      <span class="company-mark">PD</span>
+      <div><strong>ParcelDesk</strong><small>single pilot company</small></div>
+      <span class="badge badge-orange" id="pc-service-status">checking</span>
+    </div>
+    <div class="hero-side-stat">
+      <span class="mini-label">Adapter mode</span>
+      <strong>local API</strong>
+      <small>Node + embedded PostgreSQL</small>
+    </div>
+  </div>
+</section>
+
+<section class="kpi-grid kpi-grid-4">
+  <article class="kpi-card">
+    <div class="kpi-head"><span>Open work</span><span class="kpi-icon cyan">▣</span></div>
+    <strong id="pc-open">—</strong>
+    <small>across the board</small>
+  </article>
+  <article class="kpi-card">
+    <div class="kpi-head"><span>Awaiting approval</span><span class="kpi-icon orange">◆</span></div>
+    <strong id="pc-approval">—</strong>
+    <small>human step-up</small>
+  </article>
+  <article class="kpi-card">
+    <div class="kpi-head"><span>Budget used</span><span class="kpi-icon lime">$</span></div>
+    <strong id="pc-budget">—</strong>
+    <small><span id="pc-envelope">configured local envelope</span></small>
+  </article>
+  <article class="kpi-card">
+    <div class="kpi-head"><span>Routines healthy</span><span class="kpi-icon violet">◷</span></div>
+    <strong id="pc-routines">—</strong>
+    <small>event-driven + scheduled</small>
+  </article>
+</section>
+
+<section class="panel">
+  <div class="panel-head">
+    <div><h2>Workboard</h2><p class="panel-sub">One card per canonical task. Approval is a gate, not a column move.</p></div>
+    <div class="board-legend">
+      <span><i class="dot dot-cyan"></i> agent</span>
+      <span><i class="dot dot-orange"></i> gate</span>
+      <span><i class="dot dot-lime"></i> done</span>
+    </div>
+  </div>
+  <div id="kanban" class="kanban"></div>
+</section>
+
+<section class="panel">
+  <div class="panel-head"><div><h2>Issues from the Paperclip API</h2><p class="panel-sub" id="pc-service-detail">Checking the local service.</p></div></div>
+  <div id="paperclip-issues" class="issue-list"></div>
+</section>
+
+<section class="grid grid-2-1">
+  <div class="panel">
+    <div class="panel-head"><div><h2>Budget &amp; admission</h2><p class="panel-sub">One canonical ledger; no competing reservation.</p></div></div>
+    <div id="paperclip-budget"></div>
+  </div>
+  <div class="panel">
+    <div class="panel-head"><div><h2>Adapters</h2><p class="panel-sub">Runtime checks and framework scope.</p></div></div>
+    <div id="adapter-list" class="adapter-list"></div>
+  </div>
+</section>
+
+<section class="grid grid-2-1">
+  <div class="panel">
+    <div class="panel-head"><div><h2>Routines</h2><p class="panel-sub">Scheduled and event-driven work with explicit status.</p></div></div>
+    <div id="routines-list" class="routine-list"></div>
+  </div>
+  <div class="panel">
+    <div class="panel-head"><div><h2>Workload</h2><p class="panel-sub">Tasks by risk and agent.</p></div></div>
+    <div id="paperclip-workload" class="workload-list"></div>
+  </div>
+</section>
+{% endblock %}

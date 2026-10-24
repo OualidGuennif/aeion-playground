@@ -1,0 +1,6 @@
+{
+  "title": "Tariff invariant regression coverage",
+  "task": "Create two exhaustive regression tests using app.pricing.quote. First verify monotonicity: quote(g) <= quote(g + 1) for every integer g from 1 through 29999. Then verify the exact kilogram increment: quote(g + 1000) - quote(g) == 300 for every integer g from 1 through 29000. Preserve all existing implementation and tests. Use only the standard library and the installed pytest; do not add dependencies or fetch anything.",
+  "test_file": "tests/test_tariff_invariants.py",
+  "minimum_new_tests": 2
+}

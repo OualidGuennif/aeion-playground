@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block page_title %}Observability{% endblock %}
+
+{% block content %}
+<section class="hero panel hero-compact hero-observability">
+  <div class="hero-copy">
+    <div class="eyebrow"><span class="live-dot"></span> A little perspective</div>
+    <h1>The work.<br><span>The bigger picture.</span></h1>
+    <p>Follow the time, spend and outcome of every attempt. A successful
+      request is only one part of the story; the mission outcome is what counts.</p>
+  </div>
+  <div class="hero-side hero-side-row">
+    <div class="hero-side-stat">
+      <span class="mini-label">Policy</span>
+      <strong>sandbox-policy/v1</strong>
+      <small>deterministic gate</small>
+    </div>
+    <div class="hero-side-stat">
+      <span class="mini-label">Telemetry</span>
+      <strong id="otel-events">—</strong>
+      <small>canonical events</small>
+    </div>
+  </div>
+</section>
+
+<section class="kpi-grid">
+  <article class="kpi-card"><div class="kpi-head"><span>All-in cohort cost</span><span class="kpi-icon orange">$</span></div><strong data-kpi="cost_total">—</strong><small>reported by the agent CLI · USD</small></article>
+  <article class="kpi-card"><div class="kpi-head"><span>Cost / autonomous success</span><span class="kpi-icon lime">÷</span></div><strong data-kpi="cost_per_success">—</strong><small>failed work included</small></article>
+  <article class="kpi-card"><div class="kpi-head"><span>Verified autonomous</span><span class="kpi-icon cyan">✓</span></div><strong data-kpi="autonomous">—</strong><small><span data-kpi="success_rate">—</span> success rate</small></article>
+  <article class="kpi-card"><div class="kpi-head"><span>p95 task time</span><span class="kpi-icon blue">◷</span></div><strong data-kpi="p95_seconds">—</strong><small>measured wall clock</small></article>
+  <article class="kpi-card"><div class="kpi-head"><span>Tokens</span><span class="kpi-icon violet">⌘</span></div><strong data-kpi="tokens_total">—</strong><small>input + output</small></article>
+  <article class="kpi-card"><div class="kpi-head"><span>Evidence coverage</span><span class="kpi-icon pink">◇</span></div><strong data-kpi="evidence_coverage">—</strong><small>sealed packets</small></article>
+</section>
+
+<section class="grid grid-2-2">
+  <div class="panel chart-panel"><div class="panel-head"><div><h3>Cost trajectory</h3><p class="panel-sub">Cumulative recorded spend by mission.</p></div></div><div id="chart-cost" class="chart chart-tall"></div></div>
+  <div class="panel chart-panel"><div class="panel-head"><div><h3>Outcome distribution</h3><p class="panel-sub">Mature outcomes only; unknown stays visible.</p></div></div><div id="chart-outcomes" class="chart chart-tall"></div></div>
+</section>
+
+<section class="grid grid-2-2">
+  <div class="panel chart-panel"><div class="panel-head"><div><h3>Model usage</h3><p class="panel-sub">Reported input and output tokens by model.</p></div></div><div id="chart-models" class="chart"></div></div>
+  <div class="panel chart-panel"><div class="panel-head"><div><h3>Task latency</h3><p class="panel-sub">Completed missions; failures remain in the cohort.</p></div></div><div id="chart-latency" class="chart"></div></div>
+</section>
+
+<section class="grid grid-2-1">
+  <div class="panel">
+    <div class="panel-head"><div><h2>Routing decisions</h2><p class="panel-sub">Profile selected at admission; one sticky model per task.</p></div><span class="badge badge-violet">configured</span></div>
+    <div class="table-wrap">
+      <table class="data-table" id="routing-table">
+        <thead><tr><th>Mission</th><th>Fixture</th><th>Risk</th><th>Profile</th><th>Gate</th><th>Outcome</th><th class="num">Cost</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="panel-head"><div><h2>Policy</h2><p class="panel-sub">Deterministic rules, versioned.</p></div></div>
+    <div id="observability-policy"></div>
+  </div>
+</section>
+
+<section class="panel event-panel">
+  <div class="panel-head"><div><h2>Canonical event stream</h2><p class="panel-sub">What the ledger actually observed.</p></div><span class="badge badge-lime">OTel</span></div>
+  <div id="observability-events" class="event-stream event-stream-wide"></div>
+</section>
+{% endblock %}

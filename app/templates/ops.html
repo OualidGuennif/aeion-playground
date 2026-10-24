@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block page_title %}Safety &amp; evidence{% endblock %}
+
+{% block content %}
+<section class="hero panel hero-compact hero-ops">
+  <div class="hero-copy">
+    <div class="eyebrow"><span class="live-dot"></span> Trust has a trace</div>
+    <h1>Confidence starts<br><span>with clear evidence.</span></h1>
+    <p>See the checks behind every decision, from protected paths to your
+      final approval. Missing or failed evidence keeps the mission on hold.</p>
+  </div>
+  <div class="hero-side hero-side-row">
+    <div class="hero-side-stat"><span class="mini-label">Controls</span><strong>16 mapped</strong><small><span id="ops-summary">checking controls</span></small></div>
+    <div class="hero-side-stat"><span class="mini-label">Evidence</span><strong id="croa-count">—</strong><small>draft and sealed packets</small></div>
+  </div>
+</section>
+
+<section class="panel">
+  <div class="panel-head"><div><h2>OPS control matrix</h2><p class="panel-sub">What is enforced, partial, or explicitly disabled in this local pilot.</p></div><span class="badge badge-orange">fail closed</span></div>
+  <div id="ops-grid" class="ops-grid"></div>
+</section>
+
+<section class="grid grid-2-1">
+  <div class="panel">
+    <div class="panel-head"><div><h2>Gate decisions</h2><p class="panel-sub">Allow, checkpoint, deny, hold — with reason codes.</p></div></div>
+    <div id="gate-log" class="gate-log"></div>
+  </div>
+  <div class="panel">
+    <div class="panel-head"><div><h2>Threat model</h2><p class="panel-sub">The boundary that matters for this POC.</p></div></div>
+    <div class="threat-model">
+      <div><span>Untrusted</span><strong>Prompts, tool output, diffs, memory, model claims</strong></div>
+      <div><span>Trusted</span><strong>Gate policy, ledger, independent checks, operator approval</strong></div>
+      <div><span>Protected effects</span><strong>Merge, deploy, external writes, credentials</strong></div>
+      <div><span>Out of scope</span><strong>Production data, real customers, irreversible migration</strong></div>
+    </div>
+  </div>
+</section>
+
+<section class="panel">
+  <div class="panel-head"><div><h2>CROA evidence packets</h2><p class="panel-sub">One packet per mission; a packet is not a certification.</p></div><span class="badge badge-pink">local evidence</span></div>
+  <div class="table-wrap">
+    <table class="data-table" id="evidence-table">
+      <thead><tr><th>Packet</th><th>Mission</th><th>Scope</th><th>Checks</th><th>Review</th><th>Digest</th><th>Status</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

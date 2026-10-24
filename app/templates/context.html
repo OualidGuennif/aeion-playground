@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block page_title %}Memory &amp; Graph{% endblock %}
+
+{% block content %}
+<section class="hero panel hero-compact hero-context">
+  <div class="hero-copy">
+    <div class="eyebrow"><span class="live-dot"></span> Connections worth keeping</div>
+    <h1>Good context.<br><span>Clearer decisions.</span></h1>
+    <p>Find the source, remember the constraints, and follow the code.
+      Memory and the AST graph inform the work; they never grant permission.</p>
+  </div>
+  <div class="hero-side hero-side-row">
+    <div class="hero-side-stat">
+      <span class="mini-label">Vault</span>
+      <strong id="ctx-items-hero">—</strong>
+      <small>persistent SQLite items</small>
+    </div>
+    <div class="hero-side-stat">
+      <span class="mini-label">Graph</span>
+      <strong id="ctx-edges-hero">—</strong>
+      <small>extracted AST edges</small>
+    </div>
+  </div>
+</section>
+
+<section class="kpi-grid kpi-grid-4">
+  <article class="kpi-card">
+    <div class="kpi-head"><span>Memory items</span><span class="kpi-icon lime">M</span></div>
+    <strong id="ctx-items">—</strong>
+    <small><span id="ctx-verified">—</span> verified · <span id="ctx-stale">—</span> stale</small>
+  </article>
+  <article class="kpi-card">
+    <div class="kpi-head"><span>Recall hit rate</span><span class="kpi-icon cyan">↺</span></div>
+    <strong id="ctx-hit">—</strong>
+    <small><span id="ctx-queries">—</span> recon queries</small>
+  </article>
+  <article class="kpi-card">
+    <div class="kpi-head"><span>AST projection</span><span class="kpi-icon violet">⌘</span></div>
+    <strong id="ctx-files">—</strong>
+    <small><span id="ctx-edges">—</span> edges · <span id="ctx-symbols">—</span> symbols</small>
+  </article>
+  <article class="kpi-card">
+    <div class="kpi-head"><span>Context used</span><span class="kpi-icon orange">◈</span></div>
+    <strong id="ctx-used">—</strong>
+    <small>items recalled by missions</small>
+  </article>
+</section>
+
+<section class="grid grid-2-1">
+  <div class="panel graph-panel">
+    <div class="panel-head">
+      <div><h2>Graphify context graph</h2><p class="panel-sub">AST-only projection of the ParcelDesk slice. Click a node to inspect its role and edges.</p></div>
+      <span class="badge badge-cyan" id="graph-status">local AST</span>
+    </div>
+    <div class="graph-toolbar">
+      <div class="graph-stats">
+        <span><strong id="graph-files">—</strong> files</span>
+        <span><strong id="graph-edges">—</strong> edges</span>
+        <span><strong id="graph-symbols">—</strong> symbols</span>
+        <span class="graph-digest" id="graph-digest">sha256:—</span>
+      </div>
+      <div class="graph-legend"><span>Local AST · select a node to see its connections</span></div>
+    </div>
+    <div class="graph-wrap" id="graph-wrap">
+      <svg id="context-graph" class="graph-svg" viewBox="0 0 920 550" role="img" aria-label="Graphify AST projection"></svg>
+    </div>
+    <div class="graph-detail" id="graph-detail">
+      <div class="graph-detail-head">
+        <span class="mini-label">Selected node</span>
+        <strong>Select a node</strong>
+        <small>source location</small>
+      </div>
+      <p>Select a node to inspect its source and extracted relationships.</p>
+      <div class="graph-rel" id="graph-rel"></div>
+    </div>
+  </div>
+
+  <div class="panel recall-panel">
+    <div class="panel-head">
+      <div><h2>Recall trace</h2><p class="panel-sub">What Scout pulled before proposing a patch.</p></div>
+      <span class="badge badge-cyan">AST + memory</span>
+    </div>
+    <div id="recall-list" class="recall-list"></div>
+    <p class="context-footnote">Recall uses local SQLite FTS5 with measured latency. Graphify extracts a local AST graph on demand; no vector search or LLM extraction is used.</p>
+  </div>
+</section>
+
+<section class="grid grid-1-1">
+  <div class="panel">
+    <div class="panel-head">
+      <div><h2>Memory vault</h2><p class="panel-sub">Source-bound items with explicit freshness and no authority.</p></div>
+      <span class="badge badge-lime">advisory</span>
+    </div>
+    <div id="memory-list" class="memory-list"></div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head">
+      <div><h2>Write protocol</h2><p class="panel-sub">How context enters a mission without becoming a backdoor.</p></div>
+      <span class="badge badge-violet">source-bound</span>
+    </div>
+    <div class="protocol-list">
+      <div class="protocol-step"><span>01</span><div><strong>Propose with provenance</strong><p>Scout proposes an item with a source path, scope and confidence. No anonymous facts.</p></div></div>
+      <div class="protocol-step"><span>02</span><div><strong>Check freshness</strong><p>A source digest or a recent revalidation keeps an item fresh. Missing source means stale.</p></div></div>
+      <div class="protocol-step"><span>03</span><div><strong>Bind to the task</strong><p>The recall digest and selected node ids are attached to the mission context.</p></div></div>
+      <div class="protocol-step"><span>04</span><div><strong>Recheck at the gate</strong><p>The gate verifies the artifact and authority. Memory remains advisory at every step.</p></div></div>
+    </div>
+    <div class="context-notes">
+      <div><span>Cannot</span><strong>Grant authority, approve a gate or widen scope.</strong></div>
+      <div><span>Expires</span><strong>Stale or source-missing context becomes unknown, never a pass.</strong></div>
+      <div><span>Bound</span><strong>Recall ids travel with the task; approval rechecks the patch digest.</strong></div>
+    </div>
+  </div>
+</section>
+{% endblock %}

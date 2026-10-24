@@ -1,0 +1,12 @@
+.git
+.env
+.env.*
+.venv
+runtime
+vendor
+references
+**/__pycache__
+**/*.pyc
+**/.DS_Store
+**/auth.json
+config/model-routing.json
