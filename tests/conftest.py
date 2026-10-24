@@ -2,6 +2,7 @@
 import os
 import tempfile
 import threading
+import sys
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -10,6 +11,7 @@ import pytest
 _test_directory = tempfile.TemporaryDirectory(prefix="aeion-tests-")
 os.environ["AEION_DB_PATH"] = str(Path(_test_directory.name) / "bootstrap.db")
 os.environ["AEION_AUDIT_PATH"] = str(Path(_test_directory.name) / "events.jsonl")
+os.environ.setdefault("AEION_TEST_BACKEND", "macos" if sys.platform == "darwin" else "docker")
 
 
 @pytest.fixture

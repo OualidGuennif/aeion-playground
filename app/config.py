@@ -47,6 +47,7 @@ def _bool(name: str, default: bool = False) -> bool:
 
 @dataclass(frozen=True)
 class Settings:
+    test_backend: str = field(default_factory=lambda: os.environ.get("AEION_TEST_BACKEND", "docker"))
     mode: str = field(default_factory=lambda: os.environ.get("AEION_MODE", "real").strip().lower())
     approval_mode: str = field(default_factory=lambda: os.environ.get("AEION_APPROVAL_MODE", "human"))
     max_active_missions: int = field(default_factory=lambda: _int("AEION_MAX_ACTIVE_MISSIONS", 1))

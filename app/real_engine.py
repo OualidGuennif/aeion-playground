@@ -1903,7 +1903,7 @@ class RealEngine:
             "memory": ("SQLite file + FTS5", "runtime/aeion.db"),
             "paperclip": ("Node + embedded PostgreSQL", settings.paperclip_base_url),
             "agent": ("CLI → external model provider", "runtime/agent-runs/"),
-            "sandbox": ("Local git checkout + isolated canonical pytest", "runtime/sandbox/runs/ · macOS pytest boundary; native parent"),
+            "sandbox": ("Local git checkout + isolated canonical pytest", f"runtime/sandbox/runs/ · {settings.test_backend} test boundary; native parent"),
             "ops": ("On-demand Python checker", "Æion_AgenticOPS · integrity only"),
             "croa": ("On-demand Python audit", "runtime/croa/ · offline audit kit"),
         }
@@ -2004,7 +2004,7 @@ class RealEngine:
             else "same model family; human checkpoint"
         )
         return [
-            {"id": "OPS-01", "name": "Filesystem scope", "status": "partial", "evidence": "canonical pytest has a mandatory macOS boundary; parent and model CLI remain native"},
+            {"id": "OPS-01", "name": "Filesystem scope", "status": "partial", "evidence": f"canonical pytest has a mandatory {settings.test_backend} boundary; parent and model CLI remain native"},
             {"id": "OPS-02", "name": "Egress allowlist", "status": "disabled", "evidence": "agent CLI reaches its provider; no firewall"},
             {"id": "OPS-03", "name": "Protected paths", "status": "enforced", "evidence": "policy/**, .github/** denied by the gate and the OpenCode edit wall"},
             {"id": "OPS-04", "name": "Diff bound", "status": "enforced", "evidence": "6 files / 200 lines"},
@@ -2015,7 +2015,7 @@ class RealEngine:
             {"id": "OPS-09", "name": "Audit trail", "status": "partial", "evidence": "SQLite ledger + JSONL; local files are operator-writable"},
             {"id": "OPS-10", "name": "Evidence digest", "status": "enforced", "evidence": "SHA-256 mission packet"},
             {"id": "OPS-11", "name": "Secret isolation", "status": "partial", "evidence": "env allowlist; .env outside the sandbox; OpenCode read rules deny .env"},
-            {"id": "OPS-12", "name": "Network isolation", "status": "disabled", "evidence": "no container or network namespace"},
+            {"id": "OPS-12", "name": "Network isolation", "status": "partial", "evidence": "canonical tests deny network; model CLI egress remains native"},
             {"id": "OPS-13", "name": "Credential scope", "status": "partial", "evidence": credential},
             {"id": "OPS-14", "name": "Rollback", "status": "disabled", "evidence": "no automatic rollback"},
             {

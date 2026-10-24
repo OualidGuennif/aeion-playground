@@ -8,7 +8,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
 
 jobs:
@@ -23,8 +23,26 @@ jobs:
         with:
           python-version: '3.12'
       - run: python -m venv .venv
-      - run: .venv/bin/python -m pip install -r requirements-dev.txt
+      - run: .venv/bin/python -m pip install --require-hashes -r requirements.lock
       - run: .venv/bin/python scripts/check_publication.py
+      - run: .venv/bin/python -m pytest -q
+
+  docker-tests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      AEION_TEST_BACKEND: docker
+      AEION_DOCKER_TESTS: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.12'
+      - run: python -m venv .venv
+      - run: .venv/bin/python -m pip install --require-hashes -r requirements.lock
+      - run: .venv/bin/python scripts/build_worker.py
       - run: .venv/bin/python -m pytest -q
 
   secrets:
@@ -43,3 +61,18 @@ jobs:
           -v "$GITHUB_WORKSPACE:/repo:ro"
           ghcr.io/gitleaks/gitleaks@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f
           git /repo --redact --no-banner
+
+  dependencies:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.12'
+      - run: python -m venv .audit
+      - run: .audit/bin/python -m pip install --require-hashes -r requirements-audit.lock
+      - name: Audit pinned controller, worker and audit dependencies
+        run: .audit/bin/python -m pip_audit --disable-pip -r requirements.lock -r infra/worker/requirements.lock -r requirements-audit.lock

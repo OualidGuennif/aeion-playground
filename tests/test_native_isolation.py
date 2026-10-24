@@ -1,5 +1,6 @@
 """Actual host Seatbelt tests, with public canaries only and no model calls."""
 import hashlib
+import os
 import socket
 import subprocess
 from pathlib import Path
@@ -9,6 +10,8 @@ import pytest
 from app.sandbox import SandboxManager
 from app.test_isolation import PROFILE
 from test_missions import patch_runner, run_scenario
+
+pytestmark = pytest.mark.skipif(os.environ.get("AEION_TEST_BACKEND") != "macos", reason="macOS-specific boundary qualification")
 
 
 def checkout(tmp_path, code):

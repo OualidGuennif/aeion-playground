@@ -9,25 +9,37 @@ historical runtime databases. The accepted cockpit and ParcelDesk design are pre
 
 ## Current status
 
-The inherited workflow is operational on its qualified macOS setup. Worker pytest uses a
-native OS boundary; the model CLI and controller are still native processes. Containerized
-agents, portable execution, transactional budget accounting and the full GitHub delivery
-path are being completed. See [the phase gates](docs/roadmap.md). Do not treat pending gates
-as completed security controls.
+Canonical test execution defaults to disposable Docker workers with a frozen image identity,
+non-root user, read-only root/source snapshot, no network, no host home or Docker socket,
+and CPU/RAM/PID/scratch/file/deadline bounds. Worker and delivery use distinct containers.
+The model CLI and trusted controller are still native processes. Isolated inference,
+transactional accounting and full GitHub delivery are being completed. See
+[the phase gates](docs/roadmap.md); pending controls remain explicit.
 
-## Run the native baseline
+## Install and run
 
-Requires Python 3.12, Git and the qualified macOS framework Python installation.
+Requires Python 3.12, Git and a running Docker Engine/Desktop with Linux containers.
 
 ```sh
 python3.12 -m venv .venv
-.venv/bin/python -m pip install -r requirements-dev.txt
-.venv/bin/python -m pytest -q
+.venv/bin/python -m pip install --require-hashes -r requirements.lock
+.venv/bin/python scripts/build_worker.py
+AEION_TEST_BACKEND=docker AEION_DOCKER_TESTS=1 .venv/bin/python -m pytest -q
 ./run.sh
 ```
 
 Open [Mission Control](http://127.0.0.1:8123) or [ParcelDesk](http://127.0.0.1:8123/parceldesk).
-The native baseline binds loopback only. Do not expose it publicly.
+The trusted controller binds loopback only. Do not expose it publicly.
+
+`scripts/build_worker.py` resolves the built image to an immutable local ID. That ID,
+executor code and execution limits are frozen at task admission. A missing image or Docker
+daemon fails closed. Docker workers receive only a bounded regular-file snapshot of
+`app/`, `tests/` and `pytest.ini`; `.git`, policy, credentials and runtime state are excluded.
+Scratch is a bounded tmpfs; stdout and the JUnit wire report are bounded and parsed by the
+controller. A worker report remains untrusted and is not an independent acceptance oracle.
+
+The older qualified macOS pytest boundary is available explicitly with
+`AEION_TEST_BACKEND=macos`; it is never an automatic fallback from Docker failure.
 
 Model calls require an explicitly configured local `config/model-routing.json`. Without
 it, the expired example policy refuses new calls. Provider login and optional Paperclip

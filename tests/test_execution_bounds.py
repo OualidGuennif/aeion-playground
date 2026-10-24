@@ -76,15 +76,16 @@ def group_members(group):
 def test_native_pytest_output_limit_is_explicit_and_ignores_a_forged_report(tmp_path, monkeypatch):
     monkeypatch.setattr(module, "MAX_TEST_OUTPUT_BYTES", 4096)
     root = checkout(tmp_path, '''from pathlib import Path
+import sys
 def test_noise():
-    Path('junit.xml').write_text('<testsuite><testcase name="fake-pass"/></testsuite>')
+    Path(sys.argv[sys.argv.index('--junitxml')+1]).write_text('<testsuite><testcase name="fake-pass"/></testsuite>')
     print('x'*100000,flush=True)
 ''')
     result = SandboxManager(tmp_path / "runs").run_tests(root)
     assert result.error and "output exceeded 4096" in result.error
     assert result.total == 0 and result.exit_code is None
     assert result.limits["output_bytes"] == 4096
-    assert "--capture=no" in result.command
+    assert "--capture=no" in result.executor["arguments"]
 
 
 def test_engine_skips_review_and_sealing_when_capture_overflows(runtime, monkeypatch):

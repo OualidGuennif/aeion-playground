@@ -8,10 +8,16 @@ Trusted: the operator, Gate/controller, selected runtime images and host/contain
 Untrusted: tasks, repository/test code, model output, worker output and external callbacks.
 Models propose changes; they do not own approval, policy, budget or proof authority.
 
-The inherited macOS boundary confines canonical pytest filesystem/network/process access.
-It does not confine the parent model CLI, provide complete resource quotas or attest JUnit
-honesty. Strong worker isolation, constrained egress and external acceptance checks remain
-explicit gates in [the roadmap](docs/roadmap.md).
+Canonical tests default to disposable Docker containers: no network, non-root 65532,
+read-only root and minimal source snapshot, no capabilities, no-new-privileges, 256 MiB
+RAM/no swap, one CPU, 64 PIDs, 64 MiB tmpfs, 2 MiB per file and 128 open descriptors.
+The trusted native controller launches Docker; no container receives a Docker socket.
+Timeout cleanup removes the container even when the Docker client was killed. Missing
+backend/image fails closed. Escape attempts and cgroup limits have real-container tests.
+
+The native model CLI is still outside that boundary. Isolated inference, constrained egress
+and external acceptance checks remain explicit gates in [the roadmap](docs/roadmap.md).
+No container or test report establishes JUnit honesty, kernel security or production safety.
 
 Do not mount a host home, Docker socket, provider credential store or unrelated project
 into an untrusted worker. Runtime/session files and local secrets are excluded from Git
