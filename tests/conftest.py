@@ -11,6 +11,8 @@ import pytest
 _test_directory = tempfile.TemporaryDirectory(prefix="aeion-tests-")
 os.environ["AEION_DB_PATH"] = str(Path(_test_directory.name) / "bootstrap.db")
 os.environ["AEION_AUDIT_PATH"] = str(Path(_test_directory.name) / "events.jsonl")
+os.environ["PAPERCLIP_AUTH_STORE"] = str(Path(_test_directory.name) / "no-board-credential.json")
+os.environ["PAPERCLIP_API_TOKEN"] = ""
 os.environ.setdefault("AEION_TEST_BACKEND", "macos" if sys.platform == "darwin" else "docker")
 # Legacy adapter fixtures intercept native _spawn. Docker inference has a separate
 # explicit qualification suite; neither mode invokes a live provider from tests.
