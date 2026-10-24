@@ -1,0 +1,82 @@
+name: ParcelDesk improvement
+description: A change to the ParcelDesk demo that the Factory implements end to end
+title: "[parceldesk] "
+labels: ["parceldesk"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This form is read by the Factory. Describe an **observable outcome**, not an
+        implementation. A mission is admitted from these fields, so vague tickets become
+        blocked missions rather than patches.
+  - type: input
+    id: outcome
+    attributes:
+      label: Observable outcome
+      description: One sentence a reviewer can check in the running demo.
+      placeholder: A support agent sees why an order was refunded, without opening the ledger.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - order intake
+        - warehouse view
+        - support desk
+        - refunds
+        - data model
+        - performance
+        - accessibility
+        - security boundary
+    validations:
+      required: true
+  - type: dropdown
+    id: risk
+    attributes:
+      label: Risk
+      description: High risk means the change touches a trust boundary, money or sealed evidence.
+      options:
+        - low
+        - medium
+        - high
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: What happens today, and why it is wrong or missing. No credentials, paths or transcripts.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance checks
+      description: One per line, written as assertions that can become tests.
+      placeholder: |
+        The refund queue shows a reason column for every row.
+        An order with no refund shows an empty reason, not "None".
+    validations:
+      required: true
+  - type: textarea
+    id: constraints
+    attributes:
+      label: Constraints
+      description: Anything the patch must not do. Leave the defaults unless you have a reason.
+      value: |
+        Do not add a service, dependency or network route without stating why.
+        Do not change the accepted ParcelDesk or cockpit design.
+        Do not touch sealed evidence or runtime state.
+    validations:
+      required: false
+  - type: checkboxes
+    id: ack
+    attributes:
+      label: Before submitting
+      options:
+        - label: I have not included credentials, private paths, customer data or model transcripts.
+          required: true
+        - label: I understand the Factory may return a blocked mission instead of a patch, and that the reason will be in the ledger.
+          required: true

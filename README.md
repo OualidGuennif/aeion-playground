@@ -19,6 +19,52 @@ controller is native. Canonical calls reserve the remaining mission envelope bef
 unknown usage stays held. Complete reconciliation and GitHub delivery are still work. See
 [the phase gates](docs/roadmap.md); pending controls remain explicit.
 
+## See the demo in ten minutes
+
+The demo is two surfaces over one SQLite ledger:
+
+- **Mission Control** — the mission, the model runs, the Gate decision, the sealed evidence
+  and the telemetry counters.
+- **ParcelDesk** — the product the Factory works on: quotes, orders and the support surface.
+
+Run it:
+
+```sh
+python3.12 -m venv .venv
+.venv/bin/python -m pip install --require-hashes -r requirements.lock
+.venv/bin/python scripts/build_worker.py      # frozen test worker image
+./run.sh                                      # trusted controller on 127.0.0.1:8124
+```
+
+Then open <http://127.0.0.1:8124> and <http://127.0.0.1:8124/parceldesk>.
+
+What to click, in order:
+
+1. **Launch PD01** — a deliberately broken pricing rule. The model proposes a patch; a
+   different model family reviews it; disposable containers run the real test suite; the
+   Gate decides on the JUnit report, not on what the model said.
+2. Open the mission and read the **evidence packet**, then verify it: the signature covers
+   the tests, the diff and the environment identity.
+3. Open **Observability** — the outbox counters and the collector state. `pending` is not an
+   error you can ignore; it means delivery has not been acknowledged yet.
+4. Launch **PD03** to see the Gate *deny* a patch that touches a protected path. A refused
+   mission is a correct outcome, not a bug.
+
+Missions run on fixed fixtures (`PD00`–`PD04`) today. The pricing rules they touch are in
+`app/pricing.py` and `tests/test_pricing.py`.
+
+## Get an improvement into the demo
+
+Tickets are the specification the Factory reads. Open a
+[ParcelDesk improvement issue](.github/ISSUE_TEMPLATE/parceldesk-improvement.yml): the form
+asks for an observable outcome, an area, a risk level and acceptance checks that can become
+tests. Vague tickets become blocked missions with a reason, which is the intended behaviour.
+
+Be precise about what is wired today: the issue is the **specification**, and the mission
+that implements it is still started by the operator from the cockpit. Reading GitHub issues
+and opening pull requests automatically is gate **GitHub delivery**, marked *Pending* in
+[the roadmap](docs/roadmap.md). Do not assume a filed issue runs by itself yet.
+
 ## Install and run
 
 Requires Python 3.12, Git and a running Docker Engine/Desktop with Linux containers.

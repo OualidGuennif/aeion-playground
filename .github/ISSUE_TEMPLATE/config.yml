@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/OualidGuennif/aeion-playground/security/advisories/new
+    about: Report privately. Do not open a public issue with exploit details or credentials.
+  - name: How the Factory works
+    url: https://github.com/OualidGuennif/aeion-playground/blob/main/docs/roadmap.md
+    about: Phase gates, measured evidence and what is still pending.
