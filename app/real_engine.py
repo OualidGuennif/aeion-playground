@@ -24,6 +24,7 @@ import shutil
 import sys
 import threading
 import time
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -42,7 +43,7 @@ from .paperclip import paperclip
 from .policy_engine import PolicyEngine
 from .patch_protocol import PATCH_PROTOCOL, parse_patch, source_context
 from .sandbox import sandbox
-from .store import store, utc_now
+from .store import InferenceBudgetError, store, utc_now
 
 VERSION = "1.10.0-real"
 MAX_QUEUED_MISSIONS = 20
@@ -212,6 +213,7 @@ class RealEngine:
                         for step in store.steps(mission["id"]):
                             if step["status"] == "running":
                                 store.update_step(step["id"], status="blocked", detail="Worker interrupted; result unknown.", ended_at=_now())
+                        store.hold_mission_attempts_unknown(mission["id"])
                         self._block(
                             mission["id"], "EXECUTION_INTERRUPTED",
                             "The worker exited before recording a terminal result. Outputs and provider usage may be incomplete. "
@@ -406,7 +408,7 @@ class RealEngine:
                 "scenario": scenario,
                 "template_digest": source_release["tree_digest"] if source_release else sandbox.template_digest(),
                 "policy_digest": sandbox.policy_digest(),
-                "runtime": self._runtime_contract(),
+                "runtime": self._runtime_contract() if scenario["kind"] == "agent" else {"runtime": "local"},
                 "test_executor": sandbox.executor_contract(),
                 "source_release": source_release,
                 "request": request,
@@ -595,14 +597,37 @@ class RealEngine:
                 overrides = {"model_override": model} if model else {}
                 if remaining is not None:
                     overrides["timeout_seconds"] = min(settings.agent_timeout, remaining)
-                result = agent_runner.run(mission_id=mission_id, agent_id=agent_id, **kwargs, **overrides)
+                attempt_id = None
+                if frozen and contract.get("runtime", {}).get("inference_executor"):
+                    if contract.get("policy_digest") != sandbox.policy_digest():
+                        raise RoutingBlocked("POLICY_CHANGED", "The admitted Gate policy changed before inference")
+                    attempt_id = "run-" + uuid.uuid4().hex
+                    store.reserve_attempt(run_id=attempt_id, mission_id=mission_id, agent=agent_id, model=model,
+                                          mission_limit=sandbox.read_policy().get("limits", {}).get("budget_usd", 2))
+                    overrides["run_id"] = attempt_id
+                    overrides["on_lease"] = lambda identity, reserved=attempt_id: store.bind_attempt_lease(reserved, identity)
+                try:
+                    result = agent_runner.run(mission_id=mission_id, agent_id=agent_id, **kwargs, **overrides)
+                except Exception:
+                    if attempt_id:
+                        store.hold_attempt_unknown(attempt_id)
+                    raise
+                if attempt_id and result.run_id != attempt_id:
+                    store.hold_attempt_unknown(attempt_id)
+                    raise RoutingBlocked("ATTEMPT_ID_MISMATCH", "The adapter result differs from its reserved attempt; exposure held")
                 if router:
                     result.raw["routing"] = {"policy_digest": frozen["digest"], "attempt": index + 1,
                                              "selected_model": model, "task_class": plan["analysis"]["task_class"],
                                              "rule": plan["rule"], "skipped": plan["skipped"], "analysis": plan["analysis"]}
-                    router.observe(model, result)
                 store.add_run({"mission_id": mission_id, "agent": agent_id, **result.to_dict(),
                                "cost_usd": result.cost_usd})
+                if attempt_id:
+                    state = store.attempt(attempt_id)["state"]
+                    if state in {"unknown", "overrun"}:
+                        raise RoutingBlocked("EXPOSURE_HELD" if state == "unknown" else "BUDGET_EXCEEDED",
+                                             "The immutable attempt has unsettled or excess exposure; no acceptance or further call")
+                if router:
+                    router.observe(model, result)
                 refusal = availability_error(result.error)
                 mediated = result.raw.get("inference")
                 if mediated and mediated.get("state") != "refused":
@@ -610,10 +635,11 @@ class RealEngine:
                 if result.status == "completed" or not router or not refusal:
                     return result
             return result
-        except RoutingBlocked as error:
+        except (RoutingBlocked, InferenceBudgetError) as error:
             emit(store.add_event(type="model.route_blocked", actor="engine", mission=mission_id,
                                 message=str(error), severity="error", payload={"code": error.code}))
-            # A decision that made no CLI call is an event, not a fabricated agent run.
+            # Actual CLI attempts remain separate immutable rows. This decision
+            # is an event, never an invented replacement model execution.
             return AgentResult(status="blocked", runtime=settings.agent_runtime,
                                run_id=f"routing-{mission_id}-{agent_id}", error=str(error), raw={"block_code": error.code})
 

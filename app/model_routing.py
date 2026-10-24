@@ -40,7 +40,10 @@ class ModelRouter:
         remaining = deadline - time.time()
         if remaining < 1:
             raise RoutingBlocked("AUTHORIZATION_EXPIRED", "The authorized autonomous work window expired; no model call started")
-        if self.ledger.metrics()["cost"] >= self.policy["budget_usd"]:
+        snapshot = self.ledger.budget_snapshot() if hasattr(self.ledger, "budget_snapshot") else {"exposure_usd": self.ledger.metrics()["cost"], "unsettled_attempts": 0}
+        if snapshot["unsettled_attempts"]:
+            raise RoutingBlocked("EXPOSURE_HELD", "Unsettled inference exposure blocks new model calls; no automatic refund/retry")
+        if snapshot["exposure_usd"] >= self.policy["budget_usd"]:
             raise RoutingBlocked("BUDGET_EXHAUSTED", "The reported local model budget is exhausted")
         return remaining
 
@@ -78,8 +81,8 @@ class ModelRouter:
                 continue  # A semantic rejection is not proof of reviewer failure.
             tests = json.loads(mission.get("tests_json") or "{}")
             code = mission.get("gate_reason_code")
-            if code == "TEST_EXECUTOR_CHANGED":
-                continue  # Trusted executor drift is not evidence about model quality.
+            if code in {"TEST_EXECUTOR_CHANGED", "EXPOSURE_HELD", "BUDGET_EXCEEDED"}:
+                continue  # Trusted executor/accounting failures are not coding quality.
             if role == "forge" and code in {"TEST_FAILURE", "TASK_SCOPE", "PROTECTED_PATH", "MODEL_PATCH_INVALID", "OUT_OF_SCOPE",
                                              "NO_PATCH", "TEST_COVERAGE", "TESTS_INCOMPLETE", "TEST_EXECUTION_ERROR"}:
                 row["deterministic_failures"] += 1
@@ -132,6 +135,8 @@ class ModelRouter:
                 "rule": "one eligible free attempt, then authorized paid fallback on known availability refusal"}
 
     def observe(self, model, result, observed_at=None):
+        if (getattr(result, "raw", {}) or {}).get("dispatch") == "not_started":
+            return  # An unavailable local backend says nothing about model availability.
         observed_at = observed_at or time.time()
         previous = json.loads(self.ledger.get_kv(f"routing:health:{model}", "{}"))
         if previous.get("observed_at", 0) > observed_at:

@@ -14,6 +14,7 @@ import sqlite3
 import threading
 from contextlib import contextmanager
 from datetime import datetime, timezone
+from decimal import Decimal
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -127,6 +128,20 @@ CREATE TABLE IF NOT EXISTS evidence (
     payload TEXT
 );
 
+CREATE TABLE IF NOT EXISTS inference_attempts (
+    run_id TEXT PRIMARY KEY,
+    mission_id TEXT NOT NULL REFERENCES missions(id),
+    agent TEXT NOT NULL,
+    model TEXT NOT NULL,
+    policy_digest TEXT NOT NULL,
+    state TEXT NOT NULL,
+    reserved_usd REAL NOT NULL,
+    held_usd REAL NOT NULL,
+    lease_id TEXT UNIQUE,
+    created_at TEXT NOT NULL,
+    settled_at TEXT
+);
+
 CREATE TABLE IF NOT EXISTS kv (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL
@@ -136,6 +151,12 @@ CREATE TABLE IF NOT EXISTS kv (
 
 def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+class InferenceBudgetError(ValueError):
+    def __init__(self, code: str, message: str):
+        super().__init__(message)
+        self.code = code
 
 
 class Store:
@@ -408,6 +429,121 @@ class Store:
         return int(rows[0]["count"]) if rows else 0
 
     # --------------------------------------------------------------- agent runs
+    @staticmethod
+    def _budget_snapshot(db) -> dict:
+        spent = sum((Decimal(str(row[0])) for row in db.execute("SELECT cost_usd FROM missions")), Decimal(0))
+        carry = db.execute("SELECT value FROM kv WHERE key='budget:carried_usage'").fetchone()
+        carried = Decimal(str(json.loads(carry[0])["cost_usd"])) if carry else Decimal(0)
+        rows = db.execute("SELECT state,held_usd FROM inference_attempts WHERE state IN ('reserved','unknown','overrun')").fetchall()
+        held = sum((Decimal(str(row[1])) for row in rows), Decimal(0))
+        return {"reported_usd": float(spent), "carried_usd": float(carried), "held_usd": float(held),
+                "unsettled_attempts": len(rows), "exposure_usd": float(spent + carried + held)}
+
+    def budget_snapshot(self) -> dict:
+        with self._lock:
+            return self._budget_snapshot(self._conn)
+
+    def register_carried_usage(self, cost_usd: float, source_digest: str) -> bool:
+        """One immutable migration observation; never rewrite mission/proof history."""
+        if (isinstance(cost_usd, bool) or not isinstance(cost_usd, (int, float)) or not math.isfinite(cost_usd)
+                or not 0 <= cost_usd <= 100 or not isinstance(source_digest, str) or len(source_digest) != 64
+                or any(value not in "0123456789abcdef" for value in source_digest)):
+            raise ValueError("A bounded observed cost and source digest are required")
+        value = json.dumps({"cost_usd": cost_usd, "source_digest": source_digest}, sort_keys=True)
+        with self._lock, self._conn:
+            self._conn.execute("BEGIN IMMEDIATE")
+            original = self._conn.execute("SELECT value FROM kv WHERE key='budget:carried_usage'").fetchone()
+            if original:
+                if original[0] != value:
+                    raise ValueError("Carried usage is immutable")
+                return False
+            if self._conn.execute("SELECT 1 FROM inference_attempts LIMIT 1").fetchone():
+                raise ValueError("Register carried usage before admitting inference attempts")
+            self._conn.execute("INSERT INTO kv(key,value) VALUES('budget:carried_usage',?)", (value,))
+            return True
+
+    def reserve_attempt(self, *, run_id: str, mission_id: str, agent: str, model: str, mission_limit: float) -> dict:
+        """Serialize dispatch and reserve the full remaining mission envelope before IO."""
+        if (not isinstance(run_id, str) or not run_id.startswith("run-") or not 5 <= len(run_id) <= 80
+                or agent not in {"forge", "sentinel"} or isinstance(mission_limit, bool)
+                or not isinstance(mission_limit, (int, float)) or not math.isfinite(mission_limit) or not 0 < mission_limit <= 2):
+            raise ValueError("Invalid inference reservation bounds")
+        with self._lock, self._conn:
+            self._conn.execute("BEGIN IMMEDIATE")
+            mission = self._conn.execute("SELECT status,cost_usd,contract_json FROM missions WHERE id=?", (mission_id,)).fetchone()
+            if not mission or mission["status"] != "running":
+                raise InferenceBudgetError("MISSION_NOT_RUNNING", "Inference requires its running mission")
+            contract = json.loads(mission["contract_json"] or "{}")
+            policy = contract.get("routing") or {}
+            executor = contract.get("runtime", {}).get("inference_executor", {})
+            if (executor.get("backend") != "docker-opencode/v1" or model not in policy.get("roles", {}).get(agent, {}).get("models", [])):
+                raise InferenceBudgetError("INFERENCE_NOT_ADMITTED", "Model/role/isolated executor is not admitted")
+            deadline = datetime.fromisoformat(policy["authorization_expires_at"].replace("Z", "+00:00"))
+            if deadline.tzinfo is None or deadline <= datetime.now(timezone.utc):
+                raise InferenceBudgetError("AUTHORIZATION_EXPIRED", "No model dispatch after its authorization expiry")
+            budget = policy["budget_usd"]
+            if isinstance(budget, bool) or not isinstance(budget, (int, float)) or not math.isfinite(budget) or not 0 < budget <= 100:
+                raise ValueError("Invalid admitted budget")
+            if self._conn.execute("SELECT 1 FROM inference_attempts WHERE run_id=?", (run_id,)).fetchone():
+                raise InferenceBudgetError("ATTEMPT_ALREADY_RESERVED", "An admitted attempt cannot be dispatched twice")
+            snapshot = self._budget_snapshot(self._conn)
+            if snapshot["unsettled_attempts"]:
+                raise InferenceBudgetError("EXPOSURE_HELD", "Unsettled inference exposure blocks new calls; no automatic refund/retry")
+            reserved = Decimal(str(mission_limit)) - Decimal(str(mission["cost_usd"]))
+            if reserved <= 0:
+                raise InferenceBudgetError("MISSION_BUDGET_EXHAUSTED", "The mission's reported budget is exhausted")
+            if Decimal(str(snapshot["exposure_usd"])) + reserved > Decimal(str(budget)):
+                raise InferenceBudgetError("BUDGET_RESERVATION_DENIED", "The full remaining mission envelope does not fit the reported local budget")
+            self._conn.execute("""INSERT INTO inference_attempts
+                (run_id,mission_id,agent,model,policy_digest,state,reserved_usd,held_usd,created_at)
+                VALUES(?,?,?,?,?,'reserved',?,?,?)""",
+                (run_id, mission_id, agent, model, policy["digest"], float(reserved), float(reserved), utc_now()))
+        return self.attempt(run_id)
+
+    def attempt(self, run_id: str) -> dict | None:
+        rows = self._query("SELECT * FROM inference_attempts WHERE run_id=?", (run_id,))
+        return dict(rows[0]) if rows else None
+
+    def bind_attempt_lease(self, run_id: str, lease_id: str) -> None:
+        if not isinstance(lease_id, str) or len(lease_id) != 32 or any(value not in "0123456789abcdef" for value in lease_id):
+            raise ValueError("Invalid mediator lease identity")
+        with self._lock, self._conn:
+            self._conn.execute("BEGIN IMMEDIATE")
+            changed = self._conn.execute("""UPDATE inference_attempts SET lease_id=?
+                WHERE run_id=? AND state='reserved' AND (lease_id IS NULL OR lease_id=?)""", (lease_id, run_id, lease_id))
+            if changed.rowcount != 1:
+                raise ValueError("A lease requires its unique active reservation")
+
+    def hold_attempt_unknown(self, run_id: str) -> None:
+        self._execute("UPDATE inference_attempts SET state='unknown' WHERE run_id=? AND state='reserved'", (run_id,))
+
+    def hold_mission_attempts_unknown(self, mission_id: str) -> None:
+        self._execute("UPDATE inference_attempts SET state='unknown' WHERE mission_id=? AND state='reserved'", (mission_id,))
+
+    @staticmethod
+    def _attempt_outcome(run, attempt, contract) -> str:
+        raw = run.get("raw") or {}
+        zero = run.get("cost_usd", 0) == run.get("tokens_in", 0) == run.get("tokens_out", 0) == 0
+        if not attempt["lease_id"] and raw.get("dispatch") == "not_started" and zero:
+            return "not_dispatched"
+        mediated = raw.get("inference") or {}
+        if (mediated.get("lease_id") != attempt["lease_id"] or not attempt["lease_id"]
+                or mediated.get("run_id") != run["run_id"]
+                or mediated.get("executor") != contract.get("runtime", {}).get("inference_executor")):
+            return "unknown"
+        if mediated.get("state") == "revoked" and zero:
+            return "not_dispatched"
+        if mediated.get("state") == "refused" and zero and mediated.get("refusal") and mediated.get("response_sha256"):
+            return "refused"
+        usage = mediated.get("usage") or {}
+        if (mediated.get("state") == "completed" and mediated.get("response_sha256")
+                and raw.get("steps") == 1 and raw.get("tool_calls") == 0 and raw.get("session_id")
+                and raw.get("finish_reason") in {"stop", "length"}
+                and usage.get("prompt_tokens") == run.get("tokens_in", 0)
+                and usage.get("completion_tokens") == run.get("tokens_out", 0)):
+            return "settled"
+        return "unknown"
+
     def add_run(self, run: dict[str, Any]) -> bool:
         """Record one immutable result and settle its known usage in one transaction."""
         if not isinstance(run.get("run_id"), str) or not 1 <= len(run["run_id"]) <= 128:
@@ -437,9 +573,17 @@ class Store:
                 if tuple(original[column] for column in columns) != values:
                     raise ValueError("Run identity already belongs to a different immutable result")
                 return False
-            mission = self._conn.execute("SELECT status FROM missions WHERE id = ?", (run["mission_id"],)).fetchone()
+            mission = self._conn.execute("SELECT status,contract_json FROM missions WHERE id = ?", (run["mission_id"],)).fetchone()
             if not mission or mission["status"] != "running":
                 raise ValueError("A new agent result requires its running mission")
+            contract = json.loads(mission["contract_json"] or "{}")
+            attempt = self._conn.execute("SELECT * FROM inference_attempts WHERE run_id=?", (run["run_id"],)).fetchone()
+            if attempt:
+                if (attempt["state"] != "reserved" or attempt["mission_id"] != run["mission_id"]
+                        or attempt["agent"] != run["agent"] or attempt["model"] != run.get("model")):
+                    raise ValueError("Result does not match its active immutable attempt")
+            elif contract.get("runtime", {}).get("inference_executor") and contract.get("scenario", {}).get("kind") == "agent":
+                raise ValueError("Canonical inference result has no prior budget reservation")
             self._conn.execute(
                 """INSERT INTO agent_runs
                    (run_id, mission_id, agent, runtime, model, status, started_at, ended_at,
@@ -450,6 +594,13 @@ class Store:
             )
             self._conn.execute("""UPDATE missions SET cost_usd = cost_usd + ?, tokens_in = tokens_in + ?,
                                tokens_out = tokens_out + ? WHERE id = ?""", (float(cost), *tokens, run["mission_id"]))
+            if attempt:
+                outcome = self._attempt_outcome(run, attempt, contract)
+                if float(cost) > attempt["reserved_usd"]:
+                    outcome = "overrun"
+                held = max(0.0, attempt["reserved_usd"] - float(cost)) if outcome == "unknown" else 0.0
+                self._conn.execute("UPDATE inference_attempts SET state=?,held_usd=?,settled_at=? WHERE run_id=?",
+                                   (outcome, held, utc_now(), run["run_id"]))
             return True
 
     def runs(self, mission_id: str | None = None, limit: int = 50) -> list[dict[str, Any]]:
