@@ -16,14 +16,17 @@ from pathlib import Path
 from typing import Any
 
 from .evidence import EvidenceWriter
+from .executor import ExecutorClient, InProcessExecutor
 from .sandbox import SandboxManager
 from .store import Store
 
 
 class LocalDelivery:
-    def __init__(self, ledger: Store, workspace: SandboxManager, directory: Path | None = None):
+    def __init__(self, ledger: Store, workspace: SandboxManager, directory: Path | None = None,
+                 executor: ExecutorClient | None = None):
         self.ledger = ledger
         self.workspace = workspace
+        self.executor: ExecutorClient = executor or InProcessExecutor(workspace)
         self.directory = directory or workspace.runs_dir.parent / "releases"
 
     def deliver(self, mission_id: str) -> dict[str, Any]:
@@ -58,7 +61,7 @@ class LocalDelivery:
             return receipt
 
         expected_executor = packet["contract"].get("test_executor")
-        if "test_executor" in packet["contract"] and expected_executor != self.workspace.executor_contract():
+        if "test_executor" in packet["contract"] and expected_executor != self.executor.probe():
             raise ValueError("Canonical test executor changed since acceptance; no new delivery started")
 
         staging = Path(tempfile.mkdtemp(prefix=f".{mission_id}-", dir=self.directory))
@@ -82,7 +85,7 @@ class LocalDelivery:
             policy = hashlib.sha256((repo / "policy/policy.yaml").read_bytes()).hexdigest()
             if policy != packet["contract"]["policy_digest"]:
                 raise ValueError("Reconstructed policy differs from the trusted policy")
-            tests = self.workspace.run_tests(repo, expected_executor=expected_executor)
+            tests = self.executor.run_tests(repo, expected_executor=expected_executor)
             (staging / "tests.json").write_text(json.dumps(tests.to_dict(), indent=2, ensure_ascii=False))
             if not tests.available or tests.error or tests.exit_code != 0 or not tests.total or tests.passed != tests.total or tests.failed or tests.errors or tests.skipped:
                 raise ValueError(f"Local release tests did not pass completely: {tests.summary()}")
