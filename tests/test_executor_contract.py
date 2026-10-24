@@ -1,5 +1,6 @@
 """Frozen executor identity with real local tests; all model replies are controlled."""
 import copy
+import base64
 import json
 from pathlib import Path
 from types import SimpleNamespace
@@ -17,7 +18,10 @@ from test_product_loop import bootstrap, coverage_runner, start_product_task
 
 
 def drift(monkeypatch):
-    monkeypatch.setattr(test_isolation, "PROFILE", test_isolation.PROFILE + "\n; controlled identity drift\n")
+    if sandbox_module.settings.test_backend == "docker":
+        monkeypatch.setattr(sandbox_module, "MAX_JUNIT_CASES", 999)
+    else:
+        monkeypatch.setattr(test_isolation, "PROFILE", test_isolation.PROFILE + "\n; controlled identity drift\n")
 
 
 def test_admission_worker_seal_and_delivery_bind_same_executor_despite_distinct_scratch(runtime, monkeypatch):
@@ -30,8 +34,12 @@ def test_admission_worker_seal_and_delivery_bind_same_executor_despite_distinct_
     receipt = json.loads(runtime.store.get_kv(f"delivery:{mission['id']}"))
     assert expected == tests["executor"] == packet["payload"]["payload"]["contract"]["test_executor"] == receipt["test_executor"]
     assert expected["limits"] == tests["limits"]
-    assert expected["isolation"]["pytest_version"]
-    assert tests["isolation"]["parameters_digest"] != receipt["test_isolation"]["parameters_digest"]
+    if sandbox_module.settings.test_backend == "docker":
+        assert expected["isolation"]["image_id"]
+        assert tests["isolation"]["container"] != receipt["test_isolation"]["container"]
+    else:
+        assert expected["isolation"]["pytest_version"]
+        assert tests["isolation"]["parameters_digest"] != receipt["test_isolation"]["parameters_digest"]
     packet_bytes = Path(packet["path"]).read_bytes()
     drift(monkeypatch)
     monkeypatch.setattr(runtime.sandbox, "run_tests", lambda *a, **kw: pytest.fail("Existing receipt must not replay tests"))
@@ -101,7 +109,9 @@ def test_executor_drift_while_real_pytest_runs_invalidates_passing_output(tmp_pa
     execute = sandbox_module._run
     def changing_run(*args, **kwargs):
         result = execute(*args, **kwargs)
-        assert result.returncode == 0 and "1 passed" in result.stdout
+        output = (base64.b64decode(json.loads(result.stdout)["stdout"]).decode()
+                  if sandbox_module.settings.test_backend == "docker" else result.stdout)
+        assert result.returncode == 0 and "1 passed" in output
         monkeypatch.setattr(sandbox_module, "MAX_JUNIT_CASES", 999)
         return result
     monkeypatch.setattr(sandbox_module, "_run", changing_run)
@@ -149,6 +159,8 @@ def test_legacy_contract_has_no_retroactive_executor_binding_and_can_deliver(run
 
 
 def test_missing_pytest_distribution_is_explicit_and_starts_no_process(tmp_path, monkeypatch):
+    if sandbox_module.settings.test_backend != "macos":
+        pytest.skip("Native runtime metadata; Docker freezes the image instead")
     def missing(name):
         raise test_isolation.PackageNotFoundError(name)
     monkeypatch.setattr(test_isolation, "version", missing)

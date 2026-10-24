@@ -23,8 +23,26 @@ jobs:
         with:
           python-version: '3.12'
       - run: python -m venv .venv
-      - run: .venv/bin/python -m pip install -r requirements-dev.txt
+      - run: .venv/bin/python -m pip install --require-hashes -r requirements.lock
       - run: .venv/bin/python scripts/check_publication.py
+      - run: .venv/bin/python -m pytest -q
+
+  docker-tests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      AEION_TEST_BACKEND: docker
+      AEION_DOCKER_TESTS: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.12'
+      - run: python -m venv .venv
+      - run: .venv/bin/python -m pip install --require-hashes -r requirements.lock
+      - run: .venv/bin/python scripts/build_worker.py
       - run: .venv/bin/python -m pytest -q
 
   secrets:

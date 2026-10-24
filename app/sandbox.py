@@ -30,6 +30,7 @@ import yaml
 
 from .config import POC_DIR, settings
 from .test_isolation import executor_identity, isolated_pytest
+from . import container_executor
 
 MAX_TEST_OUTPUT_BYTES = 1024 * 1024
 MAX_JUNIT_BYTES = 2 * 1024 * 1024
@@ -369,8 +370,10 @@ class SandboxManager:
     # ----------------------------------------------------------------- tests
     @staticmethod
     def executor_contract(*, timeout: float = 180) -> dict[str, Any]:
+        if settings.test_backend not in {"docker", "macos"}:
+            raise OSError("Unknown canonical test backend; no fallback")
         return {
-            "schema": "aeion.pytest-executor/v1", "isolation": executor_identity(),
+            "schema": "aeion.pytest-executor/v1", "isolation": container_executor.executor_identity() if settings.test_backend == "docker" else executor_identity(),
             "implementation_digest": EXECUTOR_CODE_DIGEST,
             "arguments": list(PYTEST_ARGUMENTS),
             "limits": {"output_bytes": MAX_TEST_OUTPUT_BYTES, "report_bytes": MAX_JUNIT_BYTES,
@@ -391,15 +394,23 @@ class SandboxManager:
                 raise OSError("Canonical test executor differs from the admitted identity; no test process started")
             if junit.exists() or junit.is_symlink():
                 junit.unlink()
-            with isolated_pytest(path, junit, command, _local_process_env()) as (command, env, isolation):
+            container = settings.test_backend == "docker"
+            boundary = container_executor.isolated_pytest(path, timeout=timeout) if container else isolated_pytest(path, junit, command, _local_process_env())
+            with boundary as (command, env, isolation):
                 if isolation["executor"] != executor["isolation"]:
                     raise OSError("Canonical test executor changed while preparing isolation; no test process started")
-                result = _run(command, cwd=path, timeout=timeout, env=env, output_limit=MAX_TEST_OUTPUT_BYTES)
+                result = _run(command, cwd=path, timeout=timeout, env=env,
+                              output_limit=container_executor.MAX_WIRE_BYTES if container else MAX_TEST_OUTPUT_BYTES)
+                if container:
+                    result = container_executor.decode_result(result, junit, output_limit=MAX_TEST_OUTPUT_BYTES, report_limit=MAX_JUNIT_BYTES)
             if self.executor_contract(timeout=timeout) != executor:
                 raise OSError("Canonical test executor changed during execution; results cannot establish acceptance")
         except _OutputLimitExceeded as error:
             return TestResult(available=True, error=str(error), stdout=error.stdout, stderr=error.stderr,
                               command=command, isolation=isolation, limits=limits, executor=executor)
+        except container_executor.WorkerReportError as error:
+            return TestResult(available=True, error=str(error), command=command,
+                              isolation=isolation, limits=limits, executor=executor)
         except subprocess.TimeoutExpired as error:
             return TestResult(
                 available=True,
