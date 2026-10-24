@@ -11,7 +11,7 @@ import pytest
 
 from app.agent_runner import AgentResult
 from app.model_routing import ModelRouter, RoutingBlocked, availability_error
-from app.operator_settings import load_routing_policy
+from app.operator_settings import EXAMPLE_PATH
 from test_product_loop import bootstrap, coverage_runner, start_product_task
 
 DS_FREE = "opencode/deepseek-v4.1-flash-free"
@@ -21,7 +21,9 @@ GLM_GO = "opencode-go/glm-5.3-flash"
 
 
 def policy(**changes):
-    value = copy.deepcopy(load_routing_policy())
+    # The ignored operator policy may authorize a different pool; routing tests must
+    # not change their expected candidates when the operator edits it locally.
+    value = copy.deepcopy(json.loads(EXAMPLE_PATH.read_text()))
     value["authorization_expires_at"] = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
     value.update(changes)
     value.pop("digest", None)
