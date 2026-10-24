@@ -76,7 +76,7 @@ jobs:
       - run: python -m venv .venv
       - run: .venv/bin/python -m pip install --require-hashes -r requirements.lock
       - run: .venv/bin/python scripts/prepare_stack.py
-      - run: docker compose up -d --wait --wait-timeout 180 postgres paperclip
+      - run: docker compose up -d --wait --wait-timeout 420 postgres paperclip cockpit
       - name: Verify real authentication, persistence and database restore
         run: AEION_STACK_TESTS=1 .venv/bin/python -m pytest -q tests/test_compose_stack.py
       - name: Remove this disposable CI stack
