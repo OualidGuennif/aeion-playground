@@ -10,6 +10,9 @@ __pycache__/
 HANDOVER.md
 runtime/
 vendor/
+!app/static/vendor/
+!app/static/vendor/three/
+!app/static/vendor/three/**
 references/
 config/model-routing.json
 auth.json

@@ -24,10 +24,12 @@ def runtime(tmp_path, monkeypatch):
     from app import main, observability, real_engine
     from app.evidence import EvidenceWriter
     from app.memory import MemoryStore
+    from app.parceldesk import ParcelDeskStore
     from app.sandbox import SandboxManager
     from app.store import Store
 
     ledger = Store(tmp_path / "ledger.db")
+    desk = ParcelDeskStore(tmp_path / "parceldesk.db")
     memory = MemoryStore(tmp_path / "memory.db")
     workspace = SandboxManager(tmp_path / "runs")
     graph = SimpleNamespace(
@@ -44,6 +46,7 @@ def runtime(tmp_path, monkeypatch):
     monkeypatch.setattr(observability, "store", ledger)
     monkeypatch.setattr(observability, "collector_health", lambda: {"available": False, "url": "http://127.0.0.1:13133"})
     monkeypatch.setattr(main, "store", ledger)
+    monkeypatch.setattr(main, "parceldesk_store", desk)
     engine = real_engine.RealEngine()
     # Legacy regression cases keep their admitted pinned-runtime behavior.
     # Dedicated routing tests enable their own explicit, isolated policy.
@@ -54,6 +57,8 @@ def runtime(tmp_path, monkeypatch):
     monkeypatch.setattr(main, "engine", engine)
     # Keep mission execution synchronous and explicit in each test.
     monkeypatch.setattr(real_engine, "threading", SimpleNamespace(RLock=threading.RLock, Event=threading.Event, Thread=lambda **kwargs: SimpleNamespace(start=lambda: None)))
-    yield SimpleNamespace(engine=engine, store=ledger, sandbox=workspace, module=real_engine, main=main, memory=memory, monkeypatch=monkeypatch)
+    yield SimpleNamespace(engine=engine, store=ledger, sandbox=workspace, module=real_engine, main=main,
+                          memory=memory, parceldesk=desk, monkeypatch=monkeypatch)
+    desk.close()
     memory.close()
     ledger._conn.close()

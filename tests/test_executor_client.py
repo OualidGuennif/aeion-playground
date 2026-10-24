@@ -8,11 +8,13 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+
+import pytest
 from typing import Any
 
 from app import real_engine
 from app.delivery import LocalDelivery
-from app.executor import ExecutorClient, InProcessExecutor
+from app.executor import ExecutorClient, ExecutorUnavailable, InProcessExecutor
 
 
 class RecordingExecutor:
@@ -29,6 +31,12 @@ class RecordingExecutor:
                   expected_executor: dict[str, Any] | None = None) -> Any:
         self.runs.append({"path": path, "timeout": timeout, "expected": expected_executor})
         raise AssertionError("No test run expected in this test")
+
+    def inference_probe(self) -> dict[str, Any]:
+        return {"ready": True, "runtime": "recording"}
+
+    def run_role(self, **kwargs: Any) -> Any:
+        raise AssertionError("No role run expected in this test")
 
 
 def test_in_process_executor_delegates_probe_and_run_tests():
@@ -69,3 +77,25 @@ def test_delivery_accepts_an_injected_executor(runtime):
     assert delivery.executor is injected
     default = LocalDelivery(runtime.store, runtime.sandbox)
     assert isinstance(default.executor, InProcessExecutor)
+
+
+def test_unavailable_agent_is_reported_and_refuses_admission(runtime):
+    class Broken:
+        def probe(self, *, timeout: float = 180):
+            raise ExecutorUnavailable("connection refused")
+
+        def inference_probe(self):
+            raise ExecutorUnavailable("connection refused")
+
+        def run_tests(self, *args, **kwargs):
+            raise AssertionError("no test run expected")
+
+        def run_role(self, **kwargs):
+            raise AssertionError("no role run expected")
+
+    engine = real_engine.RealEngine(executor=Broken())
+    probe = engine.agent_probe(force=True)
+    assert probe["ready"] is False and probe["runtime"] == "executor-unavailable"
+    with pytest.raises(RuntimeError, match="unavailable"):
+        engine.launch_mission("PD00", request_id="no-executor", defer=True)
+    assert runtime.store.queued_missions() == []
