@@ -41,7 +41,7 @@ from .operator_settings import load_routing_policy
 from .observability import charts as build_charts
 from .observability import emit, kpis as build_kpis, start_exporter, stop_exporter, delivery_status
 from .paperclip import paperclip
-from .policy_engine import PolicyEngine
+from .policy_engine import PolicyEngine, matches_path
 from .patch_protocol import PATCH_PROTOCOL, parse_patch, source_context
 from .sandbox import TestResult, sandbox
 from .store import InferenceBudgetError, store, utc_now
@@ -267,7 +267,11 @@ class RealEngine:
         now = time.time()
         if not force and self._agent_probe and now - self._agent_probe[0] < 30:
             return self._agent_probe[1]
-        probe = self.executor.inference_probe()
+        try:
+            probe = self.executor.inference_probe()
+        except Exception as error:
+            probe = {"ready": False, "runtime": "executor-unavailable",
+                     "reason": f"Executor agent unavailable: {error}"}
         self._agent_probe = (now, probe)
         return probe
 
@@ -369,6 +373,65 @@ class RealEngine:
         with self._lock:
             return self._admit_scenario(scenario, request_id=request_id, request=request, defer=True)
 
+    def launch_ticket(
+        self, *, request_id: str, title: str, outcome: str, area: str,
+        risk: str, acceptance: str, constraints: str = "",
+    ) -> dict[str, Any]:
+        """Admit a structured ParcelDesk ticket as a bounded agent mission.
+
+        The caller chooses the outcome, not the policy, the paths, the executor, the
+        model or the approval. Those remain the engine's constants and the Gate's.
+        """
+        title = " ".join(str(title).split())
+        outcome = " ".join(str(outcome).split())
+        acceptance = str(acceptance).strip()
+        constraints = str(constraints).strip()
+        if not isinstance(request_id, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}", request_id):
+            raise ValueError("A valid stable request_id is required.")
+        if not 4 <= len(title) <= 120:
+            raise ValueError("A ticket title requires 4–120 characters.")
+        if not 10 <= len(outcome) <= 500:
+            raise ValueError("An observable outcome requires 10–500 characters.")
+        if not 10 <= len(acceptance) <= 2_000:
+            raise ValueError("Acceptance checks require 10–2,000 characters.")
+        if len(constraints) > 1_000:
+            raise ValueError("Constraints must be at most 1,000 characters.")
+        if area not in {"pricing", "orders", "refunds", "warehouse", "support", "accessibility"}:
+            raise ValueError("Unknown ticket area.")
+        if risk not in {"low", "medium", "high"}:
+            raise ValueError("Risk must be low, medium or high.")
+        if any("\0" in value for value in (title, outcome, acceptance, constraints)):
+            raise ValueError("Ticket text contains a NUL byte.")
+        task = (
+            "ParcelDesk improvement ticket.\n"
+            f"Area: {area}\nRisk: {risk}\n"
+            f"Observable outcome: {outcome}\n"
+            f"Acceptance checks:\n{acceptance}\n"
+            f"Constraints:\n{constraints or 'No extra constraint.'}\n"
+            "Work only in app/** and tests/**. Preserve the started-kilogram pricing contract "
+            "and every existing test unless an acceptance check explicitly requires a new test. "
+            "Keep the change small, add or update tests so the outcome is observable, and do not "
+            "edit policy, configuration, AGENTS.md or Git history. Return only the patch protocol JSON."
+        )
+        scenario = {
+            "fixture": "TCK",
+            "kind": "agent",
+            "protocol": PATCH_PROTOCOL,
+            "title": title,
+            "subtitle": outcome[:200],
+            "risk": risk,
+            "priority": risk,
+            "memory_query": f"ParcelDesk {area} {title}",
+            "task": task,
+            "allowed_paths": ["app/**", "tests/**"],
+            "context_files": ["app/pricing.py", "tests/test_pricing.py"],
+            "delivery": "local",
+        }
+        request = {"type": "parceldesk-ticket", "title": title, "outcome": outcome,
+                   "area": area, "risk": risk, "acceptance": acceptance}
+        with self._lock:
+            return self._admit_scenario(scenario, request_id=request_id, request=request, defer=False)
+
     def _admit_scenario(
         self, scenario: dict[str, Any], *, request_id: str | None,
         request: dict[str, Any], defer: bool,
@@ -400,6 +463,10 @@ class RealEngine:
                 if minimum > 1000:
                     raise ValueError("The admitted minimum test count cannot exceed 1000 cases.")
                 scenario = {**scenario, "minimum_tests": minimum}
+        try:
+            test_executor = self.executor.probe()
+        except Exception as error:
+            raise RuntimeError(f"Canonical test executor unavailable: {error}") from error
         record = {
             "scenario": scenario["kind"],
             "fixture": scenario["fixture"],
@@ -421,7 +488,7 @@ class RealEngine:
                 "template_digest": source_release["tree_digest"] if source_release else sandbox.template_digest(),
                 "policy_digest": sandbox.policy_digest(),
                 "runtime": self._runtime_contract() if scenario["kind"] == "agent" else {"runtime": "local"},
-                "test_executor": self.executor.probe(),
+                "test_executor": test_executor,
                 "source_release": source_release,
                 "request": request,
                 **({"routing": routing} if routing else {}),
@@ -791,7 +858,7 @@ class RealEngine:
                     self._block(mission_id, "PATCH_PROTOCOL", "Unknown admitted patch protocol.", step_index=2)
                     return
                 try:
-                    context = source_context(Path(run["path"]))
+                    context = source_context(Path(run["path"]), tuple(scenario.get("context_files") or ()) or None)
                 except (OSError, ValueError) as error:
                     self._block(mission_id, "PATCH_CONTEXT", str(error), step_index=2)
                     return
@@ -866,7 +933,7 @@ class RealEngine:
             if not early_diff.available:
                 self._block(mission_id, "NO_DIFF", early_diff.error or "Cannot capture the patch.", step_index=2)
                 return
-            if protocol and any(name not in scenario["allowed_paths"] for name in early_diff.changed_files):
+            if protocol and any(not matches_path(name, scenario["allowed_paths"]) for name in early_diff.changed_files):
                 self._block(mission_id, "TASK_SCOPE", "The proposed patch exceeds its admitted paths; tests were not run.", step_index=2)
                 return
             if protocol and any((Path(run["path"]) / name).is_symlink() or not (Path(run["path"]) / name).is_file() for name in early_diff.changed_files):

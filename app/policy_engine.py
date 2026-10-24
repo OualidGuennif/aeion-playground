@@ -45,7 +45,7 @@ class GateDecision:
         }
 
 
-def _matches(path: str, patterns: list[str]) -> bool:
+def matches_path(path: str, patterns: list[str]) -> bool:
     normalized = path.replace("\\", "/")
     return any(
         fnmatch.fnmatch(normalized, pattern)
@@ -99,7 +99,7 @@ class PolicyEngine:
             return GateDecision("deny", "NO_PATCH", "The agent produced no change.", checks)
         checks.append(GateCheck("patch", "Patch present", "pass", ", ".join(diff.changed_files)))
 
-        protected_touched = [path for path in diff.changed_files if _matches(path, self.protected)]
+        protected_touched = [path for path in diff.changed_files if matches_path(path, self.protected)]
         if protected_touched:
             checks.append(
                 GateCheck(
@@ -118,14 +118,14 @@ class PolicyEngine:
             )
         checks.append(GateCheck("protected", "Protected paths untouched", "pass", "No protected path in the diff."))
 
-        outside_scope = [path for path in diff.changed_files if not _matches(path, ["app/**", "tests/**"])]
+        outside_scope = [path for path in diff.changed_files if not matches_path(path, ["app/**", "tests/**"])]
         if outside_scope:
             checks.append(GateCheck("paths", "Task edit scope", "fail", ", ".join(outside_scope)))
             return GateDecision("deny", "OUT_OF_SCOPE", "The task permits edits only in app/** and tests/**: " + ", ".join(outside_scope), checks)
         checks.append(GateCheck("paths", "Task edit scope", "pass", "Every changed path is inside app/** or tests/**."))
 
         if allowed_paths is not None:
-            outside_task = [path for path in diff.changed_files if not _matches(path, allowed_paths)]
+            outside_task = [path for path in diff.changed_files if not matches_path(path, allowed_paths)]
             if outside_task:
                 checks.append(GateCheck("task_paths", "Admitted task paths", "fail", ", ".join(outside_task)))
                 return GateDecision("deny", "TASK_SCOPE", "The patch exceeds the admitted task paths: " + ", ".join(outside_task), checks)
@@ -249,7 +249,7 @@ class PolicyEngine:
         else:
             checks.append(GateCheck("review", "Independent review", "pass", "Review OK · independent family"))
 
-        critical_path = [path for path in diff.changed_files if _matches(path, self.checkpoint_paths)]
+        critical_path = [path for path in diff.changed_files if matches_path(path, self.checkpoint_paths)]
         if risk in self.required_for_risk or critical_path or review_verdict != "OK" or not review_independent:
             reasons = []
             if risk in self.required_for_risk:

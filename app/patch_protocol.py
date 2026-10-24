@@ -8,20 +8,35 @@ from pathlib import Path
 PATCH_PROTOCOL = "patch/v1"
 MAX_PATCH_BYTES = 24_000
 CONTEXT_FILES = ("app/pricing.py", "tests/test_pricing.py")
+MAX_CONTEXT_FILES = 8
+MAX_CONTEXT_BYTES = 128_000
 
 
-def source_context(root: Path) -> str:
-    files = []
-    for name in CONTEXT_FILES:
+def source_context(root: Path, files: tuple[str, ...] | None = None) -> str:
+    names = tuple(files or CONTEXT_FILES)
+    if not 1 <= len(names) <= MAX_CONTEXT_FILES:
+        raise ValueError("Context requires between 1 and 8 files")
+    selected = []
+    total = 0
+    for name in names:
+        if not isinstance(name, str) or "\\" in name or name.startswith("/") or ".." in Path(name).parts:
+            raise ValueError(f"Context path refused: {name!r}")
+        if not (name.startswith("app/") or name.startswith("tests/")) or not name.endswith(".py"):
+            raise ValueError(f"Context path must be a Python file under app/ or tests/: {name}")
         path = root / name
         if any(part.is_symlink() for part in (path, *path.parents)):
             raise ValueError(f"Context symlink refused: {name}")
+        if not path.is_file():
+            raise ValueError(f"Context file is missing: {name}")
         with path.open("rb") as source:
             data = source.read(16_001)
         if len(data) > 16_000 or b"\0" in data:
             raise ValueError(f"Context file exceeds the text bound: {name}")
-        files.append({"path": name, "sha256": hashlib.sha256(data).hexdigest(), "text": data.decode("utf-8")})
-    return json.dumps(files, ensure_ascii=False)
+        total += len(data)
+        if total > MAX_CONTEXT_BYTES:
+            raise ValueError("Context exceeds the total text bound")
+        selected.append({"path": name, "sha256": hashlib.sha256(data).hexdigest(), "text": data.decode("utf-8")})
+    return json.dumps(selected, ensure_ascii=False)
 
 
 def _unique_object(pairs):

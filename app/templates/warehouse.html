@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>ParcelDesk · Warehouse &amp; support</title>
+  <link rel="stylesheet" href="/static/css/warehouse.css?v={{ asset_version }}">
+</head>
+<body class="wh-body">
+  <header class="wh-header">
+    <a class="wh-brand" href="/parceldesk">
+      <span class="wh-logo" aria-hidden="true">
+        <svg viewBox="0 0 40 40" fill="none"><path d="m20 4 14 8v16l-14 8-14-8V12l14-8Z" stroke="currentColor" stroke-width="1.6"/><path d="m6 12 14 8 14-8M20 20v16" stroke="currentColor" stroke-width="1.6"/></svg>
+      </span>
+      <span><strong>ParcelDesk</strong><small>fulfilment &amp; support</small></span>
+    </a>
+    <nav class="wh-nav" aria-label="ParcelDesk">
+      <a href="/parceldesk">Storefront</a>
+      <a class="active" href="/warehouse" aria-current="page">Warehouse</a>
+      <a href="/" target="_blank" rel="noreferrer">Mission Control ↗</a>
+    </nav>
+    <div class="wh-live"><span class="wh-pulse" aria-hidden="true"></span> live ledger</div>
+  </header>
+
+  <main class="wh-shell">
+    <section class="wh-stage" aria-label="Animated ParcelDesk warehouse">
+      <canvas id="wh-canvas"></canvas>
+      <div class="wh-stage-top">
+        <div class="wh-stage-copy">
+          <div class="wh-eyebrow">Fulfilment floor · Lyon</div>
+          <h1>Every parcel has<br><em>a next step.</em></h1>
+          <p>Orders move from packing to the belt, through the scan arch and out to the dock.
+            The support desk beside it can refund a delivered order; the Factory tab turns an
+            improvement into a bounded mission.</p>
+        </div>
+        <div class="wh-kpis" aria-label="Live figures">
+          <div><span>orders</span><strong id="kpi-orders">—</strong></div>
+          <div><span>in transit</span><strong id="kpi-transit">—</strong></div>
+          <div><span>refunded</span><strong id="kpi-refunds">—</strong></div>
+          <div><span>open tickets</span><strong id="kpi-tickets">—</strong></div>
+        </div>
+      </div>
+      <div class="wh-stage-bottom">
+        <div class="wh-legend" aria-hidden="true">
+          <span><i class="dot packing"></i>packing</span>
+          <span><i class="dot transit"></i>in transit</span>
+          <span><i class="dot delivered"></i>delivered</span>
+          <span><i class="dot refunded"></i>refunded</span>
+        </div>
+        <div class="wh-hint">drag to orbit · scroll to zoom</div>
+      </div>
+      <div class="wh-fallback" id="wh-fallback" hidden>
+        <strong>3D view unavailable</strong>
+        <span>This browser could not start WebGL. The orders and support desk below are still live.</span>
+      </div>
+    </section>
+
+    <aside class="wh-panel">
+      <div class="wh-panel-head">
+        <div>
+          <span class="wh-eyebrow">Support desk</span>
+          <h2>Today at ParcelDesk</h2>
+        </div>
+        <span class="wh-clock" id="wh-clock">--:--</span>
+      </div>
+
+      <div class="wh-tabs" role="tablist" aria-label="ParcelDesk panels">
+        <button role="tab" aria-selected="true" aria-controls="view-orders" data-tab="orders">Orders <span id="tab-orders-count"></span></button>
+        <button role="tab" aria-selected="false" aria-controls="view-support" data-tab="support">Refunds</button>
+        <button role="tab" aria-selected="false" aria-controls="view-factory" data-tab="factory">Factory</button>
+      </div>
+
+      <div class="wh-panels">
+        <section class="wh-view" id="view-orders" role="tabpanel">
+          <div class="wh-toolbar">
+            <input id="order-search" type="search" placeholder="Search order, customer or city" autocomplete="off">
+            <span id="order-count">—</span>
+          </div>
+          <div id="orders-list" class="wh-list"></div>
+        </section>
+
+        <section class="wh-view" id="view-support" role="tabpanel" hidden>
+          <div class="wh-rule">
+            <strong>30-day refund window</strong>
+            <span>Shipping is not refunded. A reason is required for high-value orders.</span>
+          </div>
+          <div id="refund-list" class="wh-list"></div>
+          <form class="wh-form wh-refund-form" id="refund-form">
+            <label>Order
+              <select id="refund-order"></select>
+            </label>
+            <label>Reason
+              <textarea id="refund-reason" rows="3" maxlength="500" placeholder="What happened? Required for a high-value order."></textarea>
+            </label>
+            <button type="submit" id="refund-submit">Issue refund</button>
+            <p class="wh-note" id="refund-note" role="status"></p>
+          </form>
+        </section>
+
+        <section class="wh-view" id="view-factory" role="tabpanel" hidden>
+          <p class="wh-copy">A ticket is a specification. The Factory admits it as a bounded mission: the author
+            proposes a patch, disposable workers run the real tests, the Gate re-runs the trusted suite, and a
+            different model family reviews the diff. A blocked mission is a normal outcome; the reason is in the ledger.</p>
+          <form class="wh-form" id="ticket-form">
+            <label>Title
+              <input id="ticket-title" required minlength="4" maxlength="120" placeholder="Show the refund reason in the support queue">
+            </label>
+            <label>Observable outcome
+              <textarea id="ticket-outcome" required minlength="10" maxlength="500" rows="2" placeholder="A support agent sees why an order was refunded, without opening the ledger."></textarea>
+            </label>
+            <div class="wh-row">
+              <label>Area
+                <select id="ticket-area">
+                  <option value="pricing">pricing</option>
+                  <option value="orders">orders</option>
+                  <option value="refunds">refunds</option>
+                  <option value="warehouse">warehouse</option>
+                  <option value="support">support</option>
+                  <option value="accessibility">accessibility</option>
+                </select>
+              </label>
+              <label>Risk
+                <select id="ticket-risk">
+                  <option value="low">low</option>
+                  <option value="medium">medium</option>
+                  <option value="high">high</option>
+                </select>
+              </label>
+            </div>
+            <label>Acceptance checks
+              <textarea id="ticket-acceptance" required minlength="10" maxlength="2000" rows="3" placeholder="The refund queue shows a reason column for every row.&#10;An order with no refund shows an empty reason, not None."></textarea>
+            </label>
+            <label>Constraints <span class="wh-optional">optional</span>
+              <input id="ticket-constraints" maxlength="1000" placeholder="Do not change the started-kilogram contract.">
+            </label>
+            <button type="submit" id="ticket-submit">Send to the Factory →</button>
+            <p class="wh-note" id="ticket-note" role="status"></p>
+          </form>
+          <div class="wh-list-head"><span>Recent tickets</span><span id="tickets-count"></span></div>
+          <div id="tickets-list" class="wh-list"></div>
+        </section>
+      </div>
+    </aside>
+  </main>
+
+  <div id="wh-toast" class="wh-toast" role="status" aria-live="polite"></div>
+  <script type="module" src="/static/js/warehouse.js?v={{ asset_version }}"></script>
+</body>
+</html>
