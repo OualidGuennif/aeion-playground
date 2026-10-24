@@ -1,7 +1,7 @@
 # Local service stack
 
 Requires Docker Engine 28+ (or current Docker Desktop), Python 3.12 and the locked venv.
-`scripts/prepare_stack.py` generates three separate owner-only local secret files once;
+`scripts/prepare_stack.py` generates separate owner-only local secret files once;
 subsequent runs preserve them. Never rotate signing secrets as a startup side effect.
 The secrets, provider state and named-volume contents are excluded from Git/build contexts.
 
@@ -57,6 +57,37 @@ model context, worker environment or Docker image. `PAPERCLIP_AUTH_STORE` can se
 separate private profile; the credential is bound to its exact loopback API origin.
 The controller disables environment proxies and redirects for workboard requests.
 
+## Cockpit and executor agent
+
+The cockpit runs as a container with no Docker socket, no host home and no provider
+credentials. It asks a host agent for the only operations that need Docker: running the
+disposable test worker and the author/reviewer roles.
+
+```sh
+.venv/bin/python scripts/prepare_stack.py          # creates runtime/secrets/executor_agent
+.venv/bin/python -m app.executor_agent --bind 127.0.0.1 --port 8131 &
+docker compose up -d --wait postgres paperclip otel-collector inference-gateway cockpit
+```
+
+The cockpit is published on **127.0.0.1:8124**. The token is mounted read-only at
+`/run/secrets/executor_agent`; `AEION_EXECUTOR_URL` defaults to
+`http://host.docker.internal:8131`, which Docker Desktop forwards to the host loopback.
+On Linux, start the agent with `--bind 172.17.0.1` and set
+`AEION_EXECUTOR_URL=http://172.17.0.1:8131` for Compose.
+
+Verify the boundary from the running container rather than from the Compose file:
+
+```sh
+docker compose exec -T cockpit sh -c 'test ! -e /var/run/docker.sock && echo "no socket"'
+docker inspect aeion-playground-cockpit-1 --format '{{json .HostConfig.Binds}}'
+```
+
+The cockpit keeps its ledger, sandbox checkouts and evidence packets in
+`runtime/cockpit/` (owner-only, a bind mount). Back it up with the other runtime state; it
+is not the same database as a native run. The executor token is a read-only bind mount of
+`runtime/secrets/executor_agent`; the cockpit runs as the host operator's uid. The agent is trusted and can launch containers: run it as the
+operator, keep its token private and treat its logs as operator data. It is not a sandbox.
+
 Paperclip is the workboard in this setup. The Factory owns model routing, disposable
 author/reviewer execution, tests, Gate and proofs. Paperclip's generic first-agent/provider
 wizard is for its own execution engine; it is not required to configure Factory model
@@ -75,7 +106,7 @@ access, runtime mount/resource settings, persistence across restart, and a real 
 custom-format dump/restore into a separate database. It does not create a fake operator,
 rebuild old proof, or establish complete disaster recovery for application assets.
 
-Back up **both named volumes and runtime/secrets** to private owner-controlled storage.
+Back up **both named volumes, `runtime/cockpit/` and `runtime/secrets`** to private owner-controlled storage.
 PostgreSQL requires a consistent `pg_dump`/`pg_restore` (or an offline data-volume backup),
 not a live filesystem copy. Restore into a separate stack first and verify account,
 company, issue links and application assets before replacing an installation. A missing

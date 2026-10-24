@@ -13,7 +13,8 @@ def prepare(root: Path) -> None:
     if directory.stat().st_uid != os.getuid():
         raise ValueError("Secret directory must belong to the current operator")
     directory.chmod(0o700)
-    for name in ("postgres_password", "paperclip_auth", "paperclip_actions", "gateway_admin"):
+    for name in ("postgres_password", "paperclip_auth", "paperclip_actions", "gateway_admin",
+                 "executor_agent"):
         target = directory / name
         try:
             descriptor = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
@@ -31,6 +32,11 @@ def prepare(root: Path) -> None:
         raise ValueError("Gateway state cannot be a symlink")
     gateway.mkdir(mode=0o700, exist_ok=True)
     gateway.chmod(0o700)
+    cockpit = root / "runtime/cockpit"
+    if cockpit.parent.is_symlink() or cockpit.is_symlink():
+        raise ValueError("Cockpit state cannot be a symlink")
+    cockpit.mkdir(parents=True, mode=0o700, exist_ok=True)
+    cockpit.chmod(0o700)
     telemetry = root / "runtime/otel/collector"
     if telemetry.parent.is_symlink() or telemetry.is_symlink():
         raise ValueError("Telemetry state cannot be a symlink")

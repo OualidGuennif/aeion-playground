@@ -27,7 +27,13 @@ class PaperclipClient:
     # ------------------------------------------------------------------ basics
     def _headers(self) -> dict[str, str]:
         headers = {"Content-Type": "application/json"}
-        token = settings.paperclip_api_token or load_board_token(self.base_url)
+        try:
+            token = settings.paperclip_api_token or load_board_token(self.base_url)
+        except (OSError, ValueError):
+            # A containerised cockpit reaches the workboard by service name, not
+            # loopback; without an explicit token it stays unauthenticated and the
+            # caller reports Paperclip as unavailable instead of crashing.
+            token = ""
         if token:
             headers["Authorization"] = f"Bearer {token}"
         return headers

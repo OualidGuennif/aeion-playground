@@ -1,10 +1,11 @@
 # Running the demo in containers
 
-Status: **executor boundary implemented; cockpit service not yet added.** The
-`ExecutorClient` interface, the host agent (`probe`, `run_tests`, `run_role`) and their
-boundary tests exist. The Compose cockpit service, the negative `docker inspect`
-acceptance tests and the agent-kill test do not exist yet. Each remaining item is listed
-below and none is implied by a configuration file.
+Status: **executor boundary and Compose cockpit implemented.** The `ExecutorClient`
+interface, the host agent (`probe`, `run_tests`, `run_role`), the cockpit image and
+Compose service exist. A cockpit container ran PD00 and PD03 end to end through the
+agent, with the worker's real Docker flags. The agent-kill test and the live-provider
+qualification are still missing; each remaining item is listed below and none is implied
+by a configuration file.
 
 ## The problem
 
@@ -96,15 +97,20 @@ Implemented properties:
 
 | # | Test | Status |
 |---|---|---|
-| 1 | cockpit container has no socket, host home or credentials, asserted from `docker inspect` | **not written** — no cockpit service yet |
+| 1 | cockpit container has no socket, host home or credentials, asserted from `docker inspect` | covered by the opt-in `tests/test_compose_stack.py` |
 | 2 | `run_tests` with an unprepared digest is refused and nothing is launched | covered by `tests/test_executor_agent.py` (fake workspace) |
 | 3 | missing/wrong token refused; a world-readable host token is refused at startup | covered by `tests/test_executor_agent.py` |
 | 4 | worker launched by the agent has `--network none`, read-only root, non-root, dropped caps, documented limits | **not written** — requires an opt-in Docker qualification |
 | 5 | killing the agent mid-run leaves no orphan container and records a blocked mission | **not written** |
-| 6 | cockpit serves Mission Control and ParcelDesk with the agent stopped, reporting `executor unavailable` | **not written** — no cockpit service yet |
+| 6 | cockpit serves Mission Control and ParcelDesk with the agent stopped, reporting `executor unavailable` | **not written** — observed manually only |
 
 The unit tests use a fake workspace and a fake role runner. They prove the protocol and
-the refusals; they do not prove container isolation.
+the refusals; they do not prove container isolation. What was measured with real
+containers: the cockpit image boots healthy under Compose, serves `/` and `/parceldesk`,
+reads the remote inference probe, and ran PD00 and PD03 through the agent. PD03's worker
+command showed `--network none`, `--read-only`, `--user 65532:65532`, `--cap-drop ALL`,
+the memory/CPU/PID limits and no Docker socket. PD00 recorded the baseline `12 passed /
+7 failed` and Gate `NO_PATCH`; PD03 recorded `19 passed` and Gate `PROTECTED_PATH`.
 
 ## Running the agent today
 
@@ -130,4 +136,6 @@ in-process executor. With `AEION_EXECUTOR_URL` it uses the remote client and
 3. Qualify `run_role` against the real gateway in a disposable container. **Not done**:
    no live provider inference has been exercised in this repository.
 4. Add the cockpit service to Compose and make the native path an explicit, documented
-   fallback (`--native-executor`), never an automatic one. **Not done.**
+   fallback. **Done:** without `AEION_EXECUTOR_URL` the engine uses the in-process
+   executor; the Compose service sets the remote URL, and a missing agent never falls
+   back to a socket.
