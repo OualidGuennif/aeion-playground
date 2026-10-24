@@ -7,6 +7,9 @@ This public source starts from the working ParcelDesk proof of concept. It conta
 application and regression tests, without private frameworks, credentials, sessions or
 historical runtime databases. The accepted cockpit and ParcelDesk design are preserved.
 
+The [interactive architecture map](knowledge/aeion-playground-architecture.html) shows the
+components, the trust boundaries and the executor path in one page.
+
 ## Current status
 
 Canonical test execution defaults to disposable Docker workers with a frozen image identity,

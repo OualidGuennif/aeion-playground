@@ -1,0 +1,368 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Æion Playground — demo, trust boundaries and delivery loop",
+    "subtitle": "A containerised cockpit asks a trusted host agent for the two operations that need Docker. Model output never owns approval.",
+    "output": "knowledge/aeion-playground-architecture.html",
+    "quality_profile": "showcase",
+    "visual_preset": "signal-flow"
+  },
+  "components": [
+    {
+      "id": "operator",
+      "type": "external",
+      "label": "Operator",
+      "sublabel": "browser · 127.0.0.1:8124",
+      "pos": [
+        395,
+        660
+      ],
+      "size": [
+        160,
+        60
+      ]
+    },
+    {
+      "id": "parceldesk",
+      "type": "frontend",
+      "label": "ParcelDesk",
+      "sublabel": "shipping quote & support surface",
+      "pos": [
+        380,
+        170
+      ],
+      "size": [
+        190,
+        64
+      ]
+    },
+    {
+      "id": "cockpit",
+      "type": "frontend",
+      "label": "Mission Control",
+      "sublabel": "FastAPI · Gate · read-only root",
+      "pos": [
+        380,
+        290
+      ],
+      "size": [
+        190,
+        72
+      ]
+    },
+    {
+      "id": "ledger",
+      "type": "database",
+      "label": "Ledger + evidence",
+      "sublabel": "SQLite · digest-sealed packets",
+      "pos": [
+        40,
+        290
+      ],
+      "size": [
+        190,
+        72
+      ]
+    },
+    {
+      "id": "otel",
+      "type": "cloud",
+      "label": "OTel collector",
+      "sublabel": "metadata only · pinned image",
+      "pos": [
+        40,
+        420
+      ],
+      "size": [
+        190,
+        64
+      ]
+    },
+    {
+      "id": "paperclip",
+      "type": "backend",
+      "label": "Paperclip",
+      "sublabel": "workboard · one issue per mission",
+      "pos": [
+        640,
+        420
+      ],
+      "size": [
+        180,
+        64
+      ]
+    },
+    {
+      "id": "postgres",
+      "type": "database",
+      "label": "PostgreSQL",
+      "sublabel": "workboard state",
+      "pos": [
+        640,
+        540
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "agent",
+      "type": "security",
+      "label": "Executor agent",
+      "sublabel": "host · capability token · allowlist",
+      "pos": [
+        920,
+        290
+      ],
+      "size": [
+        190,
+        72
+      ]
+    },
+    {
+      "id": "worker",
+      "type": "backend",
+      "label": "Test worker",
+      "sublabel": "pytest · network none · 65532",
+      "pos": [
+        1230,
+        180
+      ],
+      "size": [
+        180,
+        64
+      ]
+    },
+    {
+      "id": "forge",
+      "type": "backend",
+      "label": "Forge role",
+      "sublabel": "patch author · one model step",
+      "pos": [
+        1230,
+        290
+      ],
+      "size": [
+        170,
+        60
+      ]
+    },
+    {
+      "id": "sentinel",
+      "type": "backend",
+      "label": "Sentinel role",
+      "sublabel": "independent review · read-only",
+      "pos": [
+        1230,
+        380
+      ],
+      "size": [
+        170,
+        60
+      ]
+    },
+    {
+      "id": "gateway",
+      "type": "security",
+      "label": "Inference gateway",
+      "sublabel": "one-use leases · credentials stay here",
+      "pos": [
+        1480,
+        320
+      ],
+      "size": [
+        190,
+        64
+      ]
+    },
+    {
+      "id": "provider",
+      "type": "external",
+      "label": "Model provider",
+      "sublabel": "OpenCode API · billed usage",
+      "pos": [
+        1480,
+        520
+      ],
+      "size": [
+        170,
+        64
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Compose project — no Docker socket, no host home",
+      "wraps": [
+        "parceldesk",
+        "cockpit",
+        "ledger",
+        "otel",
+        "paperclip",
+        "postgres"
+      ],
+      "pad": 26
+    },
+    {
+      "kind": "region",
+      "label": "Host — trusted executor agent and disposable containers",
+      "wraps": [
+        "agent",
+        "worker",
+        "forge",
+        "sentinel"
+      ],
+      "pad": 26
+    },
+    {
+      "kind": "security-group",
+      "label": "worker sandbox — read-only root · all capabilities dropped",
+      "wraps": [
+        "worker"
+      ],
+      "pad": 14
+    }
+  ],
+  "connections": [
+    {
+      "id": "operator-cockpit",
+      "from": "operator",
+      "to": "cockpit",
+      "label": "HTTP",
+      "variant": "emphasis"
+    },
+    {
+      "id": "cockpit-parceldesk",
+      "from": "cockpit",
+      "to": "parceldesk",
+      "label": "serves",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "cockpit-ledger",
+      "from": "cockpit",
+      "to": "ledger",
+      "label": "SQLite transaction",
+      "fromSide": "left",
+      "toSide": "right"
+    },
+    {
+      "id": "cockpit-collector",
+      "from": "cockpit",
+      "to": "otel",
+      "label": "OTLP metadata",
+      "variant": "dashed",
+      "fromSide": "left",
+      "toSide": "right"
+    },
+    {
+      "id": "cockpit-workboard",
+      "from": "cockpit",
+      "to": "paperclip",
+      "label": "issue per mission",
+      "fromSide": "right",
+      "toSide": "top",
+      "labelDy": 44
+    },
+    {
+      "id": "workboard-database",
+      "from": "paperclip",
+      "to": "postgres",
+      "label": "SQL",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "cockpit-agent",
+      "from": "cockpit",
+      "to": "agent",
+      "label": "probe · run_tests · run_role",
+      "variant": "security"
+    },
+    {
+      "id": "agent-worker",
+      "from": "agent",
+      "to": "worker",
+      "label": "snapshot digest",
+      "variant": "security",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "id": "agent-forge",
+      "from": "agent",
+      "to": "forge",
+      "label": "docker run",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "id": "agent-sentinel",
+      "from": "agent",
+      "to": "sentinel",
+      "label": "docker run",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "id": "forge-gateway",
+      "from": "forge",
+      "to": "gateway",
+      "label": "one-use lease",
+      "variant": "security",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "id": "sentinel-gateway",
+      "from": "sentinel",
+      "to": "gateway",
+      "label": "one-use lease",
+      "variant": "security",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "id": "gateway-provider",
+      "from": "gateway",
+      "to": "provider",
+      "label": "credential mediation",
+      "variant": "security",
+      "fromSide": "bottom",
+      "toSide": "top"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "What runs where",
+      "items": [
+        "The cockpit, workboard, database, collector and gateway are Compose services.",
+        "The executor agent is a host process; it is the only component with Docker access.",
+        "Test and role containers are disposable and receive no socket, host home or provider key."
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "What decides",
+      "items": [
+        "The Gate reads the JUnit report and the policy, never the model's claim of success.",
+        "Approval authority is separate from model output and is recorded in the ledger.",
+        "The evidence packet is digest-sealed, not cryptographically signed."
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "What is not wired",
+      "items": [
+        "GitHub delivery is pending: a filed issue is a specification, not an automatic run.",
+        "Live provider inference has not been exercised in this repository.",
+        "Budget and ledger authority remain in the cockpit; the agent cannot sign evidence."
+      ]
+    }
+  ]
+}
