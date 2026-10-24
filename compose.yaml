@@ -129,7 +129,7 @@ services:
       context: .
       dockerfile: infra/cockpit/Dockerfile
     restart: unless-stopped
-    user: '1000:1000'
+    user: '${AEION_OPERATOR_UID:-1000}:${AEION_OPERATOR_GID:-1000}'
     environment:
       PAPERCLIP_BASE_URL: http://paperclip:3101
       AEION_OTLP_ENDPOINT: http://otel-collector:4318
@@ -138,14 +138,11 @@ services:
       AEION_EXECUTOR_URL: ${AEION_EXECUTOR_URL:-http://host.docker.internal:8131}
       AEION_EXECUTOR_TOKEN_FILE: /run/secrets/executor_agent
       AEION_MAX_ACTIVE_MISSIONS: '1'
-    secrets:
-      - source: executor_agent
-        target: executor_agent
-        mode: 0444
     ports: ['127.0.0.1:8124:8124']
     networks: [control, workboard]
     volumes:
-      - cockpit_runtime:/app/runtime
+      - ./runtime/cockpit:/app/runtime
+      - ./runtime/secrets/executor_agent:/run/secrets/executor_agent:ro
       - ./config:/app/config:ro
     extra_hosts:
       - host.docker.internal:host-gateway
@@ -182,13 +179,10 @@ networks:
 volumes:
   postgres_data:
   paperclip_data:
-  cockpit_runtime:
 
 secrets:
   gateway_admin:
     file: ./runtime/secrets/gateway_admin
-  executor_agent:
-    file: ./runtime/secrets/executor_agent
   postgres_password:
     file: ./runtime/secrets/postgres_password
   paperclip_auth:

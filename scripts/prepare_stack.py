@@ -32,6 +32,11 @@ def prepare(root: Path) -> None:
         raise ValueError("Gateway state cannot be a symlink")
     gateway.mkdir(mode=0o700, exist_ok=True)
     gateway.chmod(0o700)
+    cockpit = root / "runtime/cockpit"
+    if cockpit.parent.is_symlink() or cockpit.is_symlink():
+        raise ValueError("Cockpit state cannot be a symlink")
+    cockpit.mkdir(parents=True, mode=0o700, exist_ok=True)
+    cockpit.chmod(0o700)
     telemetry = root / "runtime/otel/collector"
     if telemetry.parent.is_symlink() or telemetry.is_symlink():
         raise ValueError("Telemetry state cannot be a symlink")

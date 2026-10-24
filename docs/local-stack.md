@@ -82,9 +82,10 @@ docker compose exec -T cockpit sh -c 'test ! -e /var/run/docker.sock && echo "no
 docker inspect aeion-playground-cockpit-1 --format '{{json .HostConfig.Binds}}'
 ```
 
-The cockpit keeps its ledger, sandbox checkouts and evidence packets in the
-`cockpit_runtime` named volume. Back it up with the other volumes; it is not the same
-database as a native run. The agent is trusted and can launch containers: run it as the
+The cockpit keeps its ledger, sandbox checkouts and evidence packets in
+`runtime/cockpit/` (owner-only, a bind mount). Back it up with the other runtime state; it
+is not the same database as a native run. The executor token is a read-only bind mount of
+`runtime/secrets/executor_agent`; the cockpit runs as the host operator's uid. The agent is trusted and can launch containers: run it as the
 operator, keep its token private and treat its logs as operator data. It is not a sandbox.
 
 Paperclip is the workboard in this setup. The Factory owns model routing, disposable
@@ -105,7 +106,7 @@ access, runtime mount/resource settings, persistence across restart, and a real 
 custom-format dump/restore into a separate database. It does not create a fake operator,
 rebuild old proof, or establish complete disaster recovery for application assets.
 
-Back up **both named volumes and runtime/secrets** to private owner-controlled storage.
+Back up **both named volumes, `runtime/cockpit/` and `runtime/secrets`** to private owner-controlled storage.
 PostgreSQL requires a consistent `pg_dump`/`pg_restore` (or an offline data-volume backup),
 not a live filesystem copy. Restore into a separate stack first and verify account,
 company, issue links and application assets before replacing an installation. A missing
