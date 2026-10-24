@@ -33,7 +33,7 @@ from .agent_runner import AgentResult, agent_runner, model_family
 from .config import settings
 from .delivery import LocalDelivery
 from .evidence import evidence_writer
-from .executor import ExecutorClient, default_executor
+from .executor import ExecutorClient, InProcessExecutor, default_executor
 from .graphify import graph_projection
 from .memory import memory_store
 from .model_routing import ModelRouter, RoutingBlocked, availability_error
@@ -440,6 +440,12 @@ class RealEngine:
         existing = store.replay_request(request_id, request)
         if existing:
             return existing
+        if (scenario["kind"] == "agent" and not scenario.get("protocol")
+                and not isinstance(self.executor, InProcessExecutor)):
+            # Editor mode needs the role process to see and edit the controller's
+            # checkout. A remote executor has no shared filesystem, so the same
+            # mission is admitted as a text-only patch that the Gate applies.
+            scenario = {**scenario, "protocol": PATCH_PROTOCOL}
         routing = load_routing_policy() if scenario["kind"] == "agent" and settings.agent_runtime == "opencode-cli" else None
         if routing:
             ModelRouter(store, routing).remaining()

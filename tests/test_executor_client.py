@@ -16,6 +16,7 @@ from typing import Any
 from app import real_engine
 from app.delivery import LocalDelivery
 from app.executor import ExecutorClient, ExecutorUnavailable, InProcessExecutor
+from app.patch_protocol import PATCH_PROTOCOL
 
 
 class RecordingExecutor:
@@ -88,6 +89,20 @@ def test_docker_runtime_identity_comes_from_the_executor_not_local_docker(runtim
     assert contract["runtime"]["inference_executor"] == identity
     assert injected.inference_probes == 1
     assert injected.probes == [180]
+
+
+def test_remote_executor_admits_editor_missions_as_text_patches(runtime):
+    injected = RecordingExecutor()
+    engine = real_engine.RealEngine(executor=injected)
+    mission = engine.launch_mission("PD01", request_id="remote-patch-protocol", defer=True)
+    contract = json.loads(mission["contract_json"])
+    assert contract["scenario"]["protocol"] == PATCH_PROTOCOL
+
+
+def test_in_process_executor_keeps_editor_mode(runtime):
+    mission = runtime.engine.launch_mission("PD01", request_id="in-process-editor", defer=True)
+    contract = json.loads(mission["contract_json"])
+    assert "protocol" not in contract["scenario"]
 
 
 def test_docker_runtime_fails_closed_when_the_executor_has_no_identity(runtime, monkeypatch):
