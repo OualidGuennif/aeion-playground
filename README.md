@@ -43,8 +43,9 @@ What to click, in order:
 1. **Launch PD01** — a deliberately broken pricing rule. The model proposes a patch; a
    different model family reviews it; disposable containers run the real test suite; the
    Gate decides on the JUnit report, not on what the model said.
-2. Open the mission and read the **evidence packet**, then verify it: the signature covers
-   the tests, the diff and the environment identity.
+2. Open the mission and read the **evidence packet**, then verify it: its SHA-256 digest
+   covers the tests, the diff and the environment identity. It is a digest seal, not a
+   cryptographic signature.
 3. Open **Observability** — the outbox counters and the collector state. `pending` is not an
    error you can ignore; it means delivery has not been acknowledged yet.
 4. Launch **PD03** to see the Gate *deny* a patch that touches a protected path. A refused

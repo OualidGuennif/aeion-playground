@@ -1,14 +1,17 @@
 # Running the demo in containers
 
-Status: **design accepted, implementation pending.** Nothing in this document is
-implemented yet; it records the decision and the acceptance tests that would close it.
+Status: **executor boundary implemented; cockpit service not yet added.** The
+`ExecutorClient` interface, the host agent (`probe`, `run_tests`, `run_role`) and their
+boundary tests exist. The Compose cockpit service, the negative `docker inspect`
+acceptance tests and the agent-kill test do not exist yet. Each remaining item is listed
+below and none is implied by a configuration file.
 
 ## The problem
 
 The cockpit (Mission Control + ParcelDesk) currently runs as a native process on the
 operator's machine. The demo is therefore only reproducible on macOS, on that machine, and
-the operator's host is part of the trust boundary. We want the whole demo to run under
-Compose, on any Linux host with a Docker engine, without weakening the boundaries stated in
+the operator's host is part of the trust boundary. We want the demo to run under Compose,
+on any host with a Docker engine, without weakening the boundaries stated in
 [`SECURITY.md`](../SECURITY.md).
 
 The difficulty is that the trusted controller **launches containers**: the test executor
@@ -36,10 +39,10 @@ Split the system at the boundary that already exists in the code:
 ┌──────────────────────────── Compose ────────────────────────────┐
 │  cockpit (untrusted-ish)   workboard   postgres   collector     │
 └───────────────┬─────────────────────────────────────────────────┘
-                │ loopback only, capability token, allowlisted ops
+                │ loopback or private bridge, capability token
 ┌───────────────▼─────────────────────────────────────────────────┐
 │  executor agent  (TRUSTED, runs on the host, outside Compose)    │
-│  owns the Docker socket, the macOS sandbox and the budget ledger │
+│  owns Docker access; never receives a caller path or command    │
 └───────────────┬─────────────────────────────────────────────────┘
                 │ docker run --rm, no socket, no host home
 ┌───────────────▼─────────────────────────────────────────────────┐
@@ -52,52 +55,79 @@ of **allowlisted operations**, each with its own request shape:
 
 | Operation | Request | Response |
 |---|---|---|
-| `run_tests` | bounded source snapshot digest, timeout, expected executor identity | JUnit report (bounded, parsed) |
-| `run_role` | role, model, prompt digest, lease id | structured result, bounded |
+| `run_tests` | content-addressed snapshot digest, timeout, expected executor identity | bounded test result, host paths redacted |
+| `run_role` | bounded role parameters and prompt material, no working directory | bounded agent result, no host paths |
 | `probe` | none | executor identity, image ids, limits |
 
-Properties that make this safe enough to build:
+Implemented properties:
 
-- The agent binds `127.0.0.1` only and requires a capability token read from an owner-only
-  file — the same pattern already used by `GatewayClient` for the inference gateway.
-- The agent does not accept a command, a path or an image from the caller. It accepts a
-  *digest* and resolves the snapshot itself; anything that does not match a prepared
-  snapshot is refused.
-- Every operation is bounded: bytes, seconds, output size. No streaming of unbounded data.
-- The agent holds the budget reservation and the sealed evidence keys. The cockpit remains a
-  view over the ledger; it cannot sign an evidence packet it did not obtain through the
-  agent.
-- Compromise of the cockpit yields: forged UI, refused operations, and a loud failure. It
-  does not yield container launch.
+- The agent binds a loopback or private address (validated at startup; `0.0.0.0`, public
+  addresses and hostnames are refused) and requires a 64-hex capability token from a
+  regular, operator-owned, mode-0600 file.
+- The agent does not accept a command, a path or an image from the caller. `run_tests`
+  accepts a `sha256:` digest; the snapshot must have been uploaded first, its digest is
+  recomputed on every read, and extraction uses `tarfile`'s `data` filter. An unknown
+  digest is refused before a worker starts.
+- `run_role` accepts only the `forge` and `sentinel` agent identities, only the text-only
+  patch protocol, and never a `cwd`; it creates its own scratch directory.
+- Every operation is bounded: request bytes, snapshot bytes (compressed and unpacked),
+  entry count, timeout, response size. No streaming of unbounded data.
+- Responses redact agent-local paths. The raw JUnit XML and the role event streams stay on
+  the agent; the cockpit receives the bounded parsed report and the role summary.
+- The cockpit does not receive a Docker socket, a host home or provider credentials.
 
 ## What this does *not* solve
 
 - The host agent is still privileged. It is a smaller attack surface, not a safe one. It
-  must run as the operator, with its own hardening and its own tests.
-- A compromised host agent can start any container. That risk is inherent to "run Docker on
-  this machine" and must be stated, not hidden.
+  must run as the operator, with its own hardening and monitored logs.
+- A compromised host agent can start any container. That risk is inherent to "run Docker
+  on this machine" and must be stated, not hidden.
+- **Budget and ledger authority stay in the cockpit.** The agent does not hold the budget
+  reservation, does not sign evidence and does not own the SQLite ledger. A compromised
+  cockpit can therefore undermine budget accounting and can build a packet containing
+  values the agent never produced. Evidence is digest-sealed, not key-signed. What the
+  cockpit cannot do is launch a container, read the agent's raw reports or obtain provider
+  credentials.
+- The agent's local logs are not tamper-evident. They are operator-readable bounded files,
+  not a second ledger.
 - Multi-tenant hosting is out of scope: one operator, one host, one ledger.
 
-## Acceptance tests to write before calling this done
+## Acceptance status
 
-1. The cockpit container has no `/var/run/docker.sock`, no host home and no credentials:
-   inspect the running container in the test, do not trust the Compose file.
-2. `run_tests` with a snapshot digest that was never prepared is refused, and nothing is
-   launched.
-3. A caller without the capability token is refused; a caller with a token from a
-   world-readable file is refused at startup.
-4. The worker launched by the agent has `--network none`, read-only root, non-root, dropped
-   capabilities, and the documented limits — asserted from `docker inspect`.
-5. Killing the agent mid-run leaves no orphan container, and the mission is recorded as
-   blocked with a reason, not silently retried.
-6. The cockpit container can serve Mission Control and ParcelDesk with the agent stopped;
-   it reports `executor unavailable` instead of failing to boot.
+| # | Test | Status |
+|---|---|---|
+| 1 | cockpit container has no socket, host home or credentials, asserted from `docker inspect` | **not written** — no cockpit service yet |
+| 2 | `run_tests` with an unprepared digest is refused and nothing is launched | covered by `tests/test_executor_agent.py` (fake workspace) |
+| 3 | missing/wrong token refused; a world-readable host token is refused at startup | covered by `tests/test_executor_agent.py` |
+| 4 | worker launched by the agent has `--network none`, read-only root, non-root, dropped caps, documented limits | **not written** — requires an opt-in Docker qualification |
+| 5 | killing the agent mid-run leaves no orphan container and records a blocked mission | **not written** |
+| 6 | cockpit serves Mission Control and ParcelDesk with the agent stopped, reporting `executor unavailable` | **not written** — no cockpit service yet |
+
+The unit tests use a fake workspace and a fake role runner. They prove the protocol and
+the refusals; they do not prove container isolation.
+
+## Running the agent today
+
+```sh
+.venv/bin/python scripts/prepare_stack.py          # creates runtime/secrets/executor_agent
+.venv/bin/python -m app.executor_agent --bind 127.0.0.1 --port 8131
+```
+
+On Docker Desktop for macOS, `127.0.0.1` is reachable from a container through
+`host.docker.internal`. On Linux, bind the Docker bridge gateway instead
+(`--bind 172.17.0.1`) and point the cockpit at it. The agent refuses a public bind.
+
+The native cockpit does not need the agent: without `AEION_EXECUTOR_URL` it uses the
+in-process executor. With `AEION_EXECUTOR_URL` it uses the remote client and
+`AEION_EXECUTOR_TOKEN_FILE` for the token.
 
 ## Migration order
 
 1. Extract the executor calls behind an interface (`ExecutorClient`) with the current
-   in-process implementation as the default.
-2. Add the host agent with `probe` and `run_tests` only; keep inference local for now.
-3. Add `run_role` once the two-operation path is qualified.
+   in-process implementation as the default. **Done.**
+2. Add the host agent with `probe` and `run_tests`; keep inference local. **Done, plus
+   `run_role` because a containerised cockpit cannot run a mission without it.**
+3. Qualify `run_role` against the real gateway in a disposable container. **Not done**:
+   no live provider inference has been exercised in this repository.
 4. Add the cockpit service to Compose and make the native path an explicit, documented
-   fallback (`--native-executor`), never an automatic one.
+   fallback (`--native-executor`), never an automatic one. **Not done.**
