@@ -55,9 +55,9 @@ est la référence : toute décision doit pouvoir être rattachée à une ligne 
 | # | Étape | Critère d'acceptation | État |
 |---|---|---|---|
 | P0 | `CURRENT.md` + plan | Ce fichier relu et cohérent | fait |
-| P1 | Guidelines du repo : `CONTRIBUTING.md`, templates d'issue/PR, `SECURITY` complété | Un contributeur sait coder, tester, proposer ; un ticket ParcelDesk a un format que les agents peuvent lire | à faire |
-| P2 | README : comprendre la démo, la lancer, voir le parcours, créer un ticket | Un lecteur froid lance la démo en < 10 min | à faire |
-| P3 | Écosystème en Docker : cockpit + services, sans socket dans les rôles | `docker compose up` sert le cockpit sur 127.0.0.1 ; tests de frontière négatifs | à faire |
+| P1 | Guidelines du repo : `CONTRIBUTING.md`, templates d'issue/PR, `SECURITY` complété | Un contributeur sait coder, tester, proposer ; un ticket ParcelDesk a un format que les agents peuvent lire | **fait** — PR #9, `6d15bde` |
+| P2 | README : comprendre la démo, la lancer, voir le parcours, créer un ticket | Un lecteur froid lance la démo en < 10 min | **fait** — PR #9 |
+| P3 | Écosystème en Docker : cockpit + services, sans socket dans les rôles | `docker compose up` sert le cockpit sur 127.0.0.1 ; tests de frontière négatifs | décision prise (`docs/demo-deployment.md`), implémentation à faire |
 | P4 | Diagramme `knowledge/` (archify/tt-a1i ou équivalent local) | Diagramme versionné, cohérent avec le code | à faire |
 | P5 | Gate externe (external acceptance) | Un rapport de worker n'est jamais accepté seul | à faire |
 | P6 | Livraison GitHub (issue → PR → CI → merge) | Parcours réel démontré, autorité humaine séparée | à faire |
@@ -67,3 +67,8 @@ est la référence : toute décision doit pouvoir être rattachée à une ligne 
 ## Journal
 
 - 2026-10-24 : fichier créé. Repo sur `main` = `cf8fb66`, arbre propre, CI verte.
+- 2026-10-24 22:5x : PR #9 mergée (`6d15bde`) — CONTRIBUTING, formulaire de ticket
+  ParcelDesk, template de PR, README (parcours 10 min + comment créer un ticket), watchdog
+  de session. Décision d'architecture pour P3 écrite dans `docs/demo-deployment.md` :
+  **option C** (agent exécuteur sur l'hôte + API étroite), socket Docker jamais dans un
+  conteneur. Aucune ligne de cette option n'est encore implémentée.
