@@ -5,10 +5,12 @@ The `ExecutorClient` interface, the host agent (`probe`, `run_tests`, `run_role`
 cockpit image and Compose service exist. A cockpit container ran PD00 and PD03 end to end
 through the agent, with the worker's real Docker flags. A full live PD01 mission and a
 bounded Factory ticket then ran through the containerised cockpit, host agent and paid
-models; the ticket published a local Git release. A same-host backup/restore drill and the
-agent-kill/orphan drill have also passed. A fresh-host install and an off-host restore are
-still missing; each remaining item is listed below and none is implied by a configuration
-file.
+models; the ticket published a local Git release. A same-host backup/restore drill, the
+agent-kill/orphan drill, a fresh copy install from the public clone, a controlled first
+mission and an independent-directory restore have passed. A true second-machine/off-host
+restore and a paid mission on a fresh install are still missing; each remaining item is
+listed below and none is implied by a configuration file. See
+[`qualification.md`](qualification.md).
 
 ## The problem
 
@@ -106,8 +108,8 @@ Implemented properties:
 | 4 | worker launched by the agent has `--network none`, read-only root, non-root, dropped caps, documented limits | covered by the opt-in `tests/test_docker_isolation.py`; the hosted `docker-tests` job builds the worker image and runs it with `AEION_DOCKER_TESTS=1` |
 | 5 | killing the agent mid-run records a blocked mission without replay and leaves no orphan | measured 2026-10-25: `PD-007` blocked `EXECUTION_FAILED` in the same second (0 runs, 0 cost, one `mission.started`), still blocked after the restart; the worker stayed running and the restart logged `removed 1 container(s) left by a previous run`; opt-in `tests/test_agent_kill.py` repeats the kill/reap half |
 | 6 | cockpit serves Mission Control and ParcelDesk with the agent stopped, reporting `executor unavailable` | covered by the hosted `stack-tests` job: it starts the cockpit with no host agent and checks `/`, `/parceldesk`, `/warehouse` and `/api/health` |
-| 7 | backup and restore of the cockpit state directory on the same host and image | measured 2026-10-25: 228,094-byte archive, SQLite integrity ok, 6 missions / 8 attempts / 3 tickets restored, PD-006 packet valid, `product_head` unchanged; off-host restore not tested |
-| 8 | fresh-host install and first mission | **not tested** |
+| 7 | backup and restore of the cockpit state directory on the same host and image | measured 2026-10-25 twice: a 228,094-byte archive restored 6 missions / 8 attempts / 3 tickets (same directory), and a 3,434,606-byte archive restored 28 missions / 376 events / 34 attempts / 24 tickets into an independent directory, with both sealed product packets valid and `product_head:product` = PD-028. True off-host restore is not tested |
+| 8 | fresh copy install and first mission | measured 2026-10-25: public clone at `cd2206c`, hash-locked install, **463 passed / 15 skipped**, `check_publication` pass; first mission `PD-001` ran the real worker (12/19, 7 known baseline failures) and Gate `NO_PATCH` on a fresh ledger. Not a second machine and not a paid mission |
 
 The unit tests use a fake workspace and a fake role runner. They prove the protocol and
 the refusals; they do not prove container isolation. What was measured with real
