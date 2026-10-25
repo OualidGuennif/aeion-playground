@@ -1,7 +1,7 @@
 import type { Handlers } from "$fresh/server.ts";
 import { backendUrl } from "../../lib/api.ts";
 
-const ALLOWED = new Set(["orders", "summary", "pulls", "health"]);
+const ALLOWED = new Set(["orders", "summary", "pulls", "health", "refunds.csv"]);
 const LIMIT = 250_000;
 
 async function forward(request: Request, path: string): Promise<Response> {
@@ -14,7 +14,7 @@ async function forward(request: Request, path: string): Promise<Response> {
   }
   const url = new URL(request.url);
   const target = `${backendUrl}/api/${path}${url.search}`;
-  const headers: Record<string, string> = { accept: "application/json" };
+  const headers: Record<string, string> = { accept: path.endsWith(".csv") ? "text/csv" : "application/json" };
   let body: ArrayBuffer | undefined;
   if (request.method !== "GET" && request.method !== "HEAD") {
     body = await request.arrayBuffer();
@@ -30,7 +30,10 @@ async function forward(request: Request, path: string): Promise<Response> {
   try {
     const response = await fetch(target, { method: request.method, headers, body });
     const contentType = response.headers.get("content-type") ?? "application/json";
-    return new Response(response.body, { status: response.status, headers: { "content-type": contentType } });
+    const outgoing: Record<string, string> = { "content-type": contentType };
+    const disposition = response.headers.get("content-disposition");
+    if (disposition) outgoing["content-disposition"] = disposition;
+    return new Response(response.body, { status: response.status, headers: outgoing });
   } catch (error) {
     return new Response(JSON.stringify({ ok: false, error: `API unavailable: ${error}` }), {
       status: 502,

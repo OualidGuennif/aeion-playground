@@ -115,6 +115,7 @@ export default function Warehouse({ data }: PageProps<Data>) {
               </ul>
             )}
           <a class="text-link" href="/tickets">File an improvement ticket →</a>
+          <a class="text-link" href="/api/refunds.csv" download="refunds.csv">Download the refunds CSV →</a>
         </aside>
       </section>
 

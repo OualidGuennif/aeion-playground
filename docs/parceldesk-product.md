@@ -159,8 +159,16 @@ remains `fc6ca0d`. The API image was promoted from PD-032 and the web image from
   it asserts the header, the attachment disposition, the seeded PD-1050 row, the absence of
   a non-refunded order, and quoting for a reason containing a comma and quotes. This is a
   manual operator/Codex contribution, not a paid Factory release. The backend suite is
-  **12 tests**; the combined product suite is **21** (12 Maven + 9 Deno). PD-029, PD-030,
+  **12 tests**; the combined product suite is **22** (12 Maven + 10 Deno). PD-029, PD-030,
   PD-034, PD-035 and PD-036 remain in the ledger as failed or missing-test evidence.
+- **PD-044** adds a direct refunds CSV download link to the refund desk. The sealed release
+  is `8733f9c7…` (packet `sha256:030227a8…`, 17/17). Live verification then found the link
+  returned 404: the Fresh API proxy allowlisted only `orders`, `summary`, `pulls` and
+  `health`. The manual proxy fix adds `refunds.csv` and forwards `Content-Disposition`; it is
+  covered by `tests/csv_proxy_test.ts`. PD-045 tried to seal that proxy fix but failed
+  `MODEL_PATCH_INVALID` at `$0.000944`, so the proxy fix is **not** in a sealed packet.
+  The live web (`sha256:e8b62b77…`) serves `GET /api/refunds.csv` as 200 `text/csv` with the
+  attachment header and the PD-1050 row.
 
 ### Reliability fixes found by the live tickets
 
@@ -202,25 +210,29 @@ applied manually to the source after three model attempts failed (two invalid pa
 fixes, so a normal build keeps them.
 
 The live web image was rebuilt from the corrected source
-(`aeion-parceldesk-web:1` = `sha256:89cc2efa…`) and recreated on 2026-10-25. Measured with
+(`aeion-parceldesk-web:1` = `sha256:e8b62b77…`) and recreated on 2026-10-25. Measured with
 headless Chrome 1440×1500 and SwiftShader:
 
 - `/app.css`, `/app.js`, `/warehouse.js` and `/three.module.js` all 200;
 - topbar `display:flex` at 65 px; canvas 942×498 with a WebGL context;
 - `.scene-loading` absent; the warehouse scene, order ledger and
   `40.00 refunded · Damaged in transit · 2026-10-17` all render;
+- the `Download the refunds CSV` link is present and its proxied target returns 200
+  `text/csv` with `attachment; filename="refunds.csv"`;
 - the only browser console error is `/favicon.ico` 404.
 
 The previous operator image remains available as
-`aeion-parceldesk-web:operator-appfix-20261025` (`sha256:3a9f5561…`) and the sealed image as
-`aeion-parceldesk-web:sealed-before-appfix-20261025` (`sha256:7eef6db2…`). The operator
-patch and its rollback notes remain outside Git under
-`runtime/operator-patches/parceldesk-web-appfix-20261025/` (patch digest
-`sha256:025e6f9b…`).
+`aeion-parceldesk-web:operator-appfix-20261025` (`sha256:3a9f5561…`), the pre-PD-044 source
+image as `:pre-pd044-20261025` (`sha256:89cc2efa…`) and the PD-044 link image as
+`:pd044-link-20261025` (`sha256:a5e4db90…`); the sealed pre-appfix image remains
+`:sealed-before-appfix-20261025` (`sha256:7eef6db2…`). The operator patch and its rollback
+notes remain outside Git under `runtime/operator-patches/parceldesk-web-appfix-20261025/`
+(patch digest `sha256:025e6f9b…`).
 
-**Limits:** the loader fix is sealed in PD-041; the manifest registration is a manual
-source change, not sealed Factory evidence. The render is a headless SwiftShader capture,
-not a human GPU window. The sealed releases and packets are unchanged.
+**Limits:** the loader fix is sealed in PD-041 and the link is sealed in PD-044; the
+manifest registration and the CSV proxy allowlist/header are manual source changes, not
+sealed Factory evidence. The render is a headless SwiftShader capture, not a human GPU
+window. The sealed releases and packets are unchanged.
 
 ## Commands
 

@@ -209,11 +209,11 @@ rather than inventing a zero cost: PD-014 (the 2 MiB mediator bound), PD-022 (a 
 mediator deadline), PD-031 (a 170 s deadline that cut a still-running stream at 169 s),
 PD-035 and PD-043 (the 2 MiB response bound). No attempt is unsettled. The role admission is
 now **300 s** and the mediator deadline **290 s**. The operator authorized a **$30.00** local
-cap on 2026-10-25; current exposure is `$10.182358`, leaving `$19.817642`.
+cap on 2026-10-25; current exposure is `$10.186070`, leaving `$19.813930`.
 
 ### Autonomous paid improvement run, 2026-10-25
 
-With the $30 authorization, five product tickets were admitted through the cockpit. The
+With the $30 authorization, seven product tickets were admitted through the cockpit. The
 router mixed model families and learned from deterministic failures:
 
 - **PD-039** — GLM author, `$0.004670`, `MODEL_PATCH_INVALID`: it tried to recreate the
@@ -228,10 +228,21 @@ router mixed model families and learned from deterministic failures:
 - **PD-043** — DeepSeek was selected for the medium-risk manifest class, but the upstream
   SSE response crossed the 2 MiB mediator bound; no usage record was returned. Its $2
   reservation was reconciled conservatively and reported cost stayed `$0.00`.
+- **PD-044** — GLM author and DeepSeek reviewer, `$0.002768`, worker and acceptance
+  **17/17**, Gate `CLEAN`, sealed release `8733f9c7…`, packet
+  `sha256:030227a8…`. It adds a refunds CSV download link to the refund desk.
+- **PD-045** — GLM author, `$0.000944`, `MODEL_PATCH_INVALID`: the proxy patch did not
+  apply. The proxy allowlist/header fix was applied manually and verified live.
 
-The five tickets created Paperclip issues **AEI-4** through **AEI-8**. PD-041 is the only
-sealed release; the manifest registration was completed manually in source and is not part
-of that packet. The 2 MiB bound and the 16,384-token output bound remain known limits.
+The seven tickets created Paperclip issues **AEI-4** through **AEI-10**. PD-041 and PD-044
+are sealed releases; the manifest registration, the refunds-CSV proxy allowlist and the
+`Content-Disposition` forwarding are manual source follow-ups. The 2 MiB bound and the
+16,384-token output bound remain known limits.
+
+Live verification of PD-044 found that its link returned 404 because the Fresh proxy
+allowlist omitted `refunds.csv`; after the manual proxy fix, `GET /api/refunds.csv` through
+the live web returns **200**, `text/csv`, `attachment; filename="refunds.csv"`, the header
+and the PD-1050 row.
 
 The failed attempts remain in the ledger and are documented in
 [`parceldesk-product.md`](parceldesk-product.md): completion-bound truncation (PD-011/PD-015,
