@@ -110,10 +110,12 @@ surfaces were rechecked: the product web still renders
    untested.
 2. **No paid mission on the fresh install.** The first fresh mission was the controlled
    `PD00` baseline. Live paid inference is proven on the main installation.
-3. **Custom Compose project names are not fully supported.** The agent's readiness check
-   resolves the gateway by the hardcoded default container name
-   (`aeion-playground-inference-gateway-1`). The qualification used a one-line Compose
-   override to give the gateway that name. A default-name install does not need it.
+3. **Custom Compose project names needed an override during this drill.** The agent at the
+   time resolved the gateway by the hardcoded default container name
+   (`aeion-playground-inference-gateway-1`), so the qualification used a one-line Compose
+   override. The agent now discovers the single container labelled
+   `com.docker.compose.service=inference-gateway` and refuses zero or multiple matches; this
+   is unit-tested, but the fresh-install drill was not re-run with the new resolver.
 4. **Global image tags couple installations on one Docker engine.** Building the worker
    and role images from the second clone overwrote the shared tags, so the first
    installation's `runtime/*-image.json` records no longer matched. Re-recording them

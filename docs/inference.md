@@ -66,6 +66,11 @@ deadline is 290 seconds, below the role admission. Daemon logging is disabled.
 The controller always removes its container and revokes an unused lease. A consumed or
 unknown lease cannot be refunded by revoke. Cleanup uncertainty is an explicit failure.
 
+The role runner discovers the single Compose container labelled
+`com.docker.compose.service=inference-gateway` and refuses zero or multiple matches; an
+operator may set `AEION_GATEWAY_CONTAINER` explicitly for a controlled qualification.
+
+### Network
 The role network uses `internal` **and** `gateway_mode_ipv4=isolated`: `internal` alone
 can still reach host gateway services. External DNS is directed to the role's unused
 loopback resolver while Docker service discovery still resolves the gateway. The real

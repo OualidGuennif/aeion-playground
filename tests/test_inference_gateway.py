@@ -200,3 +200,21 @@ def test_the_upstream_deadline_never_cuts_a_role_before_its_own_deadline():
     # 170 s mediator cut a still-running stream at 169 s on PD-031.
     assert UPSTREAM_DEADLINE >= LIMITS["deadline_seconds"] - 10
     assert UPSTREAM_DEADLINE < LIMITS["deadline_seconds"]
+
+
+def test_gateway_discovery_uses_one_labelled_container(monkeypatch):
+    from app import container_inference
+    monkeypatch.setattr(container_inference, "GATEWAY_CONTAINER", "")
+    monkeypatch.setattr(container_inference, "_docker", lambda *args: "aeion-qual-gateway-1\n")
+    assert container_inference._gateway_container() == "aeion-qual-gateway-1"
+
+
+def test_gateway_discovery_refuses_zero_or_multiple_containers(monkeypatch):
+    from app import container_inference
+    monkeypatch.setattr(container_inference, "GATEWAY_CONTAINER", "")
+    monkeypatch.setattr(container_inference, "_docker", lambda *args: "")
+    with pytest.raises(OSError, match="Exactly one"):
+        container_inference._gateway_container()
+    monkeypatch.setattr(container_inference, "_docker", lambda *args: "one\ntwo\n")
+    with pytest.raises(OSError, match="Exactly one"):
+        container_inference._gateway_container()
