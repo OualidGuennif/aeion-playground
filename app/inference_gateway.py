@@ -25,7 +25,7 @@ import uuid
 MAX_REQUEST = 1024 * 1024
 MAX_RESPONSE = 2 * 1024 * 1024
 MAX_PROMPT = 512 * 1024
-MAX_OUTPUT_TOKENS = 16384
+MAX_OUTPUT_TOKENS = 32768
 # The role container is admitted for 300 seconds. The mediator must not cut a
 # still-running upstream earlier: a 90-second cap killed a legitimate reasoning
 # stream at 91.7 seconds, and a 170-second cap cut another at 169 seconds; both

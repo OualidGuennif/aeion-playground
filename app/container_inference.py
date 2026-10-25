@@ -131,7 +131,7 @@ def isolated_opencode(*, prompt, model, role, run_id, timeout, on_lease=None):
     identity = executor_identity(client)
     timeout = min(timeout, LIMITS["deadline_seconds"])
     lease = client.request("POST", "/admin/leases", {"run_id": run_id, "role": role, "model": model,
-        "prompt_hash": hashlib.sha256(prompt.encode()).hexdigest(), "expires": time.time() + timeout, "max_tokens": 16384})
+        "prompt_hash": hashlib.sha256(prompt.encode()).hexdigest(), "expires": time.time() + timeout, "max_tokens": 32768})
     metadata = {"executor": identity, "lease_id": lease["id"], "state": "issued"}
     token = lease["token"]
     provider = model.split("/", 1)[0]

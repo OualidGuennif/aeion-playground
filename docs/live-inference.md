@@ -209,11 +209,11 @@ rather than inventing a zero cost: PD-014 (the 2 MiB mediator bound), PD-022 (a 
 mediator deadline), PD-031 (a 170 s deadline that cut a still-running stream at 169 s),
 PD-035 and PD-043 (the 2 MiB response bound). No attempt is unsettled. The role admission is
 now **300 s** and the mediator deadline **290 s**. The operator authorized a **$30.00** local
-cap on 2026-10-25; current exposure is `$10.196700`, leaving `$19.803300`.
+cap on 2026-10-25; current exposure is `$10.203658`, leaving `$19.796342`.
 
 ### Autonomous paid improvement run, 2026-10-25
 
-With the $30 authorization, eight product tickets were admitted through the cockpit. The
+With the $30 authorization, nine product tickets were admitted through the cockpit. The
 router mixed model families and learned from deterministic failures:
 
 - **PD-039** — GLM author, `$0.004670`, `MODEL_PATCH_INVALID`: it tried to recreate the
@@ -235,12 +235,16 @@ router mixed model families and learned from deterministic failures:
   apply. The proxy allowlist/header fix was applied manually and verified live.
 - **PD-046** — DeepSeek was selected for the medium-risk proxy class, but the same proxy
   task exhausted the 16,384-token output bound (`AGENT_BLOCKED`, `$0.010630`).
+- **PD-047** — after raising the bound to 32,768 tokens with a lease regression test,
+  DeepSeek finished at 10,264 output tokens but produced a patch that did not apply
+  (`MODEL_PATCH_INVALID`, `$0.006958`). The length stop moved to a patch-validity stop.
 
-The eight tickets created Paperclip issues **AEI-4** through **AEI-11**. PD-041 and PD-044
+The nine tickets created Paperclip issues **AEI-4** through **AEI-12**. PD-041 and PD-044
 are sealed releases; the manifest registration, the refunds-CSV proxy allowlist and the
-`Content-Disposition` forwarding are manual source follow-ups. PD-045 and PD-046 both
-failed to seal the proxy fix. The 2 MiB bound and the 16,384-token output bound remain
-known limits.
+`Content-Disposition` forwarding are manual source follow-ups. PD-045, PD-046 and PD-047
+all failed to seal the proxy fix. The gateway/agent output bound is now **32,768 tokens**
+(was 16,384), but that did not fix patch validity. The 2 MiB response bound remains a known
+limit.
 
 Live verification of PD-044 found that its link returned 404 because the Fresh proxy
 allowlist omitted `refunds.csv`; after the manual proxy fix, `GET /api/refunds.csv` through
