@@ -98,6 +98,82 @@ Missions run on fixed fixtures (`PD00`–`PD04`) and on free-form tickets admitt
 warehouse Factory tab. The pricing rules they touch are in `app/pricing.py` and
 `tests/test_pricing.py`.
 
+## Configure inference, budget and Paperclip
+
+Copy the local template once; `.env` and `runtime/` are gitignored.
+
+```sh
+cp .env.example .env
+```
+
+### 1. OpenCode provider credential
+
+There are two paths. **Do not mix them.**
+
+**Docker gateway (the tested path).** The provider volume is mounted only into the
+inference gateway; the cockpit, host agent, roles and workers never receive it.
+
+```sh
+./scripts/opencode_auth.sh
+cp runtime/opencode/data/opencode/auth.json runtime/secrets/opencode-provider.json
+chmod 600 runtime/secrets/opencode-provider.json
+.venv/bin/python scripts/stack.py --provider-auth runtime/secrets/opencode-provider.json up
+```
+
+`OPENCODE_API_KEY` in `.env` is **not** read by this Docker path. It is for the native
+runtime (`AEION_INFERENCE_BACKEND=native`), where `scripts/opencode_auth.sh` is also
+accepted. Never commit the auth store, copy it into a role, or paste it into a prompt.
+
+### 2. Global model-spend cap
+
+Set the hard local guard in `.env`:
+
+```dotenv
+AEION_BUDGET_USD=10
+```
+
+The effective ceiling is `min(AEION_BUDGET_USD, config/model-routing.json budget_usd)`:
+the environment can only **lower** the authorized policy, never raise it. The ledger
+applies it to total recorded exposure, not to a calendar-month counter. If you need a
+monthly reset, apply the monthly limit in the OpenCode Console as well; this local ledger
+remains the auditable hard stop. To authorize more, edit `config/model-routing.json`
+(`budget_usd` and `authorization_expires_at`) as the operator, then restart the stack.
+
+The live ledger also keeps **unknown upstream settlements** at the full reservation. The
+current `$8.162985` exposure is why a new `$2` mission is refused at a `$10` ceiling.
+
+### 3. Paperclip workboard
+
+Paperclip is the issue/monitoring view; **Aeion remains the execution engine**. Its own
+generic agent can stay paused — the yellow “agents paused” banner does not stop Factory
+missions.
+
+```sh
+.venv/bin/python scripts/prepare_stack.py
+docker compose up -d --wait postgres paperclip
+# open http://127.0.0.1:3101, create your account, choose "Claim this instance"
+.venv/bin/python scripts/connect_paperclip.py
+docker compose up -d --wait cockpit
+```
+
+`connect_paperclip.py` uses the browser-approved board grant and writes two private
+files: `runtime/secrets/paperclip-board-auth.json` and the derived
+`runtime/secrets/paperclip_api_token` (mode `0600`). The cockpit mounts only the latter
+as `/run/secrets/paperclip_api_token`; the bearer is never placed in `.env`, `docker
+inspect`, logs or model context. If you skip the connection, Paperclip health still says
+`ok` but the cockpit reports `403 Board access required` and no issues are linked.
+
+### 4. See the whole demo in one command
+
+```sh
+.venv/bin/python scripts/demo_status.py
+```
+
+It prints the cockpit/agent state, ledger counts, reported and exposure budget, Paperclip
+board/issue count, and the product API/web checks. It reads loopback endpoints only; it
+does not call a model. Then open <http://127.0.0.1:8124>, <http://127.0.0.1:8125> and
+<http://127.0.0.1:3101>.
+
 ## Get an improvement into the demo
 
 Tickets are the specification the Factory reads. Open a
@@ -175,10 +251,13 @@ controller. A worker report remains untrusted and is not an independent acceptan
 The older qualified macOS pytest boundary is available explicitly with
 `AEION_TEST_BACKEND=macos`; it is never an automatic fallback from Docker failure.
 
-Model calls require an explicitly configured local `config/model-routing.json`. Without
-it, the expired example policy refuses new calls. Provider login and optional Paperclip
-setup are operator actions; merely opening the UI performs no inference. Runtime state
-is under `runtime/`, ignored by Git. Credentials belong in local configuration only.
+Model calls require an explicitly configured local `config/model-routing.json` and a
+provider credential. Without them, the expired example policy refuses new calls. The
+short configuration is above; the full evidence is in
+[`docs/live-inference.md`](docs/live-inference.md) and
+[`docs/local-stack.md`](docs/local-stack.md). Provider login and Paperclip setup are
+operator actions; merely opening the UI performs no inference. Runtime state is under
+`runtime/`, ignored by Git. Credentials belong in local configuration only.
 
 The Gate requires human approval for pricing changes. Tests-only tasks on an accepted
 local product can complete autonomously after checks and a different-family model review.

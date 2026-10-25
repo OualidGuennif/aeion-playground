@@ -36,12 +36,12 @@ Qualification checks a same-origin signup with a deliberately too-short password
 (no account created) and confirms a foreign origin remains rejected. Use the canonical
 `http://127.0.0.1:3101` address when registering or signing in.
 
-Until an operator supplies a scoped `PAPERCLIP_API_TOKEN` in local configuration, the
-factory reports authenticated API operations as unavailable/denied. Health alone does
-not establish company/task access. Never copy a browser cookie into model context or Git.
-An authenticated workboard account/token is separate from a Gate approval to merge code.
+Health alone does not establish company/task access. Until the board grant exists, the
+factory reports authenticated API operations as unavailable/denied. Never copy a browser
+cookie into model context or Git. An authenticated workboard account/token is separate
+from a Gate approval to merge code.
 
-The supported local connection flow also avoids copying a token manually:
+The supported local connection flow avoids copying a token manually:
 
 ```sh
 .venv/bin/python scripts/connect_paperclip.py
@@ -52,10 +52,30 @@ It opens the short-lived pairing page directly in your browser, requests board a
 (not instance administration), and waits at most five minutes for your real account to
 approve. The application never calls the approval endpoint. Only after approval and an
 authenticated identity check does it save the board credential in an owner-only file at
-`runtime/secrets/paperclip-board-auth.json`. No API key is printed or copied into Git,
-model context, worker environment or Docker image. `PAPERCLIP_AUTH_STORE` can select a
-separate private profile; the credential is bound to its exact loopback API origin.
-The controller disables environment proxies and redirects for workboard requests.
+`runtime/secrets/paperclip-board-auth.json`.
+
+For the containerised cockpit, the same command also derives
+`runtime/secrets/paperclip_api_token` (mode `0600`). The cockpit mounts that file
+read-only at `/run/secrets/paperclip_api_token` and reads it through
+`PAPERCLIP_API_TOKEN_FILE`; the bearer is not an environment variable, is not visible in
+`docker inspect`, and is never printed. Recreate the cockpit after the first connection:
+
+```sh
+docker compose up -d --wait cockpit
+```
+
+`PAPERCLIP_API_TOKEN` remains available for a native controller, but it is not needed by
+the Docker stack. `PAPERCLIP_AUTH_STORE` can select a separate private board profile; the
+board credential is bound to its exact loopback API origin, while the derived container
+token is used against the Compose service name. The controller disables environment
+proxies and redirects for workboard requests. The derived file is rewritten in place so
+its inode survives a rotation; recreate the cockpit after creating it for the first time
+(or after replacing it manually).
+
+Measured on 2026-10-25 after the mount was added: the cockpit's Paperclip component is
+`ready` and authenticated, `PD-037` created **AEI-2**, and the second free baseline
+`PD-038` created **AEI-3** with `http://127.0.0.1:3101/AEI/issues/AEI-3`. Both were
+`PD00` drills with no model call. See [`live-inference.md`](live-inference.md#paperclip-workboard-link-2026-10-25).
 
 ## Cockpit and executor agent
 

@@ -310,3 +310,14 @@ def test_agent_health_reports_budget_pause_before_a_stale_failure():
         "blocked", "Unsettled inference exposure: $2.000000 held; reconcile before new calls")
     assert _agent_budget_health({"unsettled_attempts": 0, "exposure_usd": 8.162985}, 10.0, 2.0) == (
         "paused", "Paid inference paused: $8.162985 exposure + $2.00 envelope exceeds the $10.00 ceiling")
+
+
+def test_env_budget_cap_can_only_lower_the_authorized_policy(monkeypatch):
+    from app.operator_settings import effective_budget
+    monkeypatch.setenv("AEION_BUDGET_USD", "3.50")
+    assert effective_budget(10.0) == 3.50
+    monkeypatch.setenv("AEION_BUDGET_USD", "20")
+    assert effective_budget(10.0) == 10.0
+    monkeypatch.setenv("AEION_BUDGET_USD", "0")
+    with __import__("pytest").raises(ValueError):
+        effective_budget(10.0)

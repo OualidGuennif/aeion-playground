@@ -2197,7 +2197,7 @@ class RealEngine:
         snapshot = store.budget_snapshot()
         routing = load_routing_policy() or {}
         try:
-            ceiling = float(routing.get("budget_usd") or 0) or None
+            ceiling = settings.budget_usd
             envelope = float((sandbox.read_policy().get("limits") or {}).get("budget_usd") or 2.0)
         except (OSError, ValueError, TypeError, AttributeError):
             ceiling, envelope = None, 2.0

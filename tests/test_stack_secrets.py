@@ -16,8 +16,9 @@ def test_secrets_are_private_and_preserved_on_restart(tmp_path, capsys):
     module.prepare(tmp_path)
     assert original == {path.name: path.read_bytes() for path in directory.iterdir()}
     assert set(original) == {"postgres_password", "paperclip_auth", "paperclip_actions",
-                             "gateway_admin", "executor_agent"}
+                             "gateway_admin", "executor_agent", "paperclip_api_token"}
     assert len(set(original.values())) == len(original)
+    assert original["paperclip_api_token"] == b""
     assert stat.S_IMODE(directory.stat().st_mode) == 0o700
     assert all(stat.S_IMODE(path.stat().st_mode) == 0o600 for path in directory.iterdir())
     assert not capsys.readouterr().out

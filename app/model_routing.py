@@ -6,6 +6,7 @@ import time
 from datetime import datetime
 
 from .agent_runner import model_family
+from .operator_settings import effective_budget
 
 
 class RoutingBlocked(RuntimeError):
@@ -54,7 +55,7 @@ class ModelRouter:
         snapshot = self.ledger.budget_snapshot() if hasattr(self.ledger, "budget_snapshot") else {"exposure_usd": self.ledger.metrics()["cost"], "unsettled_attempts": 0}
         if snapshot["unsettled_attempts"]:
             raise RoutingBlocked("EXPOSURE_HELD", "Unsettled inference exposure blocks new model calls; no automatic refund/retry")
-        if snapshot["exposure_usd"] >= self.policy["budget_usd"]:
+        if snapshot["exposure_usd"] >= effective_budget(self.policy["budget_usd"]):
             raise RoutingBlocked("BUDGET_EXHAUSTED", "The reported local model budget is exhausted")
         return remaining
 
