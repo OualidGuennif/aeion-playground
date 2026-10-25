@@ -27,6 +27,36 @@ The local `config/model-routing.json` is still deliberately expired. The `run_ro
 above does not consult the routing policy; a full mission will, so it needs a future
 `authorization_expires_at` and a small `budget_usd` before the cockpit can admit one.
 
+## Full live mission — PD-003, 2026-10-25
+
+With a future local authorization and paid-only role pools, PD01 ran end to end from the
+containerised cockpit, through the host executor and the gateway:
+
+- **forge** `opencode-go/deepseek-v4.1-flash`: 979 prompt / 1,654 completion tokens,
+  `$0.001139`; returned the correct started-kilogram patch for `app/pricing.py`.
+- **tests**: 19/19 on the worker run and 19/19 on the Gate-owned trusted rerun, with the
+  frozen `aeion.pytest-executor/v1` image identity matching admission.
+- **sentinel** `opencode-go/glm-5.3-flash`: 1,160 prompt / 187 completion tokens,
+  `$0.000267`, verdict `OK`, a different model family.
+- **Gate**: `CHECKPOINT` / `HUMAN_CHECKPOINT` because risk is high and the diff touches
+  `app/pricing.py`; the operator read the evidence and approved.
+- **result**: mission `PD-003` completed as `assisted`, gate `HUMAN_APPROVED`, evidence
+  packet sealed at
+  `sha256:a314da8a78c84bfbeb4552585d1d9575057a4ef7903ca38a7477dc9e3388aadd`.
+  Mission totals: 2,139 prompt / 1,841 completion tokens, `$0.001406`.
+
+Two earlier live admissions failed and were fixed rather than papered over: the cockpit
+could not inspect Docker locally (now asks the executor), and legacy scenarios were admitted
+in editor mode (now text patches when the executor is remote; PD01/PD02 declare their task
+paths). Both fixes are merged with tests.
+
+The sealed packet records the reviewer as "different CLI-selected model families (deepseek
+vs glm) · not independent providers": both roles use the same OpenCode gateway and operator
+account. The approval was a real human checkpoint, not a model verdict. Paperclip issue
+creation returned HTTP 403 "Board access required", so the workboard link is missing; the
+ledger and sealed packet are authoritative. PD01 has no delivery target, so this mission
+sealed evidence without publishing a local release.
+
 ## Refusal before the credential — 2026-10-25
 
 A direct gateway lease and a real isolated OpenCode role were first attempted with the
@@ -60,10 +90,11 @@ for live work; do not weaken the gateway to force the free tier.
 
 ## What this does *not* qualify
 
-- A full mission (worker tests, Gate-owned acceptance, review, Gate decision) with live
-  inference; the live run exercised only the role transport.
 - A hosted CI provider-backed run; CI stays on controlled fixtures.
 - The free tier; it remains refused outside OpenCode's own client path.
+- Independent providers. Both live roles share one OpenCode gateway and operator account.
+- GitHub delivery or a Factory-ticket release: PD01 has no delivery target, and the
+  Paperclip issue was refused with HTTP 403.
 - A durable credential refresh path. The Console access token has an expiry; the gateway
   does not refresh OAuth. Re-export and rewrite the gateway file before it expires.
 
