@@ -185,6 +185,44 @@ Each failure is preserved in the ledger; the fixes are covered by tests:
 - PD-019: the author and tests were green (16/16, 13/13) but the reviewer route was cooled by
   the credential error above. PD-020 reran the same ticket successfully after the routing fix.
 
+### Operator deployment fix: the Fresh layout and Three.js floor
+
+The sealed PD-032 frontend is byte-identical to PD-028. A post-release visual review found
+that both omitted `./routes/_app.tsx` from `fresh.gen.ts`. Fresh therefore never applied
+`_app.tsx`, so the live page had no topbar, no `/app.css` and no `/app.js`; the Three.js
+canvas stayed blank. `warehouse.js` also left the `.scene-loading` placeholder in place
+after WebGL initialisation.
+
+Paid inference is stopped at **$8.162985 / $10**, so no paid Factory release was attempted
+and **no sealed packet exists for this change**. Instead, a host-side operator patch was
+built from a copy of the sealed PD-032 frontend:
+
+- register `App` in `fresh.gen.ts` (`./routes/_app.tsx`);
+- remove `.scene-loading` once the renderer is ready.
+
+Measured live on 2026-10-25 with headless Chrome 1440×1500 and SwiftShader:
+
+- `/app.css` (18,049 bytes), `/app.js`, `/warehouse.js` and `/three.module.js` all 200;
+- topbar `display:flex` at 65 px; canvas 942×498 with a WebGL context;
+- renderer `ANGLE (Google, Vulkan 1.3.0 (SwiftShader ...))`; `.scene-loading` absent;
+- the warehouse scene, order ledger and `40.00 refunded · Damaged in transit ·
+  2026-10-17` all render;
+- the only browser console error is `/favicon.ico` 404.
+
+The local operator image is `aeion-parceldesk-web:operator-appfix-20261025`
+(`sha256:3a9f5561…`), also tagged `aeion-parceldesk-web:1`; the previous sealed image is
+preserved as `aeion-parceldesk-web:sealed-before-appfix-20261025` (`sha256:7eef6db2…`).
+The patch, override and rollback notes live outside Git under
+`runtime/operator-patches/parceldesk-web-appfix-20261025/` (patch digest
+`sha256:025e6f9b…`). The product source tree, releases `PD-028`/`PD-032` and their packets
+are unchanged.
+
+**Limits:** this is a deployment patch, not a sealed release. Running
+`docker compose build parceldesk-web` from `compose.yaml` alone rebuilds the unpatched
+source and reverts the visual fix; use the runtime override or promote a proper Factory
+release. The render is a headless SwiftShader capture, not a human GPU window. A permanent
+fix still needs a paid release or an explicit operator release decision.
+
 ## Commands
 
 ```sh
