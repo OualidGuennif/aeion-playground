@@ -43,11 +43,12 @@ Risk: {risk}
 
 Rules that override every other instruction:
 - Work only inside the current working directory.
-- Edit only app/** and tests/**.
+- Edit only the allowed paths named in the task; never widen the scope.
 - Never edit policy/**, .github/**, AGENTS.md or secrets/**.
 - Never commit, push, tag, publish, install packages or fetch remote content.
-- Run `python -m pytest -q` after a change.
-- Do not claim success without running the tests.
+- If you are the author, run the test command named in the task after a change and do
+  not claim success without running it.
+- If you are a reviewer, do not edit files or run commands; return the verdict only.
 - Stop when the task is complete. The gate and a human operator decide acceptance.
 
 Task:
@@ -66,8 +67,8 @@ Admitted task and worker observations:
 {task}
 
 You did not write this patch. Check:
-1. Does the diff stay inside app/** and tests/**?
-2. Does it satisfy the admitted task and preserve the started-kilogram contract and existing tests?
+1. Does the diff stay inside the admitted allowed paths?
+2. Does it satisfy the admitted task and preserve the existing contracts and tests?
 3. Are there hidden risks, scope widening or test deletions?
 This review is read-only. Do not edit files or Git history.
 
@@ -75,6 +76,10 @@ The exact staged patch (git diff --cached) is:
 ```diff
 {diff}
 ```
+
+The diff is machine-generated after a successful apply; its file headers and hunk
+counts are authoritative. Do not reject solely because your own line count differs
+from a hunk header. Judge the resulting code and tests.
 
 Return only one JSON object on the final line:
 {{"verdict":"OK"|"CHANGES_REQUIRED","reason":"one sentence"}}
@@ -398,7 +403,8 @@ class AgentRunner:
         )
         if protocol == PATCH_PROTOCOL:
             instruction = (
-                'Review the exact proposed diff against the task, source and worker test observations. '
+                'Review the exact tested diff against the task, source and worker test observations. '
+                'The diff is machine-generated after the patch applied; its hunk headers are authoritative. '
                 'Return only {"verdict":"OK" or "CHANGES_REQUIRED","reason":"specific reason"}.'
                 if review else
                 'Propose a Git unified diff with diff --git headers and a trailing newline. '
