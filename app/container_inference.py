@@ -14,6 +14,7 @@ import uuid
 import httpx
 
 from .container_executor import docker_env
+from .container_owner import owner_label_args
 
 ROOT = Path(__file__).resolve().parents[1]
 IMAGE_RECORD = ROOT / "runtime/agent-image.json"
@@ -124,6 +125,7 @@ def isolated_opencode(*, prompt, model, role, run_id, timeout, on_lease=None):
               "agent": {agent: {"mode": "primary", "model": model, "steps": 2, "permission": {"*": "deny"}}}}
     name = "aeion-" + role + "-" + uuid.uuid4().hex
     argv = ["docker", "run", "--rm", "--name", name, "--label", "aeion.playground.role=" + role,
+        *owner_label_args(),
         "--log-driver", "none", "--network", NETWORK, "--dns", "127.0.0.1", "--dns-option", "timeout:1", "--dns-option", "attempts:1", "--read-only", "--user", identity["user"],
         "--cap-drop", "ALL", "--security-opt", "no-new-privileges", "--memory", str(LIMITS["memory_bytes"]),
         "--memory-swap", str(LIMITS["memory_bytes"]), "--cpus", str(LIMITS["cpus"]), "--pids-limit", str(LIMITS["pids"]),
