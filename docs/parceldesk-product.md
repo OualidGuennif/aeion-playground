@@ -51,6 +51,8 @@ GET  /api/summary
 GET  /api/orders
 GET  /api/orders/{id}
 POST /api/orders/{id}/refund      {"reason": "..."}
+GET  /api/refunds
+GET  /api/refunds.csv             text/csv export
 GET  /api/pulls
 GET  /api/pulls/{id}
 POST /api/pulls                   mission evidence, idempotent by missionId
