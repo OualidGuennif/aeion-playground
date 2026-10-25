@@ -301,3 +301,12 @@ def test_a_local_gateway_configuration_error_does_not_cool_the_model(runtime):
     router.observe(DS_GO, failed)
     assert runtime.store.get_kv(f"routing:health:{DS_GO}") is None
     assert DS_GO in ModelRouter(runtime.store, policy()).plan({"risk": "low"}, "sentinel", GLM_GO)["candidates"]
+
+
+def test_agent_health_reports_budget_pause_before_a_stale_failure():
+    from app.real_engine import _agent_budget_health
+    assert _agent_budget_health({"unsettled_attempts": 0, "exposure_usd": 1.0}, 10.0, 2.0) is None
+    assert _agent_budget_health({"unsettled_attempts": 1, "held_usd": 2.0, "exposure_usd": 8.0}, 10.0, 2.0) == (
+        "blocked", "Unsettled inference exposure: $2.000000 held; reconcile before new calls")
+    assert _agent_budget_health({"unsettled_attempts": 0, "exposure_usd": 8.162985}, 10.0, 2.0) == (
+        "paused", "Paid inference paused: $8.162985 exposure + $2.00 envelope exceeds the $10.00 ceiling")

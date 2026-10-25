@@ -161,6 +161,26 @@ def _loads(value: str | None, default: Any) -> Any:
         return default
 
 
+def _agent_budget_health(snapshot: dict[str, Any], ceiling: float | None,
+                         envelope: float) -> tuple[str, str] | None:
+    """Report a budget block before a stale last-run failure.
+
+    ``blocked`` means an inference exposure is unsettled and must be reconciled;
+    ``paused`` means the agent is healthy but the next mission envelope does not
+    fit the local authorization ceiling. Either way no model call is permitted.
+    """
+    if snapshot.get("unsettled_attempts"):
+        held = float(snapshot.get("held_usd") or 0)
+        return "blocked", f"Unsettled inference exposure: ${held:.6f} held; reconcile before new calls"
+    exposure = float(snapshot.get("exposure_usd") or 0)
+    if ceiling and exposure + envelope > ceiling:
+        return "paused", (
+            f"Paid inference paused: ${exposure:.6f} exposure + ${envelope:.2f} "
+            f"envelope exceeds the ${ceiling:.2f} ceiling"
+        )
+    return None
+
+
 def _release_head_key(admitted: dict[str, Any]) -> str:
     """The accepted release line a mission builds on.
 
@@ -2174,7 +2194,17 @@ class RealEngine:
         for key, (execution, location) in locations.items():
             components[key].update(execution=execution, location=location)
         latest_runs = store.runs(limit=1)
-        if latest_runs and latest_runs[0].get("status") in {"failed", "blocked"}:
+        snapshot = store.budget_snapshot()
+        routing = load_routing_policy() or {}
+        try:
+            ceiling = float(routing.get("budget_usd") or 0) or None
+            envelope = float((sandbox.read_policy().get("limits") or {}).get("budget_usd") or 2.0)
+        except (OSError, ValueError, TypeError, AttributeError):
+            ceiling, envelope = None, 2.0
+        budget_health = _agent_budget_health(snapshot, ceiling, envelope)
+        if probe.get("ready") and budget_health:
+            components["agent"]["status"], components["agent"]["detail"] = budget_health
+        elif latest_runs and latest_runs[0].get("status") in {"failed", "blocked"}:
             latest = latest_runs[0]
             failed_mission = store.mission(latest["mission_id"]) or {}
             components["agent"]["status"] = "blocked"
