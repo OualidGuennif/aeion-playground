@@ -60,12 +60,12 @@ def test_network_has_no_route():
 
 def test_actual_resource_limits():
     group=Path('/sys/fs/cgroup')
-    assert int((group/'memory.max').read_text())==268435456
-    assert int((group/'pids.max').read_text())==64
-    quota,period=map(int,(group/'cpu.max').read_text().split()); assert quota==period
-    assert resource.getrlimit(resource.RLIMIT_FSIZE)==(2097152,2097152)
-    assert resource.getrlimit(resource.RLIMIT_NOFILE)==(128,128)
-    info=os.statvfs('/tmp'); assert info.f_blocks*info.f_frsize<=67108864
+    assert int((group/'memory.max').read_text())==1073741824
+    assert int((group/'pids.max').read_text())==256
+    quota,period=map(int,(group/'cpu.max').read_text().split()); assert quota/period==1.5
+    assert resource.getrlimit(resource.RLIMIT_FSIZE)==(4194304,4194304)
+    assert resource.getrlimit(resource.RLIMIT_NOFILE)==(4096,4096)
+    info=os.statvfs('/tmp'); assert info.f_blocks*info.f_frsize<=536870912
     scratch=Path('/tmp/public-scratch');scratch.write_text('ok');assert scratch.read_text()=='ok'
 ''')
     (root / ".git").mkdir()

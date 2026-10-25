@@ -179,3 +179,42 @@ def test_a_ticket_mission_runs_the_full_loop(runtime):
     tests = json.loads(stored["tests_json"])
     assert tests["passed"] == 19 and tests["acceptance"]["passed"] == 19
     assert stored["fixture"] == "TCK"
+
+
+def test_a_product_ticket_targets_the_quarkus_product(runtime):
+    captured = {}
+
+    def capture(scenario, **kwargs):
+        captured.update({"scenario": scenario, **kwargs})
+        return {"id": "PD-901", "status": "queued", "fixture": "TCK"}
+
+    runtime.monkeypatch.setattr(runtime.engine, "_admit_scenario", capture)
+    mission = runtime.engine.launch_ticket(
+        request_id="ticket-product", title="Expose refund metadata",
+        outcome="A support agent sees the refund reason and amount in the order list.",
+        area="support", risk="low",
+        acceptance="The order list exposes refund metadata for a refunded order and a new Maven test pins it.",
+        constraints="Edit only product/backend DTO and test files.",
+        product="product",
+    )
+    assert mission["id"] == "PD-901"
+    scenario = captured["scenario"]
+    assert scenario["test_profile"] == "product"
+    assert scenario["source"] == "parceldesk-product"
+    assert scenario["allowed_paths"] == ["product/**"]
+    assert "product/README.md" in scenario["context_files"]
+    assert captured["request"]["product"] == "product"
+
+
+def test_a_product_ticket_is_persisted_with_its_product(desk):
+    ticket = desk.create_ticket(
+        title="Show the refund note", outcome="A support agent sees the refund note.",
+        area="support", risk="low", acceptance="The order list shows the refund note.",
+        product="product",
+    )
+    assert desk.ticket(ticket["id"])["product"] == "product"
+    with pytest.raises(ValueError, match="product"):
+        desk.create_ticket(
+            title="Bad product", outcome="This should be refused.", area="support", risk="low",
+            acceptance="The ticket is refused.", product="other",
+        )

@@ -109,7 +109,37 @@ pricing module and its tests, so a Factory ticket cannot implement refunds or or
 The released diff keeps the baseline "DEFECT" comment above the corrected expression
 because the ticket constrained the edit to the rounding line; the arithmetic and tests are
 correct. Cumulative model spend recorded in the cockpit ledger after all live runs is
-`$0.009619`, with no unsettled attempt.
+`$0.018630`, with no unsettled attempt. The product ticket below accounts for the difference.
+
+## Product ticket — TCK-B028A56C / PD-010, 2026-10-25
+
+The ParcelDesk product (Quarkus/Java 25 + Deno Fresh/Three.js) became the Factory target.
+The ticket *Expose the refund reason in the order list* was filed from the product web
+surface with `product: "product"`, risk low, and `product/**` as the admitted scope.
+
+- **author** `opencode-go/glm-5.3-flash`: 5,122 prompt / 3,814 completion tokens, `$0.002675`
+- **worker**: 13/13 tests (9 Maven + 4 Deno), product profile, 180-second bound
+- **Gate-owned acceptance**: 12/12 trusted product tests in a separate checkout
+- **reviewer** `opencode-go/deepseek-v4.1-flash`: 6,179 / 1,098 tokens, `$0.001586`, `OK`
+- **Gate**: `CLEAN`, `allow`, autonomous, no human checkpoint
+- **packet**: `sha256:0c83baa40e14cd4f4e2b6049a60886399f6f2d973ef3932d4b81d4d3dbb84f44`
+- **release**: `3df45d50bcb6c1f23da77038288b09d2919ae48c`, product head
+  `product_head:product` advanced; legacy head stayed `fc6ca0d`
+- **review ledger**: PR-001 created and auto-merged by the product web sync; the live API
+  was rebuilt from the sealed release and returns `refundReason: "Damaged in transit"` and
+  `refundAmountCents: 4000` for PD-1050
+
+Two earlier product tickets remain as evidence instead of being hidden:
+
+- `TCK-4467BF55` / **PD-008** blocked `PATCH_CONTEXT` before any model call (0 tokens, $0):
+  the source-context reader only allowed Python files.
+- `TCK-9A6C8616` / **PD-009** produced a correct patch but was denied `OUT_OF_SCOPE`
+  (`$0.00475`, 5,434 / 6,558 tokens): the Gate's base scope was hardcoded to `app/tests`.
+  The fix admits `product/**`, keeps the task scope check, restores trusted product tests in
+  the acceptance checkout and advances a separate product release head.
+
+Cumulative product-ticket spend: **$0.009011**; cumulative live model spend after all runs:
+**$0.018630**, no unsettled attempt.
 
 ## Refusal before the credential — 2026-10-25
 
@@ -150,8 +180,13 @@ for live work; do not weaken the gateway to force the free tier.
 - GitHub delivery or any remote publication. The Factory ticket published a local Git
   artifact only; nothing was pushed, deployed or hot-swapped into the demo surface. The
   Paperclip workboard still refuses issue creation with HTTP 403 "Board access required".
-- Refunds, orders or warehouse features through the Factory. The sandbox slice holds only
-  the pricing module and its tests.
+- Refunds, orders or warehouse features through the legacy Python Factory. The accepted
+  Python slice holds only the pricing module; the separate ParcelDesk product accepts
+  `product/**` tickets with a Java/Deno worker profile.
+- A remote GitHub PR or an autonomous deployment. The product review ledger is local H2 and
+  promotion is a host-side rebuild of the sealed release.
+- A hosted stack test of the product API/web services. The opt-in worker profile and the
+  local live run are measured; the hosted `stack-tests` job still starts only the cockpit.
 - A durable credential refresh path. The Console access token has an expiry; the gateway
   does not refresh OAuth. Re-export and rewrite the gateway file before it expires.
 

@@ -263,7 +263,8 @@ class ExecutorAgent:
         except (tarfile.TarError, EOFError, OSError) as error:
             raise Denied(f"Snapshot is not a safe tar archive: {type(error).__name__}") from None
 
-    def run_tests(self, digest: str, timeout: float, expected_executor: dict | None) -> dict[str, Any]:
+    def run_tests(self, digest: str, timeout: float, expected_executor: dict | None,
+                  profile: str = "legacy") -> dict[str, Any]:
         try:
             timeout = float(timeout)
         except (TypeError, ValueError):
@@ -272,6 +273,8 @@ class ExecutorAgent:
             raise Denied(f"Test timeout must be between 1 and {MAX_TEST_TIMEOUT} seconds")
         if expected_executor is not None and not isinstance(expected_executor, dict):
             raise Denied("Expected executor identity must be an object")
+        if profile not in {"legacy", "product"}:
+            raise Denied("Unknown test profile")
         identity = self.probe()
         if expected_executor is not None and identity != expected_executor:
             raise Denied("Executor identity differs from the admitted identity; no tests started", 409)
@@ -279,7 +282,8 @@ class ExecutorAgent:
         with tempfile.TemporaryDirectory(dir=self.runs, prefix="snapshot-") as temporary:
             root = Path(temporary)
             self._extract(archive, root)
-            result = self.workspace.run_tests(root, timeout=timeout, expected_executor=expected_executor)
+            result = self.workspace.run_tests(root, timeout=timeout, expected_executor=expected_executor,
+                                              profile=profile)
         payload = result.to_dict()
         payload["junit_path"] = None
         system_temp = tempfile.gettempdir()
@@ -422,7 +426,7 @@ def handler(agent: ExecutorAgent):
                     if not isinstance(body, dict):
                         raise Denied("Test request must be an object")
                     result = agent.run_tests(body.get("digest"), body.get("timeout", 180),
-                                             body.get("expected_executor"))
+                                             body.get("expected_executor"), body.get("profile", "legacy"))
                     return self._send(200, {"schema": SCHEMA, "result": result})
                 if self.path == "/v1/roles":
                     body = json.loads(self._body(MAX_REQUEST_BYTES).decode("utf-8"))

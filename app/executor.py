@@ -65,6 +65,7 @@ class ExecutorClient(Protocol):
         *,
         timeout: float = 180,
         expected_executor: dict[str, Any] | None = None,
+        profile: str = "legacy",
     ) -> TestResult:
         """Run the canonical suite on a prepared checkout and return its report."""
 
@@ -92,8 +93,10 @@ class InProcessExecutor:
         *,
         timeout: float = 180,
         expected_executor: dict[str, Any] | None = None,
+        profile: str = "legacy",
     ) -> TestResult:
-        return self._workspace.run_tests(path, timeout=timeout, expected_executor=expected_executor)
+        return self._workspace.run_tests(path, timeout=timeout, expected_executor=expected_executor,
+                                         profile=profile)
 
     def run_role(self, **kwargs: Any) -> AgentResult:
         if self._role_runner is None:

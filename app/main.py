@@ -44,7 +44,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
-app.add_middleware(TrustedHostMiddleware, allowed_hosts=["127.0.0.1", "localhost", "[::1]"])
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=["127.0.0.1", "localhost", "[::1]", "cockpit", "host.docker.internal"])
 
 
 @app.middleware("http")
@@ -203,6 +203,7 @@ class TicketRequest(BaseModel):
     risk: str = Field(pattern=r"^(low|medium|high)$")
     acceptance: str = Field(min_length=10, max_length=2000)
     constraints: str = Field(default="", max_length=1000)
+    product: str = Field(default="legacy", pattern=r"^(legacy|product)$")
 
 
 class MissionRequest(BaseModel):

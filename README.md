@@ -24,13 +24,19 @@ unknown usage stays held. Complete reconciliation and GitHub delivery are still 
 
 ## See the demo in ten minutes
 
-The demo is three surfaces over one SQLite ledger:
+The demo now has a second, larger product surface:
 
 - **Mission Control** — the mission, the model runs, the Gate decision, the sealed evidence
-  and the telemetry counters.
-- **ParcelDesk** — the product: a shipping quote, orders and a support desk for refunds.
-- **Warehouse** — a procedural Three.js fulfilment floor with moving parcels and workers,
-  backed by the same order and refund API, plus a Factory tab that files a real mission.
+  and the telemetry counters. One SQLite ledger.
+- **ParcelDesk product** — a Quarkus 3.40 / Hibernate / **Java 25.0.4** API with H2
+  persistence and a Deno 2.5 / Fresh / Three.js operations floor at
+  <http://127.0.0.1:8125>. It has orders, refunds, a real review ledger and an autonomous
+  Factory ticket → pull-request flow. See
+  [the product guide](docs/parceldesk-product.md).
+- **ParcelDesk legacy** — the original shipping quote, orders and support desk at
+  <http://127.0.0.1:8124/parceldesk>.
+- **Warehouse** — the original procedural Three.js fulfilment floor, backed by the legacy
+  order API, plus a Factory tab that files a real mission.
 
 Run it:
 
@@ -42,6 +48,12 @@ python3.12 -m venv .venv
 ```
 
 Then open <http://127.0.0.1:8124> and <http://127.0.0.1:8124/parceldesk>.
+
+The new product is Compose-only (the native quick start keeps the original surfaces):
+`docker compose build parceldesk-api parceldesk-web` then
+`docker compose up -d --wait parceldesk-api parceldesk-web`, and open
+<http://127.0.0.1:8125>. The first Factory ticket filed there targets the Quarkus/Deno
+source, not the Python pricing slice.
 
 ### Or run the cockpit in Docker
 
@@ -76,8 +88,10 @@ What to click, in order:
    error you can ignore; it means delivery has not been acknowledged yet.
 4. Launch **PD03** to see the Gate *deny* a patch that touches a protected path. A refused
    mission is a correct outcome, not a bug.
-5. Open <http://127.0.0.1:8124/warehouse> — drag the floor, issue a refund from the support
-   desk, then file a ticket from the **Factory** tab. The ticket becomes a bounded mission,
+5. Open <http://127.0.0.1:8125> — orbit the Three.js floor, refund a parcel, file a product
+   ticket and watch its sealed mission become a reviewed, auto-merged pull request. Then
+   open <http://127.0.0.1:8124/warehouse> for the legacy floor; drag it, issue a refund from
+   the support desk, then file a ticket from the **Factory** tab. The ticket becomes a bounded mission,
    not a comment thread.
 
 Missions run on fixed fixtures (`PD00`–`PD04`) and on free-form tickets admitted from the

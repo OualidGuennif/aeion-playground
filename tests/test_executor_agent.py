@@ -43,8 +43,9 @@ class FakeWorkspace:
     def executor_contract(self, *, timeout: float = 180):
         return copy.deepcopy(self.identity)
 
-    def run_tests(self, path, *, timeout: float = 180, expected_executor=None):
-        self.calls.append({"path": Path(path), "timeout": timeout, "expected": expected_executor})
+    def run_tests(self, path, *, timeout: float = 180, expected_executor=None, profile: str = "legacy"):
+        self.calls.append({"path": Path(path), "timeout": timeout, "expected": expected_executor,
+                           "profile": profile})
         self.seen.append(Path(path))
         self.existed = Path(path).is_dir()
         return SandboxTestResult(

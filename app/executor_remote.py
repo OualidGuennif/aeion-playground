@@ -196,12 +196,14 @@ class RemoteExecutor:
         return probe
 
     def run_tests(self, path: Path, *, timeout: float = 180,
-                  expected_executor: dict[str, Any] | None = None) -> TestResult:
+                  expected_executor: dict[str, Any] | None = None,
+                  profile: str = "legacy") -> TestResult:
         archive, digest = build_snapshot(path)
         self._request("POST", "/v1/snapshots", archive,
                       headers={"Content-Type": "application/x-tar", "X-Aeion-Digest": digest}, timeout=60)
         payload = self._json("POST", "/v1/tests", {
             "digest": digest, "timeout": timeout, "expected_executor": expected_executor,
+            "profile": profile,
         }, timeout=timeout + 60)
         result = payload.get("result")
         if not isinstance(result, dict):

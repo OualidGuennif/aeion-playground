@@ -165,3 +165,15 @@ def test_agent_combined_output_is_bounded_and_flood_process_is_killed(tmp_path):
         env=dict(os.environ), timeout=5, output_limit=4096)
     assert exit_code != 0 and "output exceeded" in error
     assert len(stdout.encode()) + len(stderr.encode()) == 4096
+
+
+def test_product_paths_are_admitted_when_the_task_names_them():
+    diff = DiffResult(available=True, files=[{"path": "product/backend/src/main/java/com/aeion/parceldesk/dto/OrderView.java"}],
+                      patch="fix", digest="digest")
+    acceptance = SuiteResult(available=True, exit_code=0, total=12, passed=12, executor={"executor": "test"})
+    decision = PolicyEngine({}).evaluate(
+        diff=diff, tests=acceptance, risk="low", cost_usd=0.01,
+        review_verdict="OK", review_independent=True,
+        allowed_paths=["product/**"], acceptance=acceptance,
+    )
+    assert decision.decision == "allow", decision.reason_code

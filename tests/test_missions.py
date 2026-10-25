@@ -130,8 +130,13 @@ def test_test_code_cannot_rewrite_source_or_trigger_review_after_failure(runtime
     mission = run_scenario(runtime, "PD01", self_modifying_tests)
     tests = json.loads(mission["tests_json"])
     assert tests["passed"] == 19 and tests["failed"] == 1
-    expected_failure = "Read-only file system" if runtime.module.settings.test_backend == "docker" else "PermissionError"
-    assert expected_failure in tests["stdout"]
+    if runtime.module.settings.test_backend == "docker":
+        # The disposable source is a read-only bind; the polyglot worker also
+        # copies it to /tmp and keeps source files 0444, so the OS may report
+        # either a read-only filesystem or a plain permission error.
+        assert "Read-only file system" in tests["stdout"] or "Permission denied" in tests["stdout"]
+    else:
+        assert "PermissionError" in tests["stdout"]
     assert tests["isolation"]["backend"] == ("docker-pytest/v1" if runtime.module.settings.test_backend == "docker" else "macos-seatbelt/v1")
     assert "(grams + 999) // 1000" in (Path(mission["sandbox_path"]) / "app/pricing.py").read_text()
     assert mission["gate_reason_code"] == "TEST_FAILURE"

@@ -88,3 +88,21 @@ def test_a_real_repair_passes_both_the_worker_and_the_trusted_suite(runtime):
     assert mission["status"] == "awaiting_human" and mission["gate_reason_code"] == "HUMAN_CHECKPOINT"
     packet = runtime.store.evidence_for(mission["id"])
     assert packet["payload"]["payload"]["tests"]["acceptance"]["passed"] == 19
+
+
+def test_acceptance_checkout_keeps_product_implementation_and_trusted_product_tests(runtime):
+    run = runtime.sandbox.create_run("acceptance-product")
+    path = Path(run["path"])
+    view = path / "product/backend/src/main/java/com/aeion/parceldesk/dto/OrderView.java"
+    view.write_text(view.read_text().replace("Instant deliveredAt)", "Instant deliveredAt, String refundReason)"))
+    added = path / "product/backend/src/test/java/com/aeion/parceldesk/RefundedOrderListTest.java"
+    added.write_text("class RefundedOrderListTest {}\n")
+    target = runtime.sandbox.acceptance_checkout(path)
+    try:
+        accepted = target / "product/backend/src/main/java/com/aeion/parceldesk/dto/OrderView.java"
+        assert "String refundReason" in accepted.read_text()
+        assert not (target / "product/backend/src/test/java/com/aeion/parceldesk/RefundedOrderListTest.java").exists()
+        assert (target / "product/backend/src/test/java/com/aeion/parceldesk/OrderApiTest.java").is_file()
+    finally:
+        import shutil
+        shutil.rmtree(target, ignore_errors=True)

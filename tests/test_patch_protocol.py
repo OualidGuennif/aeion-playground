@@ -177,3 +177,21 @@ def test_unsupported_protocol_never_probes_or_falls_back(tmp_path, monkeypatch, 
     outcome = runner.run(mission_id="fixture", agent_id="forge", role="author", title="test",
                          scenario="agent", risk="low", task="test", cwd=tmp_path, protocol=protocol)
     assert outcome.status == "blocked" and "no runtime fallback" in outcome.error
+
+
+def test_product_source_context_is_bounded_to_product_sources(tmp_path):
+    names = (
+        "product/README.md",
+        "product/backend/src/main/java/com/aeion/parceldesk/dto/OrderView.java",
+        "product/frontend/routes/index.tsx",
+    )
+    for name in names:
+        path = tmp_path / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("source\n")
+    files = json.loads(source_context(tmp_path, names))
+    assert [item["path"] for item in files] == list(names)
+    with pytest.raises(ValueError, match="unsupported type"):
+        source_context(tmp_path, ("product/secrets.txt",))
+    with pytest.raises(ValueError, match="product source"):
+        source_context(tmp_path, ("policy/policy.yaml",))
