@@ -1,9 +1,10 @@
 import type { Handlers, PageProps } from "$fresh/server.ts";
 import { backendUrl, cockpitUrl, emptySummary, getJson, type Order, type Summary, type Ticket } from "../lib/api.ts";
-import { money, statusLabel } from "../lib/format.ts";
+import { money, refundNote, shortDate, statusLabel } from "../lib/format.ts";
 
 interface Data {
   orders: Order[];
+  refunds: Order[];
   summary: Summary;
   tickets: Ticket[];
   backendOnline: boolean;
@@ -11,13 +12,15 @@ interface Data {
 
 export const handler: Handlers<Data> = {
   async GET(_request, ctx) {
-    const [orders, summary, ticketPayload] = await Promise.all([
+    const [orders, refunds, summary, ticketPayload] = await Promise.all([
       getJson<Order[]>(`${backendUrl}/api/orders`, []),
+      getJson<Order[]>(`${backendUrl}/api/refunds`, []),
       getJson<Summary>(`${backendUrl}/api/summary`, emptySummary()),
       getJson<{ tickets: Ticket[] }>(`${cockpitUrl}/api/parceldesk/tickets`, { tickets: [] }),
     ]);
     return ctx.render({
       orders,
+      refunds,
       summary,
       tickets: ticketPayload.tickets ?? [],
       backendOnline: orders.length > 0,
@@ -33,7 +36,7 @@ export default function Warehouse({ data }: PageProps<Data>) {
   const openTickets = data.tickets.filter((ticket) =>
     ["queued", "running", "awaiting_human"].includes(ticket.mission?.status ?? ticket.status)
   ).length;
-  const refunded = data.orders.filter((order) => order.status === "REFUNDED");
+  const refunded = data.refunds;
   const totalGrams = data.orders.reduce((sum, order) => sum + order.grams, 0);
   return (
     <div class="page page-warehouse">
@@ -106,8 +109,7 @@ export default function Warehouse({ data }: PageProps<Data>) {
                       <strong>{order.id}</strong>
                       <span>{order.customer}</span>
                     </div>
-                    <div class="refund-amount">{money(order.refundAmountCents ?? order.totalCents - order.shippingCents)}</div>
-                    <p>{order.refundReason || "reason not exposed by the order list"}</p>
+                    <div>{refundNote(order)} · {shortDate(order.refundedAt)}</div>
                   </li>
                 ))}
               </ul>
