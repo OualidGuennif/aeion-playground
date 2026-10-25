@@ -173,12 +173,18 @@ remains `fc6ca0d`. The API image was promoted from PD-032 and the web image from
   The live web (`sha256:e8b62b77…`) serves `GET /api/refunds.csv` as 200 `text/csv` with the
   attachment header and the PD-1050 row.
 
+- A Gate-reviewed local-patch path (`POST /api/parceldesk/tickets/local`) admits an exact
+  operator diff without a model call. **PD-048** applied the proxy diff (6 added / 3
+  removed), ran **17/17**, recorded no agent runs and `$0.00`, and stopped at
+  `HUMAN_CHECKPOINT` (Paperclip **AEI-13**). It is awaiting operator approval; no release
+  exists yet.
+
 ### Reliability fixes found by the live tickets
 
 Each failure is preserved in the ledger; the fixes are covered by tests:
 
 - PD-011/PD-015: the models spent the whole **8,192-token** completion bound on reasoning
-  before the patch. The admitted bound is now **16,384** tokens (gateway and role lease);
+  before the patch. The admitted bound is now **32,768** tokens (gateway and role lease);
   the provider response and usage are still bounded and validated.
 - PD-012/PD-013: a correct patch was rejected because git requires trailing context.
   `apply_patch` now uses `--unidiff-zero`; PD-018 then showed wrong `@@` counts, so it also
