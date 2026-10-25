@@ -19,7 +19,11 @@ from .container_owner import owner_label_args
 ROOT = Path(__file__).resolve().parents[1]
 IMAGE_RECORD = ROOT / "runtime/agent-image.json"
 NETWORK = "aeion-playground-inference"
-GATEWAY_CONTAINER = "aeion-playground-inference-gateway-1"
+# An explicit container name is an operator override for qualification. Empty means
+# discover the one Compose service labelled inference-gateway, which also works when
+# the stack uses a non-default project name.
+GATEWAY_CONTAINER = os.environ.get("AEION_GATEWAY_CONTAINER", "")
+GATEWAY_SERVICE = "inference-gateway"
 LIMITS = {"memory_bytes": 1024 * 1024 * 1024, "cpus": 1, "pids": 128,
           "scratch_bytes": 256 * 1024 * 1024, "file_bytes": 4 * 1024 * 1024,
           "open_files": 256, "deadline_seconds": 300, "output_bytes": 2 * 1024 * 1024}
@@ -67,6 +71,18 @@ def _docker(*args):
     return result.stdout.strip()
 
 
+def _gateway_container():
+    if GATEWAY_CONTAINER:
+        return GATEWAY_CONTAINER
+    names = [name for name in _docker(
+        "ps", "--filter", "label=com.docker.compose.service=" + GATEWAY_SERVICE,
+        "--format", "{{.Names}}",
+    ).splitlines() if name]
+    if len(names) != 1:
+        raise OSError("Exactly one inference gateway container is required")
+    return names[0]
+
+
 def executor_identity(client=None):
     if IMAGE_RECORD.is_symlink() or not IMAGE_RECORD.is_file():
         raise OSError("Qualified OpenCode image missing; run scripts/build_agents.py")
@@ -77,7 +93,7 @@ def executor_identity(client=None):
         for key in ("image_id", "gateway_image_id"):
             if not re.fullmatch(r"sha256:[0-9a-f]{64}", record[key]) or _docker("image", "inspect", record[key], "--format", "{{.Id}}") != record[key]:
                 raise ValueError()
-        if _docker("inspect", GATEWAY_CONTAINER, "--format", "{{.Image}}") != record["gateway_image_id"]:
+        if _docker("inspect", _gateway_container(), "--format", "{{.Image}}") != record["gateway_image_id"]:
             raise OSError("Running inference gateway image differs from the qualified image")
         network = json.loads(_docker("network", "inspect", NETWORK))[0]
         if not network["Internal"] or network["EnableIPv6"] or network["Options"].get("com.docker.network.bridge.gateway_mode_ipv4") != "isolated":
