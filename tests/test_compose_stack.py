@@ -93,7 +93,9 @@ def test_cockpit_has_no_socket_or_host_home_and_serves_both_surfaces():
     assert not any("docker.sock" in mount for mount in binds)
     assert any(source.endswith("runtime/cockpit") for source in sources)
     assert any(source.endswith("runtime/secrets/executor_agent") for source in sources)
-    assert all(source.endswith(("runtime/cockpit", "runtime/secrets/executor_agent", "config")) for source in sources)
+    assert any(source.endswith("runtime/secrets/paperclip_api_token") for source in sources)
+    assert all(source.endswith(("runtime/cockpit", "runtime/secrets/executor_agent",
+                                "runtime/secrets/paperclip_api_token", "config")) for source in sources)
     with httpx.Client(base_url="http://127.0.0.1:8124", trust_env=False, timeout=10) as client:
         assert client.get("/").status_code == 200
         assert client.get("/parceldesk").status_code == 200
