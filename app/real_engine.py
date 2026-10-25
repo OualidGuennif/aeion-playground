@@ -77,6 +77,7 @@ SCENARIOS: dict[str, dict[str, Any]] = {
         "subtitle": "The quote rule floors 1,001–1,999 g to the first kilogram.",
         "risk": "high",
         "priority": "high",
+        "allowed_paths": ["app/**", "tests/**"],
         "memory_query": "pricing quote started kilogram rounding boundary contract",
         "task": (
             "Repair the started-kilogram rounding defect in app/pricing.py. "
@@ -92,6 +93,7 @@ SCENARIOS: dict[str, dict[str, Any]] = {
         "subtitle": "Add a missing started-kilogram boundary test and repair what it reveals.",
         "risk": "normal",
         "priority": "medium",
+        "allowed_paths": ["app/**", "tests/**"],
         "memory_query": "pricing boundary tests 1 gram 1001 1999 30000 contract",
         "task": (
             "Audit the boundary contract in tests/test_pricing.py and app/pricing.py. "
