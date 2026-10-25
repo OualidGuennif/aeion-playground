@@ -129,18 +129,23 @@ accepted. Never commit the auth store, copy it into a role, or paste it into a p
 Set the hard local guard in `.env`:
 
 ```dotenv
-AEION_BUDGET_USD=10
+AEION_BUDGET_USD=30
 ```
 
 The effective ceiling is `min(AEION_BUDGET_USD, config/model-routing.json budget_usd)`:
 the environment can only **lower** the authorized policy, never raise it. The ledger
-applies it to total recorded exposure, not to a calendar-month counter. If you need a
-monthly reset, apply the monthly limit in the OpenCode Console as well; this local ledger
-remains the auditable hard stop. To authorize more, edit `config/model-routing.json`
-(`budget_usd` and `authorization_expires_at`) as the operator, then restart the stack.
+applies it to total recorded exposure, not to a calendar-month counter. The Docker stack
+passes this value into the cockpit, so the same cap applies to the container and to the
+host scripts. If you need a monthly reset, apply the monthly limit in the OpenCode Console
+as well; this local ledger remains the auditable hard stop. To authorize more, edit
+`config/model-routing.json` (`budget_usd` and `authorization_expires_at`) as the operator,
+then restart the stack.
 
-The live ledger also keeps **unknown upstream settlements** at the full reservation. The
-current `$8.162985` exposure is why a new `$2` mission is refused at a `$10` ceiling.
+The live ledger keeps **unknown upstream settlements** at the full reservation. Current
+exposure is `$10.182358` of the authorized `$30.00`: `$0.182358` reported usage plus
+`$10.000000` reconciled for five upstream outcomes that had no usage record. A failed
+2 MiB stream is charged at its full `$2.00` reservation rather than silently zeroed. The
+remaining local headroom is `$19.817642`.
 
 ### 3. Paperclip workboard
 

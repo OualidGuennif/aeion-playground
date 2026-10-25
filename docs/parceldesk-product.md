@@ -155,11 +155,12 @@ remains `fc6ca0d`. The API image was promoted from PD-032 and the web image from
   **17/17**; Gate acceptance **17/17**; Gate `CLEAN`; one file, +41 lines; packet
   `sha256:cb2dca37…`; release `393f3fe`; PR-006 auto-merged. `GET /api/refunds.csv` is live
   with `text/csv`, an attachment disposition and one row per refunded order.
-- The dedicated CSV test is still missing. PD-029 compiled-failed, PD-030 hit the 16,384
-  token bound, PD-034's test collided with `RefundLedgerTest` by refunding PD-1049, and
-  PD-035's stream crossed the 2 MiB response bound. PD-033 was `STALE_BASE`; PD-036 was
-  refused because $8.162985 exposure plus a $2 envelope exceeds the $10 ceiling. Those
-  tickets remain in the ledger as evidence.
+- The dedicated CSV regression test now exists as `RefundCsvTest` in the backend suite:
+  it asserts the header, the attachment disposition, the seeded PD-1050 row, the absence of
+  a non-refunded order, and quoting for a reason containing a comma and quotes. This is a
+  manual operator/Codex contribution, not a paid Factory release. The backend suite is
+  **12 tests**; the combined product suite is **19** (12 Maven + 7 Deno). PD-029, PD-030,
+  PD-034, PD-035 and PD-036 remain in the ledger as failed or missing-test evidence.
 
 ### Reliability fixes found by the live tickets
 
@@ -193,35 +194,33 @@ that both omitted `./routes/_app.tsx` from `fresh.gen.ts`. Fresh therefore never
 canvas stayed blank. `warehouse.js` also left the `.scene-loading` placeholder in place
 after WebGL initialisation.
 
-Paid inference is stopped at **$8.162985 / $10**, so no paid Factory release was attempted
-and **no sealed packet exists for this change**. Instead, a host-side operator patch was
-built from a copy of the sealed PD-032 frontend:
+Paid inference was later authorized to **$30**. Factory ticket **PD-041** produced the
+loader half as a real sealed release: GLM author, DeepSeek reviewer, 17/17 tests, Gate
+`CLEAN`, commit `937aa5f2…`, packet `sha256:9a9af48b…`. The manifest registration was
+applied manually to the source after three model attempts failed (two invalid patches, one
+2 MiB stream bound); it is not part of that packet. The source tree now contains both
+fixes, so a normal build keeps them.
 
-- register `App` in `fresh.gen.ts` (`./routes/_app.tsx`);
-- remove `.scene-loading` once the renderer is ready.
+The live web image was rebuilt from the corrected source
+(`aeion-parceldesk-web:1` = `sha256:89cc2efa…`) and recreated on 2026-10-25. Measured with
+headless Chrome 1440×1500 and SwiftShader:
 
-Measured live on 2026-10-25 with headless Chrome 1440×1500 and SwiftShader:
-
-- `/app.css` (18,049 bytes), `/app.js`, `/warehouse.js` and `/three.module.js` all 200;
+- `/app.css`, `/app.js`, `/warehouse.js` and `/three.module.js` all 200;
 - topbar `display:flex` at 65 px; canvas 942×498 with a WebGL context;
-- renderer `ANGLE (Google, Vulkan 1.3.0 (SwiftShader ...))`; `.scene-loading` absent;
-- the warehouse scene, order ledger and `40.00 refunded · Damaged in transit ·
-  2026-10-17` all render;
+- `.scene-loading` absent; the warehouse scene, order ledger and
+  `40.00 refunded · Damaged in transit · 2026-10-17` all render;
 - the only browser console error is `/favicon.ico` 404.
 
-The local operator image is `aeion-parceldesk-web:operator-appfix-20261025`
-(`sha256:3a9f5561…`), also tagged `aeion-parceldesk-web:1`; the previous sealed image is
-preserved as `aeion-parceldesk-web:sealed-before-appfix-20261025` (`sha256:7eef6db2…`).
-The patch, override and rollback notes live outside Git under
+The previous operator image remains available as
+`aeion-parceldesk-web:operator-appfix-20261025` (`sha256:3a9f5561…`) and the sealed image as
+`aeion-parceldesk-web:sealed-before-appfix-20261025` (`sha256:7eef6db2…`). The operator
+patch and its rollback notes remain outside Git under
 `runtime/operator-patches/parceldesk-web-appfix-20261025/` (patch digest
-`sha256:025e6f9b…`). The product source tree, releases `PD-028`/`PD-032` and their packets
-are unchanged.
+`sha256:025e6f9b…`).
 
-**Limits:** this is a deployment patch, not a sealed release. Running
-`docker compose build parceldesk-web` from `compose.yaml` alone rebuilds the unpatched
-source and reverts the visual fix; use the runtime override or promote a proper Factory
-release. The render is a headless SwiftShader capture, not a human GPU window. A permanent
-fix still needs a paid release or an explicit operator release decision.
+**Limits:** the loader fix is sealed in PD-041; the manifest registration is a manual
+source change, not sealed Factory evidence. The render is a headless SwiftShader capture,
+not a human GPU window. The sealed releases and packets are unchanged.
 
 ## Commands
 

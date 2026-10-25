@@ -1,4 +1,5 @@
 import type { Manifest } from "$fresh/server.ts";
+import * as App from "./routes/_app.tsx";
 import * as Index from "./routes/index.tsx";
 import * as Tickets from "./routes/tickets.tsx";
 import * as Pulls from "./routes/pulls.tsx";
@@ -8,6 +9,7 @@ import * as Sync from "./routes/sync.ts";
 
 const manifest = {
   routes: {
+    "./routes/_app.tsx": App,
     "./routes/index.tsx": Index,
     "./routes/tickets.tsx": Tickets,
     "./routes/pulls.tsx": Pulls,
