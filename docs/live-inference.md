@@ -198,7 +198,7 @@ rebuilt from PD-028. The live product still runs on loopback only.
   dedicated `RefundCsvTest`, a manual operator/Codex contribution rather than a paid
   Factory release: it asserts the header, the attachment disposition, the seeded PD-1050
   row, the absence of a non-refunded order, and comma/quote escaping. The backend suite is
-  12 tests; the combined product suite is 19 (12 Maven + 7 Deno).
+  12 tests; the combined product suite is 21 (12 Maven + 9 Deno).
 - PD-033 was denied `STALE_BASE` because PD-032 was delivered after admission. PD-036 was
   denied `BUDGET_RESERVATION_DENIED`: $8.162985 exposure plus a $2 envelope exceeds the $10
   ceiling. No further paid mission can start without operator budget authority.
