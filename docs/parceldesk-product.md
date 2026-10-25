@@ -1,0 +1,148 @@
+# ParcelDesk product: Quarkus, Deno and an autonomous Factory
+
+Status: **working local product, exercised by a live paid mission.** The 3D web surface, the
+Quarkus API, the ticket-to-PR loop and a host-side promotion of an accepted release have all
+run. A remote GitHub PR, a hosted stack test of these services and independent model
+providers remain outside what was measured.
+
+## Runtime
+
+| Layer | Technology | Port |
+|---|---|---|
+| API | Quarkus 3.40.1, Hibernate ORM 7.4.9, H2 2.4.240, **Temurin 25.0.4.1** | `127.0.0.1:8081` |
+| Web | Deno 2.5.0, Fresh 1.6.8, Preact 10.19.6, Three.js 0.170 | `127.0.0.1:8125` |
+| Factory control plane | cockpit, existing Python controller | `127.0.0.1:8124` |
+| Host executor | trusted agent, disposable worker and roles | `127.0.0.1:8131` |
+| Gateway | provider credential mediator | `127.0.0.1:8130` |
+
+The API and web are separate Compose services. Both have a read-only root, no Docker socket,
+no host home, no provider credential, dropped capabilities, `no-new-privileges`, bounded
+memory/CPU/PIDs and loopback-only published ports. The API keeps synthetic orders in an H2
+file volume; the web talks to the API and to the cockpit through server-side proxy routes, so
+the browser has no cross-origin access.
+
+```
+browser ──▶ :8125 Fresh ──▶ :8081 Quarkus/Hibernate/H2
+                    └─────▶ :8124 cockpit (tickets, missions, approval)
+                                     │
+                              :8131 host agent ──▶ disposable worker (Python/Maven/Deno)
+                                     └──────────▶ :8130 gateway ──▶ paid models
+```
+
+## Source layout
+
+```
+sandbox/parceldesk/product/
+  backend/     Quarkus app, H2, 8 baseline tests
+  frontend/    Fresh routes, Three.js scene, Deno tests, Dockerfiles
+  README.md    the product contract and API
+```
+
+The product lives inside the accepted sandbox template so a Factory mission can copy it,
+patch `product/**`, run the suites and publish a local Git release. The legacy Python pricing
+slice in `sandbox/parceldesk/app` and `tests` is a **separate release line** and is not run
+for product missions.
+
+## Product API
+
+```
+GET  /api/health
+GET  /api/summary
+GET  /api/orders
+GET  /api/orders/{id}
+POST /api/orders/{id}/refund      {"reason": "..."}
+GET  /api/pulls
+GET  /api/pulls/{id}
+POST /api/pulls                   mission evidence, idempotent by missionId
+POST /api/pulls/{id}/review       {"verdict": "OK"|"CHANGES_REQUESTED", "comment": "..."}
+POST /api/pulls/{id}/merge        {"mergedBy": "..."}
+POST /api/pulls/{id}/close
+```
+
+The refund rule is deterministic: delivered only, 30-day window, shipping excluded, and a
+written reason at €200 or more. The review ledger refuses to merge a pull request unless all
+trusted tests passed, the Gate approved the mission and the sentinel verdict is `OK`.
+
+## The autonomous ticket flow
+
+1. The web form sends a ticket with `product: "product"` to the cockpit. The cockpit stores
+   the ticket and admits a bounded mission with `allowed_paths: ["product/**"]` and
+   `test_profile: "product"`.
+2. The paid author patches the product; the worker runs the Maven backend and Deno frontend
+   suites; an independent reviewer reads the diff; the Gate applies policy.
+3. Low risk with green checks is `CLEAN` and autonomous. High risk or a protected change
+   becomes a human checkpoint in the cockpit/web.
+4. The Gate re-runs the **trusted product tests** in a separate checkout, then the accepted
+   patch is sealed and published as a local Git release. The product release head
+   (`product_head:product`) advances independently of the legacy Python head.
+5. The web's `/sync` posts the mission evidence to the product API as a pull request. A
+   low-risk green PR is auto-merged; anything else waits for the operator. The ticket shows
+   **Resolved** once its PR is merged.
+6. `docker build` of the sealed release's `product/backend` and a `compose up` of the API
+   promote the accepted code to the live surface. This remains a host-side action; the
+   cockpit has no Docker socket.
+
+## Measured live run — PD-010, 2026-10-25
+
+Ticket `TCK-B028A56C`, product, risk low:
+
+- author `opencode-go/glm-5.3-flash`: 5,122 / 3,814 tokens, `$0.002675`
+- reviewer `opencode-go/deepseek-v4.1-flash`: 6,179 / 1,098 tokens, `$0.001586`, verdict `OK`
+- worker: **13/13** tests (9 Maven + 4 Deno); Gate-owned acceptance: **12/12**
+- Gate: `CLEAN`, `allow`, autonomous, no human checkpoint
+- sealed packet `sha256:0c83baa40e14cd4f4e2b6049a60886399f6f2d973ef3932d4b81d4d3dbb84f44`
+- release `3df45d50bcb6c1f23da77038288b09d2919ae48c`, `product_head:product` advanced
+- **PR-001 merged automatically**; the diff is `OrderView.java` + a new Quarkus test
+- promoted API returns `refundReason: "Damaged in transit"`, `refundAmountCents: 4000` for
+  PD-1050, and the live order page shows it
+
+Two earlier live tickets are kept as evidence:
+
+- **PD-008**: blocked `PATCH_CONTEXT` before any model call (0 tokens, $0) because the context
+  reader only allowed Python files.
+- **PD-009**: the correctly patched product was denied `OUT_OF_SCOPE` by the Gate's hardcoded
+  `app/tests` scope (`$0.00475`, 5,434 / 6,558 tokens). The scope fix and a regression test
+  followed.
+
+Cumulative cockpit model spend after the three product tickets and all earlier live runs:
+**$0.01863**, no unsettled attempt.
+
+## Commands
+
+```sh
+# build the product images and start the stack
+AEION_OPERATOR_UID=$(id -u) AEION_OPERATOR_GID=$(id -g) \
+  docker compose -f compose.yaml build parceldesk-api parceldesk-web cockpit
+.venv/bin/python scripts/stack.py --provider-auth runtime/secrets/opencode-provider.json up
+
+# verify the product itself
+curl -s http://127.0.0.1:8081/api/summary
+open http://127.0.0.1:8125/
+
+# backend and frontend tests (host, no Docker)
+cd sandbox/parceldesk/product/backend && mvn -B test
+cd ../frontend && deno task test
+
+# opt-in polyglot worker profile
+AEION_DOCKER_TESTS=1 .venv/bin/python -m pytest -q tests/test_product_worker.py
+
+# promote a sealed release (host-side; replace PD-010 with the accepted mission)
+REL="$PWD/runtime/cockpit/sandbox/releases/PD-010/repo/product/backend"
+docker build -t aeion-parceldesk-api:1 -f "$REL/Dockerfile" "$REL"
+docker compose -f compose.yaml up -d --no-deps parceldesk-api
+```
+
+## Limits
+
+- The review ledger is local H2. No remote GitHub PR, branch push or deployment is created by
+  the cockpit; the PR is the product's own auditable record.
+- Promotion is a host-side build of the sealed release, not an autonomous deploy.
+- The hosted `stack-tests` job still starts only the cockpit, Paperclip and Postgres; the
+  product services are measured locally and by the worker profile, not in that job.
+- The first product release had no parent; later product tickets anchor to
+  `product_head:product`. The legacy Python head stays at `fc6ca0d`.
+- Both live model families share one provider account; the review is same-provider.
+- The local web UI has no authentication and is bound to loopback. It is an operator surface,
+  not a multi-user service.
+- The accepted PD-010 packet was sealed before the context/scope fixes; it is preserved
+  untouched. PD-008/PD-009 remain blocked in the history.

@@ -185,6 +185,27 @@ A killed agent can leave owner-only scratch directories under
 `tests/test_agent_kill.py` (`AEION_DOCKER_TESTS=1`) repeats the kill/reap half on a
 throwaway agent and worker, without the live cockpit or a model.
 
+## ParcelDesk product services
+
+`parceldesk-api` (Quarkus/Hibernate/H2, Java 25.0.4.1) and `parceldesk-web` (Deno 2.5,
+Fresh, Three.js) are separate Compose services built from `sandbox/parceldesk/product`. They
+have the same read-only, capability-free, socket-free posture as the cockpit and publish only
+on loopback (`8081` and `8125`). The web reaches the cockpit through its server-side proxy;
+the browser never needs a cross-origin call.
+
+The trusted worker image is now polyglot: Python, Maven/JDK 25 with an offline `.m2`, and
+Deno with a pre-populated cache. A mission carries `test_profile=legacy` (Python contract) or
+`test_profile=product` (Maven and Deno suites); the Gate acceptance and local delivery use
+the same profile. The product release advances `product_head:product`; the legacy Python
+release stays on `product_head`.
+
+The JVM suites need larger bounds than the original Python worker: **1 GiB memory, 1.5 CPU,
+256 PIDs, 512 MiB scratch and 4096 open files**. The opt-in
+`tests/test_product_worker.py` runs the product profile with those limits; the local live
+PD-010 run used them for 13 worker tests and 12 Gate-owned tests. See
+[`parceldesk-product.md`](parceldesk-product.md) for the API, the UI, the measured ticket and
+the fixed integration gaps.
+
 ## Running the agent today
 
 ```sh
