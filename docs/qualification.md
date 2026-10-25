@@ -103,6 +103,30 @@ the same archive's original directory, and the live agent returned to `ready`. L
 surfaces were rechecked: the product web still renders
 `40.00 refunded · Damaged in transit · 2026-10-17` and the API still returns PD-1050.
 
+## 5. Second drill: custom Compose project without an override
+
+A second fresh clone of `main bccb28f` was installed the same way:
+
+- full suite **465 passed, 15 skipped** (163.70 s), publication check pass;
+- Compose project **`aeion-qual`**, no container-name override;
+- the agent resolved **`aeion-qual-inference-gateway-1`** by the Compose service label,
+  the inference probe returned `ready`, and the cockpit reported `agent ready`;
+- `/`, `/parceldesk`, `/warehouse`, the product API and the product web all returned
+  **200**; `GET /api/refunds.csv` served the header and the PD-1050 row;
+- first mission `PD-001` (`PD00`, `fresh2-pd00-20261025`) ran the real worker
+  **12/19** (seven known baseline failures) and Gate `NO_PATCH`; packet
+  `sha256:1c370bf84fdbdf5a9aeb85121e48acb92041911bf508a502ab07acc5ba492c97`
+  verified and is correctly `sealed: false`;
+- the fresh ledger held 1 mission / 11 events; no model was called and the cost was $0.
+
+The first attempt at this second drill reused the previous `aeion-qual` project volumes,
+whose Postgres password no longer matched the newly generated secret. Removing only
+that temporary project's volumes fixed it. A genuinely new project name does not have
+this issue.
+
+This closes the custom-project container-name limit from the first drill. The
+independent-directory restore was not repeated in the second drill.
+
 ## Limits
 
 1. **Same physical host and Docker engine.** This is a fresh *copy* install and an
@@ -110,12 +134,10 @@ surfaces were rechecked: the product web still renders
    untested.
 2. **No paid mission on the fresh install.** The first fresh mission was the controlled
    `PD00` baseline. Live paid inference is proven on the main installation.
-3. **Custom Compose project names needed an override during this drill.** The agent at the
-   time resolved the gateway by the hardcoded default container name
-   (`aeion-playground-inference-gateway-1`), so the qualification used a one-line Compose
-   override. The agent now discovers the single container labelled
-   `com.docker.compose.service=inference-gateway` and refuses zero or multiple matches; this
-   is unit-tested, but the fresh-install drill was not re-run with the new resolver.
+3. **Custom Compose project names are now supported.** The first drill needed a one-line
+   container-name override because the agent resolved the hardcoded default name. PR #42
+   added label-based discovery, and the second drill ran `aeion-qual` with no override.
+   Two simultaneous stacks on one engine are still refused by design.
 4. **Global image tags couple installations on one Docker engine.** Building the worker
    and role images from the second clone overwrote the shared tags, so the first
    installation's `runtime/*-image.json` records no longer matched. Re-recording them
