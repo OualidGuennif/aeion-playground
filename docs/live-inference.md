@@ -209,11 +209,11 @@ rather than inventing a zero cost: PD-014 (the 2 MiB mediator bound), PD-022 (a 
 mediator deadline), PD-031 (a 170 s deadline that cut a still-running stream at 169 s),
 PD-035 and PD-043 (the 2 MiB response bound). No attempt is unsettled. The role admission is
 now **300 s** and the mediator deadline **290 s**. The operator authorized a **$30.00** local
-cap on 2026-10-25; current exposure is `$10.186070`, leaving `$19.813930`.
+cap on 2026-10-25; current exposure is `$10.196700`, leaving `$19.803300`.
 
 ### Autonomous paid improvement run, 2026-10-25
 
-With the $30 authorization, seven product tickets were admitted through the cockpit. The
+With the $30 authorization, eight product tickets were admitted through the cockpit. The
 router mixed model families and learned from deterministic failures:
 
 - **PD-039** — GLM author, `$0.004670`, `MODEL_PATCH_INVALID`: it tried to recreate the
@@ -233,11 +233,14 @@ router mixed model families and learned from deterministic failures:
   `sha256:030227a8…`. It adds a refunds CSV download link to the refund desk.
 - **PD-045** — GLM author, `$0.000944`, `MODEL_PATCH_INVALID`: the proxy patch did not
   apply. The proxy allowlist/header fix was applied manually and verified live.
+- **PD-046** — DeepSeek was selected for the medium-risk proxy class, but the same proxy
+  task exhausted the 16,384-token output bound (`AGENT_BLOCKED`, `$0.010630`).
 
-The seven tickets created Paperclip issues **AEI-4** through **AEI-10**. PD-041 and PD-044
+The eight tickets created Paperclip issues **AEI-4** through **AEI-11**. PD-041 and PD-044
 are sealed releases; the manifest registration, the refunds-CSV proxy allowlist and the
-`Content-Disposition` forwarding are manual source follow-ups. The 2 MiB bound and the
-16,384-token output bound remain known limits.
+`Content-Disposition` forwarding are manual source follow-ups. PD-045 and PD-046 both
+failed to seal the proxy fix. The 2 MiB bound and the 16,384-token output bound remain
+known limits.
 
 Live verification of PD-044 found that its link returned 404 because the Fresh proxy
 allowlist omitted `refunds.csv`; after the manual proxy fix, `GET /api/refunds.csv` through

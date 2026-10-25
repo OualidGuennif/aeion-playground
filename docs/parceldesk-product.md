@@ -165,8 +165,9 @@ remains `fc6ca0d`. The API image was promoted from PD-032 and the web image from
   is `8733f9c7…` (packet `sha256:030227a8…`, 17/17). Live verification then found the link
   returned 404: the Fresh API proxy allowlisted only `orders`, `summary`, `pulls` and
   `health`. The manual proxy fix adds `refunds.csv` and forwards `Content-Disposition`; it is
-  covered by `tests/csv_proxy_test.ts`. PD-045 tried to seal that proxy fix but failed
-  `MODEL_PATCH_INVALID` at `$0.000944`, so the proxy fix is **not** in a sealed packet.
+  covered by `tests/csv_proxy_test.ts`. PD-045 (`MODEL_PATCH_INVALID`, `$0.000944`) and
+  PD-046 (`AGENT_BLOCKED` length, `$0.010630`) both failed to seal it, so the proxy fix is
+  **not** in a sealed packet.
   The live web (`sha256:e8b62b77…`) serves `GET /api/refunds.csv` as 200 `text/csv` with the
   attachment header and the PD-1050 row.
 

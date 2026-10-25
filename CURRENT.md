@@ -186,3 +186,15 @@ est la référence : toute décision doit pouvoir être rattachée à une ligne 
   `0,186070 $`, réconciliée `10,000 $`, exposition `10,186070 $ / 30 $`, aucun essai non
   réglé. Limites : le proxy et le manifeste `_app` ne sont pas scellés ; PD-044 scelle le
   lien mais pas le proxy.
+
+- 2026-10-25 10:0x : **scellement du proxy CSV, deuxième échec mesuré** — après PD-045
+  (`MODEL_PATCH_INVALID`, 0,000944 $), **PD-046** a été admis en risque `medium` avec un
+  patch proxy très explicite. Le routeur a bien sélectionné **DeepSeek**, mais la réponse a
+  consommé la borne de **16 384 tokens** (`AGENT_BLOCKED`, `length`, 0,010630 $, **AEI-11**).
+  Le correctif proxy reste donc **manuel**, testé (`csv_proxy_test.ts`) et live :
+  `GET /api/refunds.csv` via le web renvoie toujours 200 `text/csv` avec
+  `attachment; filename="refunds.csv"` et la ligne PD-1050. Aucun nouvel essai payant sans
+  changer la stratégie (borne de sortie, découpage de tâche ou patch local soumis au Gate).
+  État : 46 missions, 577 événements, 41 tickets, exposition `10,196700 $ / 30 $`
+  (0,196700 $ rapportés + 10 $ réconciliés), aucun essai non réglé ; `main` reste
+  `8748604`, l'image web live reste `sha256:e8b62b77…`.
