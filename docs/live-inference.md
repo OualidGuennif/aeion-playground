@@ -139,9 +139,10 @@ Two earlier product tickets remain as evidence instead of being hidden:
   the acceptance checkout and advances a separate product release head.
 
 Cumulative product-ticket spend: **$0.009011**; cumulative live model spend after all runs:
-**$0.055208**, plus $2.000 conservatively reconciled, no unsettled attempt.
+**$0.132792**, plus $4.000 conservatively reconciled (two mediator-truncated attempts),
+no unsettled attempt. The local model authorization is **$10**; this is a ceiling, not spend.
 
-## Product releases PD-020 and PD-021, 2026-10-25
+## Product releases PD-020, PD-021, PD-024 and PD-028, 2026-10-25
 
 Two more paid product missions built on `product_head:product` (PD-010), with the Gate
 acceptance restored from the accepted release's own product tests:
@@ -159,13 +160,31 @@ acceptance restored from the accepted release's own product tests:
   `b01d4f77b9b6d3ad8f8831923b495b80b8ba773e`.
 
 PR-002 and PR-003 were auto-merged by the product web sync. The live web image was rebuilt
-from PD-021 and renders `€40.00 refunded · Damaged in transit`; the old separate amount and
-reason fields are gone. The API image stays from PD-010 because neither release changed the
-backend.
+from PD-021 and rendered `€40.00 refunded · Damaged in transit`; the old separate amount and
+reason fields were gone.
 
-Cumulative reported spend after all live runs is **$0.055208**. One upstream stream exceeded
-the 2 MiB mediator bound with no usage record; the operator settled its **full $2.000**
-reservation as `reconciled_usd` rather than inventing a zero cost. No attempt is unsettled.
+Two further product releases followed:
+
+- **PD-024 / TCK-6F38ADDE** — *Expose the refund ledger endpoint*, high risk. Author GLM
+  4,486 / 15,196 tokens `$0.008271`; reviewer DeepSeek 5,896 / 10,439 `$0.007148` `OK`;
+  worker 17/17; Gate acceptance 16/16; Gate `HUMAN_CHECKPOINT` (`risk=high`); the operator
+  approved via the web proxy; packet `sha256:d725c08b…a8d05a9`; release `aeeeb7a1`;
+  **PR-004 was merged by `operator`, not auto-merged**.
+- **PD-028 / TCK-AAE35494** — *Read the refund desk from the refund ledger*, low risk.
+  Author GLM 8,118 / 15,012; reviewer DeepSeek 9,352 / 6,299 `OK`; worker 17/17; Gate
+  acceptance 17/17; Gate `CLEAN`; packet `sha256:7518c6d6…`; release `b5fe5f7`; PR-005
+  auto-merged. The rebuilt web renders `€40.00 refunded · Damaged in transit · 2026-10-17`.
+
+The API image was rebuilt from PD-024 and exposes `GET /api/refunds`; the web image was
+rebuilt from PD-028. The live product still runs on loopback only.
+
+Cumulative reported spend after all live runs is **$0.132792**. Two upstream outcomes had
+no usage record and were settled at their **full $2.000** reservations as `reconciled_usd`
+rather than inventing a zero cost: PD-014 (the 2 MiB mediator bound) and PD-022 (a 90 s
+mediator deadline that cut a role still inside its 180 s admission; the deadline is now
+170 s). No attempt is unsettled. The local authorization cap was raised from $5 to $10
+after those two conservative settlements left less than one $2 reservation; reported
+spend remains a fraction of either cap.
 
 The failed attempts remain in the ledger and are documented in
 [`parceldesk-product.md`](parceldesk-product.md): completion-bound truncation (PD-011/PD-015,
