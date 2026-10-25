@@ -28,7 +28,9 @@ def test_product_profile_runs_maven_and_deno_suites(tmp_path, monkeypatch):
     result = manager.run_tests(ROOT / "sandbox/parceldesk", profile="product", timeout=180)
     assert result.available and not result.error, result.error
     assert result.exit_code == 0
-    assert result.total == 12 and result.passed == 12 and result.failed == 0
+    # Accepted product releases may add tests; the worker must run at least the
+    # original 12 and every collected test must pass.
+    assert result.total >= 12 and result.passed == result.total and result.failed == 0
     assert result.errors == 0 and result.skipped == 0
     assert result.isolation["profile"] == "product"
     names = {case["classname"] for case in result.cases}
