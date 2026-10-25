@@ -13,6 +13,8 @@ import jakarta.ws.rs.NotFoundException;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.Response;
 import io.quarkus.panache.common.Sort;
 import java.time.Instant;
 import java.util.List;
@@ -59,5 +61,44 @@ public class OrderResource {
                 .stream()
                 .map(OrderView::of)
                 .toList();
+    }
+
+    @GET
+    @Path("/refunds.csv")
+    @Produces("text/csv")
+    public Response refundsCsv() {
+        StringBuilder csv = new StringBuilder("id,customer,city,refundAmountCents,refundReason,refundedAt\n");
+        List<Order> refunded = Order.<Order>list("status", Sort.descending("refundedAt"), OrderStatus.REFUNDED);
+        for (Order order : refunded) {
+            OrderView view = OrderView.of(order);
+            csv.append(csvLine(view)).append('\n');
+        }
+        return Response.ok(csv.toString())
+                .header("Content-Disposition", "attachment; filename=\"refunds.csv\"")
+                .build();
+    }
+
+    private static String csvLine(OrderView view) {
+        return String.join(
+                ",",
+                csvField(view.id()),
+                csvField(view.customer()),
+                csvField(view.city()),
+                csvField(view.refundAmountCents() == null ? null : String.valueOf(view.refundAmountCents())),
+                csvField(view.refundReason()),
+                csvField(view.refundedAt() == null ? null : view.refundedAt().toString()));
+    }
+
+    private static String csvField(String value) {
+        if (value == null) {
+            return "";
+        }
+        if (value.indexOf(',') >= 0
+                || value.indexOf('"') >= 0
+                || value.indexOf('\r') >= 0
+                || value.indexOf('\n') >= 0) {
+            return '"' + value.replace("\"", "\"\"") + '"';
+        }
+        return value;
     }
 }
