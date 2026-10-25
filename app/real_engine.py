@@ -179,6 +179,9 @@ class RealEngine:
         self._croa_at = 0.0
         self._issues: dict[str, Any] | None = None
         self._issues_at = 0.0
+        # The demo ticket store is optional: the engine keeps working without it,
+        # and tests can inject the isolated ParcelDesk database.
+        self.ticket_store: Any | None = None
 
     # ------------------------------------------------------------------ lifecycle
     def start(self) -> None:
@@ -1394,6 +1397,32 @@ class RealEngine:
                 )
             )
 
+    def _sync_ticket(self, mission_id: str) -> None:
+        """Close a linked ParcelDesk ticket when the mission is terminal.
+
+        A failure to update the demo surface must never undo or hide a sealed
+        acceptance, so it is reported as a warning instead of raised.
+        """
+        mission = store.mission(mission_id)
+        if self.ticket_store is None or not mission or mission["status"] not in {"completed", "blocked"}:
+            return
+        try:
+            self.ticket_store.sync_mission(
+                mission_id, mission["status"],
+                mission.get("gate_reason") or mission.get("blocked_reason"),
+            )
+        except Exception as error:  # noqa: BLE001 - the ledger already holds the truth
+            emit(
+                store.add_event(
+                    type="ticket.sync_failed",
+                    actor="engine",
+                    mission=mission_id,
+                    fixture=mission.get("fixture"),
+                    message=f"{type(error).__name__}: {error}",
+                    severity="warning",
+                )
+            )
+
     def _block(self, mission_id: str, code: str, reason: str, *, step_index: int | None = None) -> None:
         mission = store.mission(mission_id)
         if not mission or mission["status"] == "completed":
@@ -1431,6 +1460,7 @@ class RealEngine:
                 severity="error",
             )
         )
+        self._sync_ticket(mission_id)
 
     def _finish_blocked(self, mission_id: str, reason: str, code: str) -> None:
         mission = store.mission(mission_id)
@@ -1460,6 +1490,7 @@ class RealEngine:
                 severity="error",
             )
         )
+        self._sync_ticket(mission_id)
 
     def _seal(self, mission_id: str, *, outcome: str) -> None:
         mission = store.mission(mission_id)
@@ -1503,6 +1534,7 @@ class RealEngine:
                 payload={"packet": packet["id"], "digest": packet["digest"]},
             )
         )
+        self._sync_ticket(mission_id)
         if _loads(mission.get("contract_json"), {}).get("scenario", {}).get("delivery") == "local":
             self._deliver_local(mission_id)
 

@@ -237,5 +237,21 @@ class ParcelDeskStore:
             )
         return self.ticket(ticket_id)
 
+    def sync_mission(self, mission_id: str, status: str, error: str | None = None) -> int:
+        """Close the linked ticket when its mission reaches a terminal state.
+
+        The warehouse board reads the mission for the live step, but the open-ticket
+        count comes from this table. Leaving every ticket at ``running`` made the
+        count grow forever after real, terminal missions.
+        """
+        if status not in {"completed", "blocked"}:
+            return 0
+        note = str(error)[:500] if error else None
+        with self._lock, self._conn:
+            return self._conn.execute(
+                "UPDATE tickets SET status = ?, error = ? WHERE mission_id = ? AND status IN ('queued', 'running')",
+                (status, note, mission_id),
+            ).rowcount
+
 
 parceldesk_store = ParcelDeskStore()
