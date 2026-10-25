@@ -289,3 +289,29 @@ def test_merge_existing_waits_for_the_recorded_pr_and_merges(tmp_path):
     assert result["merged"] is True and result["pr"]["state"] == "MERGED"
     assert any(call[1:3] == ["pr", "merge"] for call in calls)
     assert delivery.state()["pr"]["state"] == "MERGED"
+
+
+def test_publish_moves_an_existing_open_pr_to_the_new_commit(tmp_path):
+    runtime, template = _make_release(tmp_path)
+    release = load_release(runtime, MISSION)
+    calls: list[list[str]] = []
+
+    def fake(argv, cwd, *, input_text=None, check=True, timeout=180):
+        calls.append(list(argv))
+        if argv[0] == "gh" and argv[1:3] == ["repo", "clone"]:
+            subprocess.run(["git", "clone", "-q", str(template), argv[4]], check=True)
+            return _completed()
+        if argv[0] == "gh" and argv[1:3] == ["pr", "checks"]:
+            return _completed(stdout=json.dumps([{"name": "product-tests", "bucket": "pass"}]))
+        if argv[0] == "gh" and argv[1:3] == ["pr", "merge"]:
+            return _completed()
+        return _run(argv, cwd, input_text=input_text, check=check, timeout=timeout)
+
+    delivery = GitHubDelivery(release, "owner/repo", work_root=tmp_path / "w3",
+                              state_root=tmp_path / "s3", run=fake)
+    plan = delivery.prepare()
+    delivery._record(issue={"number": 7, "state": "OPEN"},
+                     pr={"number": 8, "url": "https://example/8", "state": "OPEN"})
+    result = delivery.publish(plan, create_issue=False, wait=True, merge=True)
+    assert result["merged"] is True
+    assert any(call[:2] == ["git", "-C"] and "push" in call for call in calls)
