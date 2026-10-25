@@ -29,6 +29,7 @@ import re
 import secrets
 import shutil
 import stat
+import subprocess
 import sys
 import tarfile
 import tempfile
@@ -41,6 +42,8 @@ from typing import Any
 
 from .agent_runner import AgentResult
 from .config import POC_DIR, settings
+from .container_executor import docker_env
+from .container_owner import ENV as OWNER_ENV, LABEL as OWNER_LABEL, load_or_create_owner
 from .executor import (
     DIGEST,
     MAX_PATCH_TEXT,
@@ -143,6 +146,7 @@ class ExecutorAgent:
             raise Denied("Invalid executor capability", 500)
         self.token = token
         self.root = _owner_directory(root)
+        self.owner = load_or_create_owner(self.root)
         self.snapshots = _owner_directory(self.root / "snapshots")
         self.runs = _owner_directory(self.root / "runs")
         self.roles = _owner_directory(self.root / "roles")
@@ -172,6 +176,32 @@ class ExecutorAgent:
         except Exception as error:
             return {"ready": False, "runtime": "unknown", "reason": f"Inference probe failed: {type(error).__name__}"}
         return probe if isinstance(probe, dict) else {"ready": False, "runtime": "unknown", "reason": "Invalid inference probe"}
+
+    def reap_stale_containers(self) -> int:
+        """Remove containers this state directory's previous agent left running.
+
+        A worker or role container is normally removed by its own cleanup or by
+        ``docker run --rm`` at exit. If the agent is killed (SIGKILL, power loss),
+        the container keeps running without a client. Only containers carrying
+        this agent's random owner label are touched, so a different agent state
+        directory is never disturbed.
+        """
+        listing = subprocess.run(
+            ["docker", "ps", "-aq", "--filter", f"label={OWNER_LABEL}={self.owner}"],
+            env=docker_env(), capture_output=True, text=True, timeout=20,
+        )
+        if listing.returncode:
+            raise OSError("Docker container listing failed; stale workers may remain")
+        identifiers = [line for line in listing.stdout.splitlines() if re.fullmatch(r"[0-9a-f]{12,64}", line)]
+        if not identifiers:
+            return 0
+        removal = subprocess.run(
+            ["docker", "rm", "--force", *identifiers],
+            env=docker_env(), capture_output=True, text=True, timeout=30,
+        )
+        if removal.returncode:
+            raise OSError("Stale worker cleanup failed; operator inspection required")
+        return len(identifiers)
 
     # ------------------------------------------------------------------ snapshots
     def _snapshot_path(self, digest: str) -> Path:
@@ -425,9 +455,18 @@ def main(argv: list[str] | None = None) -> int:
             raise Denied("Port is out of range", 500)
         agent = ExecutorAgent(args.root, token)
         server = BoundedServer((host, args.port), handler(agent))
-    except Denied as error:
+    except (Denied, OSError) as error:
         print(f"executor agent refused to start: {error}", file=sys.stderr)
         return 2
+    # Every container launched from now on carries this agent's owner label.
+    os.environ[OWNER_ENV] = agent.owner
+    try:
+        reaped = agent.reap_stale_containers()
+    except OSError as error:
+        print(f"executor agent warning: {error}", file=sys.stderr)
+    else:
+        if reaped:
+            print(f"executor agent removed {reaped} container(s) left by a previous run", flush=True)
     print(f"executor agent listening on {host}:{args.port}; token file {args.token_file}", flush=True)
     try:
         server.serve_forever()

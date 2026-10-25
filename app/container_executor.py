@@ -11,6 +11,8 @@ import subprocess
 import tempfile
 import uuid
 
+from .container_owner import owner_label_args
+
 ROOT = Path(__file__).resolve().parents[1]
 IMAGE_RECORD = ROOT / "runtime/executor-image.json"
 MAX_SNAPSHOT_BYTES = 2 * 1024 * 1024
@@ -98,7 +100,7 @@ def isolated_pytest(root, *, timeout):
         source.mkdir(mode=0o755)
         digest = snapshot(root, source)
         argv = ["docker", "run", "--rm", "--name", name, "--label", "aeion.playground.role=test",
-                "--log-driver", "none",
+                *owner_label_args(), "--log-driver", "none",
                 "--network", "none", "--read-only", "--user", identity["user"],
                 "--cap-drop", "ALL", "--security-opt", "no-new-privileges",
                 "--memory", str(LIMITS["memory_bytes"]), "--memory-swap", str(LIMITS["memory_bytes"]),

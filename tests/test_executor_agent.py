@@ -11,6 +11,7 @@ import io
 import json
 import os
 import stat
+import subprocess
 import tarfile
 import threading
 import urllib.error
@@ -19,6 +20,7 @@ from pathlib import Path
 
 import pytest
 
+from app import container_owner
 from app.agent_runner import AgentResult
 from app.executor import ExecutorUnavailable, MAX_SNAPSHOT_BYTES
 from app.executor_agent import Denied, ExecutorAgent, handler, load_token, validate_bind
@@ -221,6 +223,60 @@ def test_bind_and_token_files_are_restricted(tmp_path):
     created.chmod(0o666)
     with pytest.raises(ExecutorUnavailable):
         read_token(created)
+
+
+def test_the_agent_reaps_only_containers_with_its_own_owner_label(tmp_path, monkeypatch):
+    instance = ExecutorAgent(tmp_path / "agent", TOKEN, workspace=FakeWorkspace(), role_runner=role_result,
+                             inference_probe=lambda: {"ready": True})
+    listing = "\n".join(["a" * 64, "b" * 64]) + "\n"
+    observed = []
+
+    def fake_run(argv, **kwargs):
+        observed.append(argv)
+        return subprocess.CompletedProcess(argv, 0, stdout=listing if argv[1] == "ps" else "", stderr="")
+
+    monkeypatch.setattr("app.executor_agent.subprocess.run", fake_run)
+    assert instance.reap_stale_containers() == 2
+    assert observed[0] == ["docker", "ps", "-aq", "--filter",
+                           f"label=aeion.playground.owner={instance.owner}"]
+    assert observed[1] == ["docker", "rm", "--force", "a" * 64, "b" * 64]
+
+
+def test_an_agent_restart_keeps_its_owner_and_does_not_remove_nothing(tmp_path, monkeypatch):
+    first = ExecutorAgent(tmp_path / "agent", TOKEN, workspace=FakeWorkspace(), role_runner=role_result)
+    second = ExecutorAgent(tmp_path / "agent", TOKEN, workspace=FakeWorkspace(), role_runner=role_result)
+    assert first.owner == second.owner
+    assert stat.S_IMODE((tmp_path / "agent" / "container-owner").stat().st_mode) == 0o600
+    observed = []
+
+    def fake_run(argv, **kwargs):
+        observed.append(argv)
+        return subprocess.CompletedProcess(argv, 0, stdout="", stderr="")
+
+    monkeypatch.setattr("app.executor_agent.subprocess.run", fake_run)
+    assert second.reap_stale_containers() == 0
+    assert len(observed) == 1  # a listing with no match never issues docker rm
+
+
+def test_a_failed_reap_is_an_error_not_a_silent_continue(tmp_path, monkeypatch):
+    instance = ExecutorAgent(tmp_path / "agent", TOKEN, workspace=FakeWorkspace(), role_runner=role_result)
+
+    def fake_run(argv, **kwargs):
+        return subprocess.CompletedProcess(argv, 1, stdout="", stderr="daemon unavailable")
+
+    monkeypatch.setattr("app.executor_agent.subprocess.run", fake_run)
+    with pytest.raises(OSError, match="stale workers may remain"):
+        instance.reap_stale_containers()
+
+
+def test_container_label_flags_never_accept_an_untrusted_owner(monkeypatch):
+    monkeypatch.delenv(container_owner.ENV, raising=False)
+    assert container_owner.owner_label_args() == []
+    monkeypatch.setenv(container_owner.ENV, "c" * 32)
+    assert container_owner.owner_label_args() == ["--label", "aeion.playground.owner=" + "c" * 32]
+    for value in ("", "C" * 32, "--privileged", "c" * 31, "c" * 33):
+        monkeypatch.setenv(container_owner.ENV, value)
+        assert container_owner.owner_label_args() == []
 
 
 def test_oversized_snapshots_are_refused_by_the_client(checkout, tmp_path, monkeypatch):
