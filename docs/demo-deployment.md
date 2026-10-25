@@ -134,7 +134,7 @@ in-process executor. With `AEION_EXECUTOR_URL` it uses the remote client and
 2. Add the host agent with `probe` and `run_tests`; keep inference local. **Done, plus
    `run_role` because a containerised cockpit cannot run a mission without it.**
 3. Qualify `run_role` against the real gateway in a disposable container. **Not done**:
-   one live provider-backed role (paid `opencode-go`, 259/1,699 tokens) has been exercised through the gateway; a full live mission and hosted CI live run are still missing. See [`live-inference.md`](live-inference.md).
+   a full live PD01 mission has run through the containerised cockpit, host executor and gateway: paid `opencode-go/deepseek-v4.1-flash` author, paid GLM reviewer, 19/19 trusted tests, Gate checkpoint, operator approval and a sealed packet (`$0.001406`, 2,139/1,841 tokens). A hosted CI provider-backed run and independent providers are still missing. See [`live-inference.md`](live-inference.md).
 4. Add the cockpit service to Compose and make the native path an explicit, documented
    fallback. **Done:** without `AEION_EXECUTOR_URL` the engine uses the in-process
    executor; the Compose service sets the remote URL, and a missing agent never falls
