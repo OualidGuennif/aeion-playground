@@ -198,3 +198,16 @@ est la référence : toute décision doit pouvoir être rattachée à une ligne 
   État : 46 missions, 577 événements, 41 tickets, exposition `10,196700 $ / 30 $`
   (0,196700 $ rapportés + 10 $ réconciliés), aucun essai non réglé ; `main` reste
   `8748604`, l'image web live reste `sha256:e8b62b77…`.
+
+- 2026-10-25 10:4x : **borne 32k et PD-047** — la borne de sortie du gateway et du rôle
+  passe de **16 384 à 32 768 tokens** (`app/inference_gateway.py`,
+  `app/container_inference.py`) avec un test de lease (37 tests gateway, 47 tests
+  d'inférence dont 4 skips). Images reconstruites : gateway `sha256:a5a156c8…`, opencode
+  `sha256:2be014e6…`, cockpit `sha256:47922c75…` ; l'agent hôte a été redémarré et le probe
+  est `ready`. **PD-047** (DeepSeek, risque medium, même ticket proxy) a terminé à
+  **10 264 tokens** — la borne n'est donc plus la cause — mais le patch ne s'applique
+  toujours pas (`MODEL_PATCH_INVALID`, 0,006958 $, **AEI-12**). Le correctif proxy reste
+  manuel, testé et live (`GET /api/refunds.csv` → 200). État : 47 missions, 585 événements,
+  42 tickets, exposition `10,203658 $ / 30 $` (0,203658 $ rapportés + 10 $ réconciliés),
+  aucun essai non réglé. Prochaine stratégie : patch local produit revu par le Gate, ou
+  hunk exact plus petit ; ne plus relancer le même ticket.

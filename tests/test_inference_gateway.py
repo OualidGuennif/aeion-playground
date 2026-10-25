@@ -48,6 +48,16 @@ def lease(gateway, **override):
     return gateway.leases.issue(request)
 
 
+def test_lease_accepts_the_raised_output_bound(gateway):
+    request = {"run_id": "bound-32768", "model": MODEL, "role": "sentinel", "prompt_hash": digest(PROMPT),
+               "expires": time.time() + 60, "max_tokens": 32768}
+    assert gateway.leases.issue(request)["id"]
+    request["run_id"] = "bound-32769"
+    request["max_tokens"] = 32769
+    with pytest.raises(Denied, match="Invalid lease bounds"):
+        gateway.leases.issue(request)
+
+
 def body(**override):
     return {"model": MODEL.split("/", 1)[1], "messages": [{"role": "system", "content": "CLI environment must not be forwarded"},
              {"role": "user", "content": '"' + PROMPT.replace('"', '\\"') + '"'}], "stream": True, "max_tokens": 32000, **override}
