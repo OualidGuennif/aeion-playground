@@ -5,9 +5,9 @@ The `ExecutorClient` interface, the host agent (`probe`, `run_tests`, `run_role`
 cockpit image and Compose service exist. A cockpit container ran PD00 and PD03 end to end
 through the agent, with the worker's real Docker flags. A full live PD01 mission and a
 bounded Factory ticket then ran through the containerised cockpit, host agent and paid
-models; the ticket published a local Git release. The agent-kill test, a fresh-host
-install and a backup/restore drill are still missing; each remaining item is listed below
-and none is implied by a configuration file.
+models; the ticket published a local Git release. A same-host backup/restore drill has
+also passed. The agent-kill test, a fresh-host install and an off-host restore are still
+missing; each remaining item is listed below and none is implied by a configuration file.
 
 ## The problem
 
@@ -105,6 +105,9 @@ Implemented properties:
 | 4 | worker launched by the agent has `--network none`, read-only root, non-root, dropped caps, documented limits | **not written** — requires an opt-in Docker qualification |
 | 5 | killing the agent mid-run leaves no orphan container and records a blocked mission | **not written** |
 | 6 | cockpit serves Mission Control and ParcelDesk with the agent stopped, reporting `executor unavailable` | covered by the hosted `stack-tests` job: it starts the cockpit with no host agent and checks `/`, `/parceldesk`, `/warehouse` and `/api/health` |
+| 7 | backup and restore of the cockpit state directory on the same host and image | measured 2026-10-25: 228,094-byte archive, SQLite integrity ok, 6 missions / 8 attempts / 3 tickets restored, PD-006 packet valid, `product_head` unchanged; off-host restore not tested |
+| 8 | killing the agent mid-run leaves no orphan container and records a blocked mission | **not written** — needs a live opt-in Docker qualification |
+| 9 | fresh-host install and first mission | **not tested** |
 
 The unit tests use a fake workspace and a fake role runner. They prove the protocol and
 the refusals; they do not prove container isolation. What was measured with real
@@ -113,6 +116,30 @@ reads the remote inference probe, and ran PD00 and PD03 through the agent. PD03'
 command showed `--network none`, `--read-only`, `--user 65532:65532`, `--cap-drop ALL`,
 the memory/CPU/PID limits and no Docker socket. PD00 recorded the baseline `12 passed /
 7 failed` and Gate `NO_PATCH`; PD03 recorded `19 passed` and Gate `PROTECTED_PATH`.
+
+### Backup and restore drill — 2026-10-25
+
+Measured on the live stack, same host and same image:
+
+1. Captured the state before touching it: 6 missions, 81 events, 8 attempts, 3 tickets
+   (0 open), the PD-006 packet valid, `product_head` at `fc6ca0d`.
+2. Stopped the cockpit. With no process attached, checkpointed the WAL and ran
+   `PRAGMA integrity_check` on `aeion.db` and `parceldesk.db`; both returned `ok`.
+3. Created `runtime/backups/cockpit-20261025T010347Z.tgz` (228,094 bytes, mode 0600) with
+   `tar -czf ... -C runtime cockpit`. The archive stays local and gitignored.
+4. Extracted it to a temporary directory and checked the copy: integrity ok, 6 missions,
+   81 events, 8 attempts, 3 tickets, 0 open; the PD-006 packet still verified.
+5. Moved the live `runtime/cockpit` aside, extracted the archive in place, and restarted
+   the Compose stack. `/api/health` reported ok, `/warehouse` returned 200, the counts
+   matched (82 events: the restarted engine adds one `engine.started`), the PD-006 packet
+   verified, `product_head` was still `fc6ca0d`, and `open_tickets` was 0.
+6. Removed the pre-restore copy; the archive remains as the rollback artifact.
+
+Limits: this is a same-host, same-image restore, not a fresh-host install or an off-host
+backup. It does not simulate disk corruption. The archive contains `runtime/cockpit` only;
+`runtime/secrets/executor_agent` and the gateway credential are separate files that a new
+host must provision. The archive includes the local ledger, including the bound model
+outputs stored in `agent_runs`, so it must stay outside Git and off shared storage.
 
 ## Running the agent today
 
