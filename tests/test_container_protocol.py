@@ -1,11 +1,13 @@
 """Untrusted Docker transport never supplies a partial successful result."""
 import base64
 import json
+import os
+import stat
 import subprocess
 
 import pytest
 
-from app.container_executor import WorkerReportError, decode_result
+from app.container_executor import WorkerReportError, decode_result, snapshot
 
 
 def wire(**changes):
@@ -31,3 +33,23 @@ def test_container_runtime_failure_is_distinct_from_missing_backend(tmp_path):
     for code, failure in ((125, OSError), (137, WorkerReportError)):
         with pytest.raises(failure):
             decode_result(subprocess.CompletedProcess(["docker"], code, "", ""), tmp_path/"junit.xml", output_limit=1024, report_limit=4096)
+
+
+def test_snapshot_directories_are_traversable_under_the_agent_umask(tmp_path):
+    root = tmp_path / "checkout"
+    (root / "tests").mkdir(parents=True)
+    (root / "app").mkdir()
+    (root / "app/pricing.py").write_text("value = 1\n")
+    (root / "tests/test_case.py").write_text("def test_case(): assert True\n")
+    (root / "pytest.ini").write_text("[pytest]\n")
+    target = tmp_path / "source"
+    target.mkdir()
+    previous = os.umask(0o077)
+    try:
+        snapshot(root, target)
+    finally:
+        os.umask(previous)
+    for directory in (target, target / "app", target / "tests"):
+        assert stat.S_IMODE(directory.stat().st_mode) == 0o755
+    for path in (target / "app/pricing.py", target / "tests/test_case.py", target / "pytest.ini"):
+        assert stat.S_IMODE(path.stat().st_mode) == 0o444

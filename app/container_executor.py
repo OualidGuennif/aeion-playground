@@ -88,6 +88,11 @@ def snapshot(root: Path, target: Path):
         destination.write_bytes(data)
         destination.chmod(0o444)
         manifest[str(relative)] = hashlib.sha256(data).hexdigest()
+    # The agent runs with umask 077, so mkdir leaves the snapshot unreadable by
+    # the container's uid 65532 on Linux. The snapshot contains only public
+    # checkout files and no secrets; make its directories traversable.
+    for directory, _, _ in os.walk(target):
+        os.chmod(directory, 0o755, follow_symlinks=False)
     return "sha256:" + hashlib.sha256(json.dumps(manifest, sort_keys=True).encode()).hexdigest()
 
 

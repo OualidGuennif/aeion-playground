@@ -75,7 +75,7 @@ def wait_until(predicate, timeout: float, message: str):
 
 
 def wait_for_running_worker(owner: str, caller: threading.Thread, outcome: dict, log: Path) -> str:
-    deadline = time.monotonic() + 60
+    deadline = time.monotonic() + 90
     last = "no container"
     while time.monotonic() < deadline:
         identifiers = owned_containers(owner, include_stopped=True)
@@ -123,7 +123,7 @@ def test_a_killed_agent_leaves_a_worker_that_the_next_start_reaps(tmp_path):
     checkout = tmp_path / "checkout"
     (checkout / "tests").mkdir(parents=True)
     (checkout / "pytest.ini").write_text("[pytest]\npythonpath = .\ntestpaths = tests\n")
-    (checkout / "tests/test_slow.py").write_text("import time\n\ndef test_slow():\n    time.sleep(30)\n")
+    (checkout / "tests/test_slow.py").write_text("import time\n\ndef test_slow():\n    time.sleep(120)\n")
 
     agent = start_agent(root, token_file, port, log)
     restarted = None
@@ -137,13 +137,21 @@ def test_a_killed_agent_leaves_a_worker_that_the_next_start_reaps(tmp_path):
 
         def request():
             try:
-                outcome["tests"] = RemoteExecutor(url, token_file=token_file, timeout=120).run_tests(checkout, timeout=120).to_dict()
+                outcome["tests"] = RemoteExecutor(url, token_file=token_file, timeout=180).run_tests(checkout, timeout=180).to_dict()
             except Exception as error:  # the killed connection is the expected outcome
                 outcome["error"] = f"{type(error).__name__}: {error}"
 
         caller = threading.Thread(target=request, daemon=True)
         caller.start()
         container = wait_for_running_worker(owner, caller, outcome, log)
+        # A slow runner can start the container well before pytest reaches the
+        # sleep. Give it two seconds, then require it to still be alive so the
+        # kill below cannot race a worker that failed during startup.
+        time.sleep(2)
+        state = docker("inspect", container, "--format", "{{.State.Status}}|{{.State.Running}}").stdout.strip()
+        if state != "running|true":
+            caller.join(timeout=10)
+            raise AssertionError(f"worker exited before the kill ({state}): {outcome}; log: {log.read_text()[-1500:]}")
         found_at = time.monotonic()
 
         stop_agent(agent)
@@ -156,7 +164,7 @@ def test_a_killed_agent_leaves_a_worker_that_the_next_start_reaps(tmp_path):
         restarted = start_agent(root, token_file, port, log)
         wait_ready(url, token_file)
         wait_until(lambda: not owned_containers(owner), 20, "the restarted agent did not reap its stale worker")
-        # The worker sleeps for 30 seconds, so a disappearance within 10 seconds
+        # The worker sleeps for 120 seconds, so a disappearance within 10 seconds
         # of finding it cannot be the container exiting on its own.
         assert time.monotonic() - found_at < 10, "the worker ended on its own; reaping was not proven"
         assert docker("ps", "-aq", "--filter", f"id={container}").stdout.strip() == ""
