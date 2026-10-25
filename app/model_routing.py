@@ -75,6 +75,13 @@ class ModelRouter:
             if error.startswith("Invalid patch protocol response:"):
                 row["protocol_failures"] += 1
                 continue
+            raw = json.loads(run.get("raw_json") or "{}")
+            if raw.get("finish_reason") == "length":
+                # A truncated answer is a bounded output failure of the model, not
+                # provider uncertainty. It must not open an availability cooldown,
+                # but repeated truncation is evidence against the family.
+                row["deterministic_failures"] += 1
+                continue
             if run["status"] != "completed":
                 continue
             if role == "sentinel" and run.get("verdict") != "OK":
@@ -91,7 +98,6 @@ class ModelRouter:
                     row["passed"] += 1
             row["samples"] += 1
             row["cost_usd"] += float(run.get("cost_usd") or 0)
-            raw = json.loads(run.get("raw_json") or "{}")
             if raw.get("duration_ms", 0) > 0:
                 row["duration_ms"] += raw["duration_ms"]
                 row["timed_samples"] += 1
@@ -141,14 +147,22 @@ class ModelRouter:
         previous = json.loads(self.ledger.get_kv(f"routing:health:{model}", "{}"))
         if previous.get("observed_at", 0) > observed_at:
             return
+        raw = getattr(result, "raw", {}) or {}
+        finish_reason = raw.get("finish_reason")
         classification = availability_error(result.error) if result.status != "completed" else None
-        mediated = (getattr(result, "raw", {}) or {}).get("inference")
+        mediated = raw.get("inference")
         if mediated and mediated.get("state") != "refused" and result.status != "completed":
             classification = "unknown_outcome"
-        if classification is None and result.status != "completed" and not (getattr(result, "raw", {}) or {}).get("finish_reason") == "stop":
+        if (classification is None and result.status != "completed"
+                and finish_reason not in {"stop", "length"}):
+            # A length stop means the model used its whole bounded output; the
+            # provider answered. Treating it as unknown provider state withheld
+            # the authorized DeepSeek route for an hour after one oversized
+            # request (PD-004), so it is a quality failure, not a cooldown.
             classification = "unknown_outcome"
         state = {"model": model, "observed_at": observed_at, "run_id": result.run_id,
                  "classification": classification, "error": result.error,
+                 "finish_reason": finish_reason,
                  "retry_at": observed_at + self.policy["cooldown_seconds"] if classification in {"rate_limit", "access_restriction", "unknown_outcome", "catalog_unavailable"} else 0,
                  "policy_digest": self.policy["digest"]}
         self.ledger.set_kv(f"routing:health:{model}", json.dumps(state, sort_keys=True))

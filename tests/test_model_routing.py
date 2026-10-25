@@ -9,7 +9,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from app.agent_runner import AgentResult
+from app.agent_runner import AgentResult, model_family
 from app.model_routing import ModelRouter, RoutingBlocked, availability_error
 from app.operator_settings import EXAMPLE_PATH
 from test_product_loop import bootstrap, coverage_runner, start_product_task
@@ -84,6 +84,38 @@ def test_unknown_outcomes_and_protocol_errors_do_not_trigger_paid_retry(runtime,
     mission = start_product_task(runtime, failed)
     assert mission["status"] == "blocked" and calls == [DS_FREE]
     assert len(runtime.store.runs(mission["id"])) == 1
+
+
+def test_a_truncated_answer_is_a_model_failure_not_a_provider_cooldown(runtime):
+    bootstrap(runtime)
+    enable(runtime, policy())
+    calls = []
+    def truncated(**kwargs):
+        calls.append(kwargs["model_override"])
+        reply = fixture_result(**kwargs)
+        reply.status = "failed"
+        reply.error = "OpenCode did not finish normally (length)."
+        reply.raw = {"finish_reason": "length"}
+        return reply
+    mission = start_product_task(runtime, truncated)
+    assert mission["status"] == "blocked" and calls == [DS_FREE]
+    state = json.loads(runtime.store.get_kv(f"routing:health:{DS_FREE}"))
+    assert state["classification"] is None and state["retry_at"] == 0
+    assert state["finish_reason"] == "length"
+
+
+def test_a_truncated_forge_run_counts_as_a_deterministic_failure(runtime):
+    scenario = {"risk": "low"}
+    mission = {"contract_json": json.dumps({"scenario": scenario}),
+               "gate_reason_code": "AGENT_BLOCKED", "tests_json": "{}"}
+    run = {"run_id": "truncated", "mission_id": "history", "agent": "forge", "model": DS_GO,
+           "status": "failed", "error": "OpenCode did not finish normally (length).",
+           "cost_usd": .01, "raw_json": json.dumps({"finish_reason": "length"})}
+    fake = SimpleNamespace(runs=lambda **kw: [run], mission=lambda key: mission,
+                           metrics=lambda: {"cost": 0}, get_kv=runtime.store.get_kv,
+                           set_kv=runtime.store.set_kv)
+    analysis = ModelRouter(fake, policy()).analyze(scenario, "forge")
+    assert analysis["families"][model_family(DS_GO)]["deterministic_failures"] == 1
 
 
 def test_budget_is_rechecked_before_the_paid_fallback(runtime):
