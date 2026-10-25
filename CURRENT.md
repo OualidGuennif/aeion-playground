@@ -142,3 +142,12 @@ est la référence : toute décision doit pouvoir être rattachée à une ligne 
   (min avec `config/model-routing.json`, ne peut que baisser) et `scripts/demo_status.py`
   affiche cockpit, ledger, budget, Paperclip et produit en une commande. L'agent générique
   Paperclip reste `paused/setup` : ce n'est pas le moteur Factory.
+
+- 2026-10-25 08:0x : **PR #46 mergée (`24fc267`)** — Paperclip relié au cockpit par
+  fichier 0600 monté, cap `AEION_BUDGET_USD`, `scripts/demo_status.py`, README/.env
+  clarifiés. Le test de frontière du stack accepte le nouveau mount ; CI exacte **8/8**
+  (`fa03764`), suite locale **470 passed / 15 skipped** (505,17 s). La tâche Paperclip
+  **AEI-1** (manuelle, sans agent ni run) a été clôturée `done` ; **AEI-2/AEI-3** restent
+  `blocked` comme preuves des drills `PD-037`/`PD-038`. Le cockpit live a été reconstruit
+  depuis `main 24fc267` ; la stack est saine, Paperclip `board=200`, 38 missions /
+  492 événements / 30 tickets (0 ouvert), budget inchangé.
