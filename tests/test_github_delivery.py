@@ -252,3 +252,40 @@ def test_merge_is_refused_when_a_check_fails_or_product_tests_are_missing(tmp_pa
     plan = delivery.prepare()
     with pytest.raises(DeliveryError, match="failed"):
         delivery.publish(plan, wait=True, merge=True)
+
+
+def test_a_new_pull_request_without_registered_checks_is_pending(tmp_path):
+    runtime, _ = _make_release(tmp_path)
+    release = load_release(runtime, MISSION)
+
+    def fake(argv, cwd, *, input_text=None, check=True, timeout=180):
+        if argv[0] == "gh" and argv[1:3] == ["pr", "checks"]:
+            return _completed(1, stderr="no checks reported on the 'factory/pd-900' branch")
+        return _run(argv, cwd, input_text=input_text, check=check, timeout=timeout)
+
+    delivery = GitHubDelivery(release, "owner/repo", work_root=tmp_path / "w",
+                              state_root=tmp_path / "s", run=fake)
+    assert delivery._checks(1) == []
+
+
+def test_merge_existing_waits_for_the_recorded_pr_and_merges(tmp_path):
+    runtime, _ = _make_release(tmp_path)
+    release = load_release(runtime, MISSION)
+    calls: list[list[str]] = []
+
+    def fake(argv, cwd, *, input_text=None, check=True, timeout=180):
+        calls.append(list(argv))
+        if argv[0] == "gh" and argv[1:3] == ["pr", "checks"]:
+            return _completed(stdout=json.dumps([{"name": "product-tests", "bucket": "pass"}]))
+        if argv[0] == "gh" and argv[1:3] == ["pr", "merge"]:
+            return _completed()
+        return _run(argv, cwd, input_text=input_text, check=check, timeout=timeout)
+
+    delivery = GitHubDelivery(release, "owner/repo", work_root=tmp_path / "w2",
+                              state_root=tmp_path / "s2", run=fake)
+    delivery._record(issue={"number": 7, "url": "https://example/7", "state": "OPEN"},
+                     pr={"number": 8, "url": "https://example/8", "state": "OPEN"})
+    result = delivery.merge_existing()
+    assert result["merged"] is True and result["pr"]["state"] == "MERGED"
+    assert any(call[1:3] == ["pr", "merge"] for call in calls)
+    assert delivery.state()["pr"]["state"] == "MERGED"
