@@ -54,6 +54,7 @@ export const handler: Handlers = {
       let blocked = 0;
       const notes: string[] = [];
       for (const ticket of payload.tickets) {
+        if (ticket.product !== "product") continue;
         if (!ticket.mission_id || ticket.mission?.status !== "completed") continue;
         const detail = await readJson<MissionFull>(`${cockpitUrl}/api/missions/${ticket.mission_id}`);
         const mission = detail.mission;

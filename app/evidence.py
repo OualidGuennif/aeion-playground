@@ -91,6 +91,8 @@ class EvidenceWriter:
                 "source_release": admission.get("source_release"),
                 "task": scenario.get("task") if isinstance(scenario, dict) else None,
                 "patch_protocol": scenario.get("protocol") if isinstance(scenario, dict) else None,
+                **({"test_profile": scenario["test_profile"]}
+                   if isinstance(scenario, dict) and scenario.get("test_profile") else {}),
                 "routing": admission.get("routing"),
                 **({"test_executor": admission["test_executor"]} if "test_executor" in admission else {}),
             },

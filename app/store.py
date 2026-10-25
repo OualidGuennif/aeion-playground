@@ -747,24 +747,36 @@ class Store:
         return json.loads(value) if value is not None else None
 
     def record_delivery(self, receipt: dict[str, Any]) -> bool:
-        """Advance the local product only from its expected accepted parent."""
+        """Advance the release line that produced this receipt.
+
+        The legacy Python slice and the Quarkus/Deno product are separate
+        products with separate linear histories. A receipt without a product is
+        the legacy slice; a product receipt advances ``product_head:product``.
+        """
         key = f"delivery:{receipt['mission']}"
+        product = receipt.get("product")
+        if product is None:
+            # Receipts written before the product field existed carry the
+            # worker profile in their isolation metadata.
+            profile = (receipt.get("test_isolation") or {}).get("profile")
+            product = "product" if profile == "product" else "legacy"
+        head_key = "product_head:product" if product == "product" else "product_head"
         serialized = json.dumps(receipt, sort_keys=True, ensure_ascii=False)
         with self._lock, self._conn:
             self._conn.execute("BEGIN IMMEDIATE")
             previous = self._conn.execute("SELECT value FROM kv WHERE key = ?", (key,)).fetchone()
-            head = self._conn.execute("SELECT value FROM kv WHERE key = 'product_head'").fetchone()
+            head = self._conn.execute("SELECT value FROM kv WHERE key = ?", (head_key,)).fetchone()
             if previous:
                 if json.loads(previous["value"]) != receipt:
                     raise ValueError("Different delivery already recorded")
                 if head is None and not receipt.get("parent_release"):
-                    self._conn.execute("INSERT INTO kv (key, value) VALUES ('product_head', ?)", (serialized,))
+                    self._conn.execute("INSERT INTO kv (key, value) VALUES (?, ?)", (head_key, serialized))
                 return False  # Replaying an old receipt never rolls the product back.
             parent = (receipt.get("parent_release") or {}).get("commit")
             if (json.loads(head["value"])["commit"] if head else None) != parent:
                 raise ValueError("STALE_BASE: the local product advanced since task admission")
             self._conn.execute("INSERT INTO kv (key, value) VALUES (?, ?)", (key, serialized))
-            self._conn.execute("INSERT OR REPLACE INTO kv (key, value) VALUES ('product_head', ?)", (serialized,))
+            self._conn.execute("INSERT OR REPLACE INTO kv (key, value) VALUES (?, ?)", (head_key, serialized))
             return True
 
     def complete_mission(self, packet: dict[str, Any]) -> bool:

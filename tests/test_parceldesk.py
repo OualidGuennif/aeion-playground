@@ -200,6 +200,7 @@ def test_a_product_ticket_targets_the_quarkus_product(runtime):
     assert mission["id"] == "PD-901"
     scenario = captured["scenario"]
     assert scenario["test_profile"] == "product"
+    assert scenario["source"] == "parceldesk-product"
     assert scenario["allowed_paths"] == ["product/**"]
     assert "product/README.md" in scenario["context_files"]
     assert captured["request"]["product"] == "product"

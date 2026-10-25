@@ -464,6 +464,7 @@ class RealEngine:
         }
         if product == "product":
             scenario["test_profile"] = "product"
+            scenario["source"] = "parceldesk-product"
         request = {"type": "parceldesk-ticket", "title": title, "outcome": outcome,
                    "area": area, "risk": risk, "acceptance": acceptance, "product": product}
         with self._lock:
@@ -506,6 +507,11 @@ class RealEngine:
                 if minimum > 1000:
                     raise ValueError("The admitted minimum test count cannot exceed 1000 cases.")
                 scenario = {**scenario, "minimum_tests": minimum}
+        elif scenario.get("source") == "parceldesk-product":
+            head = _loads(store.get_kv("product_head:product"), {})
+            if head:
+                verified = LocalDelivery(store, sandbox, executor=self.executor).verify(head["mission"], head["packet_digest"])
+                source_release = {key: verified[key] for key in ("mission", "packet_digest", "commit", "tree_digest", "path", "tests")}
         try:
             test_executor = self.executor.probe()
         except Exception as error:

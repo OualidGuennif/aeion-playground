@@ -302,6 +302,21 @@ class SandboxManager:
                     shutil.copytree(source, target / name, ignore=IGNORE)
                 elif source.is_file():
                     shutil.copy2(source, target / name)
+            product = path / "product"
+            if product.is_dir():
+                shutil.copytree(product, target / "product", ignore=IGNORE)
+                # Keep the patched product implementation, restore the trusted
+                # product tests and build configuration.
+                for relative in ("product/backend/src/test", "product/frontend/tests"):
+                    source = self.template_dir / relative
+                    destination = target / relative
+                    if source.is_dir():
+                        shutil.rmtree(destination, ignore_errors=True)
+                        shutil.copytree(source, destination, ignore=IGNORE)
+                for relative in ("product/backend/pom.xml", "product/frontend/deno.json"):
+                    source = self.template_dir / relative
+                    if source.is_file():
+                        shutil.copy2(source, target / relative)
         except Exception:
             shutil.rmtree(target, ignore_errors=True)
             raise

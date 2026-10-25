@@ -110,3 +110,13 @@ def test_failing_revalidation_never_publishes_a_release_and_keeps_diagnostics(ru
     retained = next(delivery.directory.glob(f".{mission['id']}-*"))
     assert json.loads((retained / "tests.json").read_text())["failed"] == 1
     assert runtime.store.mission(mission["id"])["status"] == "completed"  # Acceptance is distinct from delivery.
+
+
+def test_product_delivery_advances_a_separate_head(runtime):
+    legacy = {"mission": "PD-900", "product": "legacy", "commit": "a" * 40, "parent_release": None}
+    product = {"mission": "PD-901", "product": "product", "commit": "b" * 40, "parent_release": None}
+    assert runtime.store.record_delivery(legacy)
+    assert runtime.store.record_delivery(product)
+    assert json.loads(runtime.store.get_kv("product_head"))["mission"] == "PD-900"
+    assert json.loads(runtime.store.get_kv("product_head:product"))["mission"] == "PD-901"
+    assert runtime.store.record_delivery(product) is False

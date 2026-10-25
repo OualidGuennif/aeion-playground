@@ -118,11 +118,15 @@ class PolicyEngine:
             )
         checks.append(GateCheck("protected", "Protected paths untouched", "pass", "No protected path in the diff."))
 
-        outside_scope = [path for path in diff.changed_files if not matches_path(path, ["app/**", "tests/**"])]
+        trusted_scope = ["app/**", "tests/**", "product/**"]
+        outside_scope = [path for path in diff.changed_files if not matches_path(path, trusted_scope)]
         if outside_scope:
             checks.append(GateCheck("paths", "Task edit scope", "fail", ", ".join(outside_scope)))
-            return GateDecision("deny", "OUT_OF_SCOPE", "The task permits edits only in app/** and tests/**: " + ", ".join(outside_scope), checks)
-        checks.append(GateCheck("paths", "Task edit scope", "pass", "Every changed path is inside app/** or tests/**."))
+            return GateDecision("deny", "OUT_OF_SCOPE",
+                                "The trusted scope permits edits only in app/**, tests/** or product/**: "
+                                + ", ".join(outside_scope), checks)
+        checks.append(GateCheck("paths", "Task edit scope", "pass",
+                                "Every changed path is inside app/**, tests/** or product/**."))
 
         if allowed_paths is not None:
             outside_task = [path for path in diff.changed_files if not matches_path(path, allowed_paths)]

@@ -85,7 +85,11 @@ class LocalDelivery:
             policy = hashlib.sha256((repo / "policy/policy.yaml").read_bytes()).hexdigest()
             if policy != packet["contract"]["policy_digest"]:
                 raise ValueError("Reconstructed policy differs from the trusted policy")
-            profile = packet["contract"].get("scenario", {}).get("test_profile", "legacy")
+            mission_row = self.ledger.mission(mission_id)
+            mission_contract = json.loads(mission_row.get("contract_json") or "{}") if mission_row else {}
+            profile = (mission_contract.get("scenario", {}).get("test_profile")
+                       or packet["contract"].get("scenario", {}).get("test_profile")
+                       or "legacy")
             tests = self.executor.run_tests(repo, expected_executor=expected_executor, profile=profile)
             (staging / "tests.json").write_text(json.dumps(tests.to_dict(), indent=2, ensure_ascii=False))
             if not tests.available or tests.error or tests.exit_code != 0 or not tests.total or tests.passed != tests.total or tests.failed or tests.errors or tests.skipped:
@@ -104,6 +108,7 @@ class LocalDelivery:
                 "schema": "aeion.local-delivery/v1", "mission": mission_id,
                 "packet_digest": indexed["digest"], "base_commit": base,
                 "parent_release": packet["contract"].get("source_release"),
+                "product": "product" if profile == "product" else "legacy",
                 "commit": self._git(repo, "rev-parse", "HEAD"),
                 "tree_digest": self.workspace.template_digest(repo),
                 "path": str(destination / "repo"),

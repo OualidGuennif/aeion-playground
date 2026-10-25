@@ -10,6 +10,7 @@ MAX_PATCH_BYTES = 24_000
 CONTEXT_FILES = ("app/pricing.py", "tests/test_pricing.py")
 MAX_CONTEXT_FILES = 8
 MAX_CONTEXT_BYTES = 128_000
+PRODUCT_SUFFIXES = {".java", ".md", ".ts", ".tsx", ".css", ".js", ".json", ".yaml", ".yml"}
 
 
 def source_context(root: Path, files: tuple[str, ...] | None = None) -> str:
@@ -21,8 +22,11 @@ def source_context(root: Path, files: tuple[str, ...] | None = None) -> str:
     for name in names:
         if not isinstance(name, str) or "\\" in name or name.startswith("/") or ".." in Path(name).parts:
             raise ValueError(f"Context path refused: {name!r}")
-        if not (name.startswith("app/") or name.startswith("tests/")) or not name.endswith(".py"):
-            raise ValueError(f"Context path must be a Python file under app/ or tests/: {name}")
+        if name.startswith("product/"):
+            if Path(name).suffix not in PRODUCT_SUFFIXES:
+                raise ValueError(f"Product context file has an unsupported type: {name}")
+        elif not (name.startswith("app/") or name.startswith("tests/")) or not name.endswith(".py"):
+            raise ValueError(f"Context path must be a Python file under app/ or tests/, or a product source file: {name}")
         path = root / name
         if any(part.is_symlink() for part in (path, *path.parents)):
             raise ValueError(f"Context symlink refused: {name}")
