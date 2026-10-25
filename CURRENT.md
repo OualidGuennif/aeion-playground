@@ -151,3 +151,22 @@ est la référence : toute décision doit pouvoir être rattachée à une ligne 
   `blocked` comme preuves des drills `PD-037`/`PD-038`. Le cockpit live a été reconstruit
   depuis `main 24fc267` ; la stack est saine, Paperclip `board=200`, 38 missions /
   492 événements / 30 tickets (0 ouvert), budget inchangé.
+
+- 2026-10-25 08:4x : **budget 30 $, missions payantes et correctif visuel en source** — le
+  plafond local est passé à **30 $** (`config/model-routing.json`, `.env`, et le cockpit
+  reçoit désormais `AEION_BUDGET_USD` par Compose). Cinq tickets produit ont été exécutés :
+  **PD-039** (GLM, 0,004670 $, `MODEL_PATCH_INVALID` : fichiers existants recréés),
+  **PD-040** (GLM, 0,009405 $, `AGENT_BLOCKED` : borne de 16 384 tokens),
+  **PD-041** (GLM auteur + DeepSeek reviewer, 0,003299 $, worker/acceptance 17/17, Gate
+  `CLEAN`, release scellée `937aa5f`, packet `sha256:9a9af48b…`, **AEI-6** : suppression de
+  l'overlay de chargement), **PD-042** (GLM, 0,001999 $, `MODEL_PATCH_INVALID` : patch du
+  manifeste non applicable) et **PD-043** (DeepSeek choisi pour la classe medium, mais
+  réponse SSE > 2 Mio, réservation de 2 $ réconciliée, coût rapporté 0). Les tickets ont
+  créé **AEI-4** à **AEI-8**. Le test CSV dédié manquant a été écrit manuellement
+  (`RefundCsvTest`, 12 tests backend / 19 avec Deno). Le manifeste Fresh et le loader ont
+  été corrigés dans la source ; 9 tests Deno passent, l'image web live a été reconstruite
+  depuis la source (`sha256:89cc2efa…`) et vérifiée en Chrome headless : topbar, `app.css`,
+  canvas 942×498, `.scene-loading` absent, note de remboursement intacte. Exposition
+  `10,182358 $ / 30 $` (0,182358 $ rapporté + 10 $ réconciliés), aucun essai non réglé.
+  Limites : le manifeste est un correctif source manuel, pas une preuve Factory scellée ;
+  les bornes 2 Mio / 16 384 tokens restent des risques connus.

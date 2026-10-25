@@ -208,12 +208,17 @@ PD-010 run used them for 13 worker tests and 12 Gate-owned tests. See
 [`parceldesk-product.md`](parceldesk-product.md) for the API, the UI, the measured ticket and
 the fixed integration gaps.
 
-The live web image carries a **documented operator appfix** from 2026-10-25: the sealed
-PD-032 frontend omitted `./routes/_app.tsx` from `fresh.gen.ts`, so the layout, CSS and
-Three.js scene did not load. A patched copy built from the sealed frontend now renders the
-floor; it is not a sealed release and has no packet. The previous image is preserved for
-rollback, and a normal `docker compose build parceldesk-web` reverts the patch. Details,
-digests and limits are in [`parceldesk-product.md`](parceldesk-product.md#operator-deployment-fix-the-fresh-layout-and-threejs-floor).
+The live web image was rebuilt from the corrected product source on 2026-10-25. The
+source now registers `./routes/_app.tsx` in `fresh.gen.ts` and removes the warehouse loading
+overlay after the first render. The loader half is a sealed Factory release (**PD-041**,
+commit `937aa5f2…`, packet `sha256:9a9af48b…`); the manifest registration is a manual
+follow-up and is not part of that packet. The running image is
+`aeion-parceldesk-web:1` = `sha256:89cc2efa…`.
+
+The previous operator appfix (`3a9f5561…`) and the sealed pre-appfix image (`7eef6db2…`)
+remain available for rollback. A normal `docker compose build parceldesk-web` now keeps
+both fixes because they are in source. Details, digests and limits are in
+[`parceldesk-product.md`](parceldesk-product.md#operator-deployment-fix-the-fresh-layout-and-threejs-floor).
 
 ## Running the agent today
 

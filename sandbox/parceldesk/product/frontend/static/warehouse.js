@@ -305,6 +305,9 @@ if (container && dataNode) {
   };
   animate();
 
+  const loading = container.querySelector(".scene-loading");
+  if (loading) loading.remove();
+
   if (typeof WebGLRenderingContext === "undefined") {
     container.innerHTML = `<div class="scene-loading">WebGL is unavailable in this browser.</div>`;
   }

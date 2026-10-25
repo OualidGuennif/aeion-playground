@@ -194,20 +194,44 @@ rebuilt from PD-028. The live product still runs on loopback only.
   (`TEST_EXECUTION_ERROR`, `$0.005901`); PD-030 exhausted the 16,384-token output bound
   (`$0.008898`); PD-034 produced a passing test but refunded PD-1049, colliding with the
   existing `RefundLedgerTest` (`TEST_FAILURE`, `$0.005662`); PD-035 was cut by the 2 MiB
-  upstream response bound and its $2 reservation was reconciled. **The CSV endpoint has no
-  dedicated regression test yet.** The existing 17 backend tests pass, the reviewer
-  approved, and the endpoint is verified live.
+  upstream response bound and its $2 reservation was reconciled. The endpoint now has a
+  dedicated `RefundCsvTest`, a manual operator/Codex contribution rather than a paid
+  Factory release: it asserts the header, the attachment disposition, the seeded PD-1050
+  row, the absence of a non-refunded order, and comma/quote escaping. The backend suite is
+  12 tests; the combined product suite is 19 (12 Maven + 7 Deno).
 - PD-033 was denied `STALE_BASE` because PD-032 was delivered after admission. PD-036 was
   denied `BUDGET_RESERVATION_DENIED`: $8.162985 exposure plus a $2 envelope exceeds the $10
   ceiling. No further paid mission can start without operator budget authority.
 
-Cumulative reported spend after all live runs is **$0.162985**. Four upstream outcomes had
+Cumulative reported spend after all live runs is **$0.182358**. Five upstream outcomes had
 no usage record and were settled at their **full $2.000** reservations as `reconciled_usd`
 rather than inventing a zero cost: PD-014 (the 2 MiB mediator bound), PD-022 (a 90 s
-mediator deadline), PD-031 (a 170 s deadline that cut a still-running stream at 169 s) and
-PD-035 (the 2 MiB response bound). No attempt is unsettled. The role admission is now
-**300 s** and the mediator deadline **290 s**; the local authorization cap is $10. At
-$8.162985 exposure, a $2 reservation is refused.
+mediator deadline), PD-031 (a 170 s deadline that cut a still-running stream at 169 s),
+PD-035 and PD-043 (the 2 MiB response bound). No attempt is unsettled. The role admission is
+now **300 s** and the mediator deadline **290 s**. The operator authorized a **$30.00** local
+cap on 2026-10-25; current exposure is `$10.182358`, leaving `$19.817642`.
+
+### Autonomous paid improvement run, 2026-10-25
+
+With the $30 authorization, five product tickets were admitted through the cockpit. The
+router mixed model families and learned from deterministic failures:
+
+- **PD-039** — GLM author, `$0.004670`, `MODEL_PATCH_INVALID`: it tried to recreate the
+  existing `fresh.gen.ts` and `_app.tsx` as new files.
+- **PD-040** — GLM author, `$0.009405`, `AGENT_BLOCKED` with `finish_reason=length`: the
+  16,384-token output bound was exhausted.
+- **PD-041** — GLM author and DeepSeek reviewer, `$0.003299`, worker and acceptance
+  **17/17**, Gate `CLEAN`, sealed release `937aa5f2…`, packet
+  `sha256:9a9af48b…`. It removes the warehouse loading overlay after the first render.
+- **PD-042** — GLM author, `$0.001999`, `MODEL_PATCH_INVALID`: the manifest patch did not
+  apply.
+- **PD-043** — DeepSeek was selected for the medium-risk manifest class, but the upstream
+  SSE response crossed the 2 MiB mediator bound; no usage record was returned. Its $2
+  reservation was reconciled conservatively and reported cost stayed `$0.00`.
+
+The five tickets created Paperclip issues **AEI-4** through **AEI-8**. PD-041 is the only
+sealed release; the manifest registration was completed manually in source and is not part
+of that packet. The 2 MiB bound and the 16,384-token output bound remain known limits.
 
 The failed attempts remain in the ledger and are documented in
 [`parceldesk-product.md`](parceldesk-product.md): completion-bound truncation (PD-011/PD-015,
