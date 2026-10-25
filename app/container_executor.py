@@ -18,8 +18,8 @@ IMAGE_RECORD = ROOT / "runtime/executor-image.json"
 MAX_SNAPSHOT_BYTES = 2 * 1024 * 1024
 MAX_FILES = 1024
 MAX_WIRE_BYTES = 5 * 1024 * 1024
-LIMITS = {"memory_bytes": 256 * 1024 * 1024, "cpus": 1, "pids": 64,
-          "scratch_bytes": 64 * 1024 * 1024, "file_bytes": 2 * 1024 * 1024, "open_files": 128}
+LIMITS = {"memory_bytes": 1024 * 1024 * 1024, "cpus": 1.5, "pids": 256,
+          "scratch_bytes": 512 * 1024 * 1024, "file_bytes": 4 * 1024 * 1024, "open_files": 4096}
 CODE_DIGEST = "sha256:" + hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
 
 
@@ -57,7 +57,7 @@ def executor_identity():
 
 def snapshot(root: Path, target: Path):
     paths, size, manifest = [], 0, {}
-    for name in ("app", "tests"):
+    for name in ("app", "tests", "product"):
         directory = root / name
         if directory.is_symlink():
             raise OSError("Worker source directories cannot be symlinks")
@@ -97,7 +97,9 @@ def snapshot(root: Path, target: Path):
 
 
 @contextmanager
-def isolated_pytest(root, *, timeout):
+def isolated_pytest(root, *, timeout, profile="legacy"):
+    if profile not in {"legacy", "product"}:
+        raise OSError("Unknown test profile")
     identity = executor_identity()
     name = "aeion-test-" + uuid.uuid4().hex
     with tempfile.TemporaryDirectory(prefix="aeion-worker-") as temporary:
@@ -114,9 +116,9 @@ def isolated_pytest(root, *, timeout):
                 "--ulimit", f"nofile={LIMITS['open_files']}:{LIMITS['open_files']}",
                 "--tmpfs", f"/tmp:rw,noexec,nosuid,nodev,size={LIMITS['scratch_bytes']},mode=1777",
                 "--mount", f"type=bind,source={source},target=/work,readonly",
-                identity["image_id"], str(timeout)]
+                identity["image_id"], str(timeout), profile]
         metadata = {"backend": identity["backend"], "executor": identity, "source_digest": digest,
-                    "container": name, "required": True, "checkout": "read-only minimal snapshot",
+                    "container": name, "profile": profile, "required": True, "checkout": "read-only minimal snapshot",
                     "network": "denied", "child_processes": "container PID namespace and quota",
                     "writes": "bounded /tmp tmpfs only"}
         try:

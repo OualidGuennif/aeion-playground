@@ -85,7 +85,8 @@ class LocalDelivery:
             policy = hashlib.sha256((repo / "policy/policy.yaml").read_bytes()).hexdigest()
             if policy != packet["contract"]["policy_digest"]:
                 raise ValueError("Reconstructed policy differs from the trusted policy")
-            tests = self.executor.run_tests(repo, expected_executor=expected_executor)
+            profile = packet["contract"].get("scenario", {}).get("test_profile", "legacy")
+            tests = self.executor.run_tests(repo, expected_executor=expected_executor, profile=profile)
             (staging / "tests.json").write_text(json.dumps(tests.to_dict(), indent=2, ensure_ascii=False))
             if not tests.available or tests.error or tests.exit_code != 0 or not tests.total or tests.passed != tests.total or tests.failed or tests.errors or tests.skipped:
                 raise ValueError(f"Local release tests did not pass completely: {tests.summary()}")

@@ -105,10 +105,14 @@ class ParcelDeskStore:
                     id TEXT PRIMARY KEY, title TEXT NOT NULL, outcome TEXT NOT NULL,
                     area TEXT NOT NULL, risk TEXT NOT NULL, acceptance TEXT NOT NULL,
                     constraints TEXT NOT NULL DEFAULT '', mission_id TEXT,
-                    status TEXT NOT NULL, error TEXT, created_at TEXT NOT NULL
+                    status TEXT NOT NULL, error TEXT, created_at TEXT NOT NULL,
+                    product TEXT NOT NULL DEFAULT 'legacy'
                 );
                 """
             )
+            columns = {row["name"] for row in self._conn.execute("PRAGMA table_info(tickets)")}
+            if "product" not in columns:
+                self._conn.execute("ALTER TABLE tickets ADD COLUMN product TEXT NOT NULL DEFAULT 'legacy'")
         self._seed()
 
     def _seed(self) -> None:
@@ -183,7 +187,7 @@ class ParcelDeskStore:
                 "reason": reason or "No reason provided.", "created_at": created, **quote}
 
     def create_ticket(self, *, title: str, outcome: str, area: str, risk: str,
-                      acceptance: str, constraints: str = "") -> dict[str, Any]:
+                      acceptance: str, constraints: str = "", product: str = "legacy") -> dict[str, Any]:
         title, outcome = " ".join(title.split()), " ".join(outcome.split())
         acceptance, constraints = acceptance.strip(), constraints.strip()
         if not 4 <= len(title) <= 120:
@@ -194,6 +198,8 @@ class ParcelDeskStore:
             raise ValueError("Unknown ticket area.")
         if risk not in RISKS:
             raise ValueError("Risk must be low, medium or high.")
+        if product not in {"legacy", "product"}:
+            raise ValueError("Unknown ticket product.")
         if not 10 <= len(acceptance) <= 2_000:
             raise ValueError("Acceptance checks require 10–2,000 characters.")
         if len(constraints) > 1_000 or any("\0" in value for value in (title, outcome, acceptance, constraints)):
@@ -201,8 +207,10 @@ class ParcelDeskStore:
         ticket_id = "TCK-" + uuid.uuid4().hex[:8].upper()
         with self._lock, self._conn:
             self._conn.execute(
-                "INSERT INTO tickets VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                (ticket_id, title, outcome, area, risk, acceptance, constraints, None, "queued", None, _iso(_now())),
+                "INSERT INTO tickets (id, title, outcome, area, risk, acceptance, constraints, "
+                "mission_id, status, error, created_at, product) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (ticket_id, title, outcome, area, risk, acceptance, constraints, None, "queued", None,
+                 _iso(_now()), product),
             )
         return self.ticket(ticket_id)
 

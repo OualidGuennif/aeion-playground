@@ -166,6 +166,59 @@ services:
       timeout: 3s
       retries: 24
 
+  parceldesk-api:
+    image: aeion-parceldesk-api:1
+    build:
+      context: ./sandbox/parceldesk/product/backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    read_only: true
+    tmpfs: ['/tmp:rw,noexec,nosuid,nodev,size=64m']
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 768m
+    cpus: 1.5
+    pids_limit: 256
+    volumes:
+      - parceldesk_data:/data
+    networks: [control]
+    ports: ['127.0.0.1:8081:8080']
+    healthcheck:
+      test: [CMD, curl, -fsS, 'http://127.0.0.1:8080/api/health']
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    logging: *bounded-logging
+
+  parceldesk-web:
+    image: aeion-parceldesk-web:1
+    build:
+      context: ./sandbox/parceldesk/product/frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    read_only: true
+    tmpfs: ['/tmp:rw,noexec,nosuid,nodev,size=64m']
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 512m
+    cpus: 1
+    pids_limit: 128
+    environment:
+      BACKEND_URL: http://parceldesk-api:8080
+      COCKPIT_URL: http://cockpit:8124
+    networks: [control]
+    ports: ['127.0.0.1:8125:8000']
+    depends_on:
+      parceldesk-api:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, deno, eval, "const r=await fetch('http://127.0.0.1:8000/'); if(!r.ok) Deno.exit(1)"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    logging: *bounded-logging
+
+
 networks:
   control: {}
   workboard:
@@ -177,6 +230,7 @@ networks:
       com.docker.network.bridge.gateway_mode_ipv4: isolated
 
 volumes:
+  parceldesk_data:
   postgres_data:
   paperclip_data:
 

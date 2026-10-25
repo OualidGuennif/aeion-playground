@@ -409,7 +409,8 @@ class SandboxManager:
                        "report_cases": MAX_JUNIT_CASES, "timeout_seconds": timeout},
         }
 
-    def run_tests(self, path: Path, *, timeout: float = 180, expected_executor: dict | None = None) -> TestResult:
+    def run_tests(self, path: Path, *, timeout: float = 180, expected_executor: dict | None = None,
+                  profile: str = "legacy") -> TestResult:
         path = path.resolve()
         junit = path / "junit.xml"
         command = [sys.executable, *PYTEST_ARGUMENTS, str(junit)]
@@ -424,7 +425,8 @@ class SandboxManager:
             if junit.exists() or junit.is_symlink():
                 junit.unlink()
             container = settings.test_backend == "docker"
-            boundary = container_executor.isolated_pytest(path, timeout=timeout) if container else isolated_pytest(path, junit, command, _local_process_env())
+            boundary = (container_executor.isolated_pytest(path, timeout=timeout, profile=profile)
+                        if container else isolated_pytest(path, junit, command, _local_process_env()))
             with boundary as (command, env, isolation):
                 if isolation["executor"] != executor["isolation"]:
                     raise OSError("Canonical test executor changed while preparing isolation; no test process started")

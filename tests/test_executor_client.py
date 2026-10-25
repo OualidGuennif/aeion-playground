@@ -54,7 +54,7 @@ def test_in_process_executor_delegates_probe_and_run_tests():
             self.calls.append(("probe", timeout))
             return {"executor": "in-process"}
 
-        def run_tests(self, path, *, timeout: float = 180, expected_executor=None):
+        def run_tests(self, path, *, timeout: float = 180, expected_executor=None, profile: str = "legacy"):
             self.calls.append(("run", path, timeout, expected_executor))
             return "report"
 

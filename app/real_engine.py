@@ -380,7 +380,7 @@ class RealEngine:
 
     def launch_ticket(
         self, *, request_id: str, title: str, outcome: str, area: str,
-        risk: str, acceptance: str, constraints: str = "",
+        risk: str, acceptance: str, constraints: str = "", product: str = "legacy",
     ) -> dict[str, Any]:
         """Admit a structured ParcelDesk ticket as a bounded agent mission.
 
@@ -405,19 +405,49 @@ class RealEngine:
             raise ValueError("Unknown ticket area.")
         if risk not in {"low", "medium", "high"}:
             raise ValueError("Risk must be low, medium or high.")
+        if product not in {"legacy", "product"}:
+            raise ValueError("Unknown ticket product.")
         if any("\0" in value for value in (title, outcome, acceptance, constraints)):
             raise ValueError("Ticket text contains a NUL byte.")
-        task = (
-            "ParcelDesk improvement ticket.\n"
-            f"Area: {area}\nRisk: {risk}\n"
-            f"Observable outcome: {outcome}\n"
-            f"Acceptance checks:\n{acceptance}\n"
-            f"Constraints:\n{constraints or 'No extra constraint.'}\n"
-            "Work only in app/** and tests/**. Preserve the started-kilogram pricing contract "
-            "and every existing test unless an acceptance check explicitly requires a new test. "
-            "Keep the change small, add or update tests so the outcome is observable, and do not "
-            "edit policy, configuration, AGENTS.md or Git history. Return only the patch protocol JSON."
-        )
+        if product == "product":
+            task = (
+                "ParcelDesk product improvement ticket.\n"
+                f"Area: {area}\nRisk: {risk}\n"
+                f"Observable outcome: {outcome}\n"
+                f"Acceptance checks:\n{acceptance}\n"
+                f"Constraints:\n{constraints or 'No extra constraint.'}\n"
+                "The product is a Quarkus 3.40 / Hibernate / Java 25 backend and a Deno Fresh / Three.js frontend. "
+                "Backend code is product/backend/src/main/java/com/aeion/parceldesk, backend tests are "
+                "product/backend/src/test/java/com/aeion/parceldesk, and frontend code is product/frontend. "
+                "Work only in product/**. Preserve every existing contract and test. Add or update tests so the "
+                "outcome is observable; the worker runs the existing Python contract suite, the Maven backend suite "
+                "and the Deno frontend suite. Do not edit policy, configuration, AGENTS.md, build output or Git "
+                "history. Return only the patch protocol JSON."
+            )
+            allowed_paths = ["product/**"]
+            context_files = [
+                "product/README.md",
+                "product/backend/src/main/java/com/aeion/parceldesk/dto/OrderView.java",
+                "product/backend/src/main/java/com/aeion/parceldesk/model/Order.java",
+                "product/backend/src/main/java/com/aeion/parceldesk/api/OrderResource.java",
+                "product/backend/src/test/java/com/aeion/parceldesk/OrderApiTest.java",
+                "product/frontend/lib/format.ts",
+                "product/frontend/routes/index.tsx",
+            ]
+        else:
+            task = (
+                "ParcelDesk improvement ticket.\n"
+                f"Area: {area}\nRisk: {risk}\n"
+                f"Observable outcome: {outcome}\n"
+                f"Acceptance checks:\n{acceptance}\n"
+                f"Constraints:\n{constraints or 'No extra constraint.'}\n"
+                "Work only in app/** and tests/**. Preserve the started-kilogram pricing contract "
+                "and every existing test unless an acceptance check explicitly requires a new test. "
+                "Keep the change small, add or update tests so the outcome is observable, and do not "
+                "edit policy, configuration, AGENTS.md or Git history. Return only the patch protocol JSON."
+            )
+            allowed_paths = ["app/**", "tests/**"]
+            context_files = ["app/pricing.py", "tests/test_pricing.py"]
         scenario = {
             "fixture": "TCK",
             "kind": "agent",
@@ -428,12 +458,14 @@ class RealEngine:
             "priority": risk,
             "memory_query": f"ParcelDesk {area} {title}",
             "task": task,
-            "allowed_paths": ["app/**", "tests/**"],
-            "context_files": ["app/pricing.py", "tests/test_pricing.py"],
+            "allowed_paths": allowed_paths,
+            "context_files": context_files,
             "delivery": "local",
         }
+        if product == "product":
+            scenario["test_profile"] = "product"
         request = {"type": "parceldesk-ticket", "title": title, "outcome": outcome,
-                   "area": area, "risk": risk, "acceptance": acceptance}
+                   "area": area, "risk": risk, "acceptance": acceptance, "product": product}
         with self._lock:
             return self._admit_scenario(scenario, request_id=request_id, request=request, defer=False)
 
@@ -1047,7 +1079,8 @@ class RealEngine:
             return
         store.update_mission(mission_id, current_step="Tests", current_agent="probe", progress=0.58)
         self._step(mission_id, 3, "probe", "Tests", "pytest is running the contract suite.", "running")
-        tests = self.executor.run_tests(Path(run["path"]), expected_executor=contract.get("test_executor"))
+        tests = self.executor.run_tests(Path(run["path"]), expected_executor=contract.get("test_executor"),
+                                        profile=scenario.get("test_profile", "legacy"))
         store.update_mission(mission_id, tests_json=tests.to_dict(), progress=0.68)
         if "test_executor" in contract and tests.executor != contract["test_executor"]:
             self._block(mission_id, "TEST_EXECUTOR_CHANGED", "The executed test identity differs from admission; no review or acceptance issued.")
@@ -1112,7 +1145,8 @@ class RealEngine:
                 return
             try:
                 acceptance = self.executor.run_tests(
-                    acceptance_path, expected_executor=contract.get("test_executor")
+                    acceptance_path, expected_executor=contract.get("test_executor"),
+                    profile=scenario.get("test_profile", "legacy"),
                 )
             except Exception as error:
                 acceptance = TestResult(available=False, error=f"Trusted acceptance run failed: {error}")
