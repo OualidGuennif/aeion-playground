@@ -42,7 +42,7 @@ def bounded_file(path, limit):
 def run_suite(name, argv, *, cwd, env, deadline, log_path):
     """Run one suite, bounded by the remaining deadline, and return its outcome."""
     started = time.monotonic()
-    outcome = {"name": name, "exit": 0, "error": None, "duration_ms": 0}
+    outcome = {"name": name, "exit": 0, "error": None, "duration_ms": 0, "log_path": log_path}
     with open(log_path, "wb") as log:
         try:
             child = subprocess.Popen(
@@ -164,24 +164,49 @@ def main():
                 failures.append(deno)
 
         suites = collect(reports)
-        present = {suite.get("name", "") for suite in suites}
+        missing = []
         for failure in failures:
-            if not any(failure["name"] in name for name in present):
-                suites.append(synthetic(failure["name"], failure.get("error")
-                                        or f"{failure['name']} exited {failure['exit']} without a report"))
+            name = failure["name"]
+            found = (Path("/tmp/python-junit.xml").is_file() if name == "python"
+                     else Path("/tmp/deno-junit.xml").is_file() if name == "deno"
+                     else bool(glob.glob(str(BUILD / "product/backend/target/surefire-reports/TEST-*.xml"))))
+            if not found:
+                missing.append(failure)
+                suites.append(synthetic(name, failure.get("error")
+                                        or f"{name} exited {failure['exit']} without a report"))
+        for item in summary:
+            if item["exit"] in {124, 126, 127}:
+                error = item.get("error") or f"{item['name']} failed to complete"
+        for item in missing:
+            error = error or item.get("error") or f"{item['name']} produced no report"
         if not suites:
             suites.append(synthetic("worker", "No suite produced a report"))
             exit_code = 1
+            error = error or "No suite produced a report"
         root = ET.Element("testsuites")
         for suite in suites:
             root.append(suite)
         ET.ElementTree(root).write("/tmp/junit.xml", encoding="utf-8", xml_declaration=True)
-        output = "\n".join(
+
+        summary_text = "\n".join(
             f"{item['name']}: exit {item['exit']} in {item['duration_ms']} ms"
             + (f" ({item['error']})" if item.get("error") else "")
             for item in summary
-        ).encode()
-        stdout = output[-MAX_OUTPUT:]
+        )
+        chunks = []
+        total_output = len(summary_text.encode())
+        for item in summary:
+            path = Path(item.get("log_path", ""))
+            if not path.is_file():
+                continue
+            with path.open("rb") as stream:
+                data = stream.read(MAX_OUTPUT + 1)
+            total_output += len(data)
+            chunks.append(f"\n--- {item['name']} ---\n".encode() + data)
+        output = summary_text.encode() + b"".join(chunks)
+        if total_output > MAX_OUTPUT:
+            error = error or "Combined worker output exceeds 1 MiB"
+        stdout = output[:MAX_OUTPUT + 1]
         junit = bounded_file("/tmp/junit.xml", MAX_REPORT)
     except (OSError, ValueError) as failure:
         error = str(failure)
