@@ -170,3 +170,19 @@ est la référence : toute décision doit pouvoir être rattachée à une ligne 
   `10,182358 $ / 30 $` (0,182358 $ rapporté + 10 $ réconciliés), aucun essai non réglé.
   Limites : le manifeste est un correctif source manuel, pas une preuve Factory scellée ;
   les bornes 2 Mio / 16 384 tokens restent des risques connus.
+
+- 2026-10-25 09:3x : **PD-044, lien CSV et vrai défaut du proxy Fresh** — septième ticket
+  produit payant : **PD-044** (GLM auteur + DeepSeek reviewer, 0,002768 $, 17/17, Gate
+  `CLEAN`, release scellée `8733f9c7…`, packet `sha256:030227a8…`, **AEI-9**) ajoute le lien
+  « Download the refunds CSV » dans le refund desk. La vérification live a trouvé que ce
+  lien renvoyait **404** : le proxy Fresh `routes/api/[...path].ts` n'autorisait que
+  `orders`, `summary`, `pulls` et `health`. Correction manuelle : ajout de `refunds.csv`,
+  en-tête `accept: text/csv` et propagation de `Content-Disposition`, couverte par
+  `csv_proxy_test.ts`. **PD-045** a tenté de sceller ce correctif mais a échoué
+  `MODEL_PATCH_INVALID` (0,000944 $, **AEI-10**) ; le correctif proxy reste donc manuel.
+  Preuve live : `GET http://127.0.0.1:8125/api/refunds.csv` → 200, `text/csv`,
+  `attachment; filename="refunds.csv"`, en-tête + ligne PD-1050. 10 tests Deno, 22 tests
+  produit (12 Maven + 10 Deno), image web `sha256:e8b62b77…`. Dépense rapportée
+  `0,186070 $`, réconciliée `10,000 $`, exposition `10,186070 $ / 30 $`, aucun essai non
+  réglé. Limites : le proxy et le manifeste `_app` ne sont pas scellés ; PD-044 scelle le
+  lien mais pas le proxy.
