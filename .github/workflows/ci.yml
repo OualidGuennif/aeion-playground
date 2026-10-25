@@ -28,6 +28,26 @@ jobs:
       - run: .venv/bin/python scripts/check_publication.py
       - run: .venv/bin/python -m pytest -q
 
+  product-tests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
+        with:
+          deno-version: v2.5.0
+      - name: Product backend tests
+        # Use the same Maven/JDK 25 builder as the product Dockerfile.
+        run: >-
+          docker run --rm
+          -v "$PWD/sandbox/parceldesk/product/backend:/src"
+          -w /src maven:3.9-eclipse-temurin-25 mvn -B -ntp test
+      - name: Product frontend tests
+        working-directory: sandbox/parceldesk/product/frontend
+        run: deno task test
+
   docker-tests:
     runs-on: ubuntu-24.04
     timeout-minutes: 20

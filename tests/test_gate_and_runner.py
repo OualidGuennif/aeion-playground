@@ -177,3 +177,25 @@ def test_product_paths_are_admitted_when_the_task_names_them():
         allowed_paths=["product/**"], acceptance=acceptance,
     )
     assert decision.decision == "allow", decision.reason_code
+
+
+def test_the_review_prompt_uses_the_admitted_paths_not_a_fixed_legacy_scope():
+    from app.agent_runner import REVIEW_TASK
+    prompt = REVIEW_TASK.format(task="Allowed task paths: ['product/**'].", diff="diff --git a/product/x b/product/x")
+    assert "admitted allowed paths" in prompt
+    assert "product/**" in prompt
+    assert "started-kilogram" not in prompt
+    assert "machine-generated" in prompt and "authoritative" in prompt
+
+
+def test_the_mission_prompt_does_not_hardcode_the_legacy_scope_or_test_command():
+    from app.agent_runner import PROMPT_HEADER
+    prompt = PROMPT_HEADER.format(
+        role="an independent reviewer", mission_id="PD-999", title="Product change",
+        scenario="agent", risk="low", task="Allowed task paths: ['product/**'].",
+        memory="none", graph="none",
+    )
+    assert "Edit only app/**" not in prompt
+    assert "python -m pytest" not in prompt
+    assert "allowed paths named in the task" in prompt
+    assert "If you are a reviewer" in prompt

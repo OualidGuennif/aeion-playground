@@ -126,9 +126,24 @@ Gate test counts, the reviewer verdict, the diff and the release commit. The liv
 was rebuilt from PD-021; the live API remains from PD-010 because PD-020/PD-021 changed no
 backend code.
 
-Cumulative cockpit model spend after these live runs is **$0.055208**, plus a **$2.000**
-conservative operator settlement for the one unknown upstream stream (PD-014), no
-unsettled attempt.
+Cumulative cockpit model spend after these live runs is **$0.132792**, plus **$4.000**
+of conservative operator settlements for two unknown upstream outcomes (PD-014 and
+PD-022), no unsettled attempt. The local authorization ceiling is $10.
+
+### Fourth and fifth autonomous releases
+
+- **PD-024 / TCK-6F38ADDE** *(Expose the refund ledger endpoint)*, high risk. Author GLM
+  4,486 / 15,196 `$0.008271`; reviewer DeepSeek 5,896 / 10,439 `$0.007148` `OK`; worker
+  **17/17**; Gate acceptance **16/16**; Gate `HUMAN_CHECKPOINT` (`risk=high`); operator
+  approval via the web proxy; packet `sha256:d725c08b…a8d05a9`; release `aeeeb7a1`;
+  **PR-004 merged by `operator`** (the human merge path).
+- **PD-028 / TCK-AAE35494** *(Read the refund desk from the refund ledger)*, low risk.
+  Author GLM 8,118 / 15,012; reviewer DeepSeek 9,352 / 6,299 `OK`; worker **17/17**; Gate
+  acceptance **17/17**; Gate `CLEAN`; packet `sha256:7518c6d6…`; release `b5fe5f7`;
+  PR-005 auto-merged. The live web shows `€40.00 refunded · Damaged in transit · 2026-10-17`.
+
+The chain is `3df45d5 → b592d1f → b01d4f7 → aeeeb7a1 → b5fe5f7`; the legacy head remains
+`fc6ca0d`. The API image was promoted from PD-024 and the web image from PD-028.
 
 ### Reliability fixes found by the live tickets
 
@@ -141,8 +156,10 @@ Each failure is preserved in the ledger; the fixes are covered by tests:
   `apply_patch` now uses `--unidiff-zero`; PD-018 then showed wrong `@@` counts, so it also
   uses `--recount`. A miscounted hunk and a minimal hunk have regression tests.
 - PD-014: an upstream stream crossed the 2 MiB mediator bound, so no usage record existed
-  and $2 was held. `Store.reconcile_unknown_attempt` charges the **full reservation** (never
-  zero), records a note and clears the global block; $2 was reconciled conservatively.
+  and $2 was held. PD-022: the mediator's 90 s upstream deadline cut a role still inside its
+  180 s admission at 91.7 s. `Store.reconcile_unknown_attempt` charges the **full reservation**
+  (never zero), records a note and clears the global block; both $2 reservations were
+  reconciled conservatively, and the upstream deadline is now 170 s.
 - PD-016/PD-017: a length stop with a mediated completion was misclassified as provider
   unavailability, and a missing local gateway credential also cooled the model. The router
   now treats length stops and local gateway/configuration errors as non-cooldowns; the
@@ -177,11 +194,17 @@ docker compose -f compose.yaml up -d --no-deps parceldesk-api
 
 ## Limits
 
-- The review ledger is local H2. No remote GitHub PR, branch push or deployment is created by
-  the cockpit; the PR is the product's own auditable record.
-- Promotion is a host-side build of the sealed release, not an autonomous deploy.
+- The review ledger is local H2. The cockpit still creates no remote GitHub PR, branch push
+  or deployment; the local PR is the product's auditable record.
+- A host-side operator command, `scripts/deliver_github.py`, can turn a sealed release into a
+  real GitHub issue/branch/PR and wait for the new `product-tests` CI job before a
+  squash-merge. This remains operator authority, not a cockpit action; see
+  [`github-delivery.md`](github-delivery.md).
+- Promotion of the running Compose services is still a host-side build of the sealed release,
+  not an autonomous deploy.
 - The hosted `stack-tests` job still starts only the cockpit, Paperclip and Postgres; the
-  product services are measured locally and by the worker profile, not in that job.
+  product services are measured locally, by the worker profile and by the new
+  `product-tests` CI job.
 - The first product release had no parent; later product tickets anchor to
   `product_head:product`. The legacy Python head stays at `fc6ca0d`.
 - Both live model families share one provider account; the review is same-provider.
