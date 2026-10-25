@@ -233,7 +233,12 @@ class SandboxManager:
         return _run(["git", *args], cwd=path, timeout=60, env=_local_process_env())
 
     def apply_patch(self, path: Path, patch: str) -> subprocess.CompletedProcess[str]:
-        return _run(["git", "apply", "--index", "-"], cwd=path, timeout=30,
+        # Model-generated diffs are often minimal and miscounted: a hunk may
+        # carry leading context but no trailing context, or its @@ counts may
+        # be off by one. `--unidiff-zero` accepts the former and `--recount`
+        # rebuilds the latter from the content. The worker and Gate tests remain
+        # the authority on the resulting code.
+        return _run(["git", "apply", "--unidiff-zero", "--recount", "--index", "-"], cwd=path, timeout=30,
                     env=_local_process_env(), input_text=patch)
 
     def create_run(self, mission_id: str, *, source_release: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -278,20 +283,30 @@ class SandboxManager:
             "template": str(self.template_dir),
         }
 
-    def acceptance_checkout(self, path: Path) -> Path:
+    def acceptance_checkout(self, path: Path, *, trusted: Path | None = None) -> Path:
         """Pair the patched application with the trusted tests.
 
         The worker's own suite may have been weakened by the patch. This checkout
         keeps the submitted `app/` but restores `tests/`, `pytest.ini` and `policy/`
         from the trusted template, so a passing worker report is never the only
         evidence. The caller runs it and removes the directory.
+
+        A product mission that builds on an accepted release passes that release
+        as ``trusted``. Its product tests and build configuration then come from
+        the accepted checkout (including the tests accepted with that release),
+        while policy and the Python contract still come from the template.
         """
         path = path.resolve()
         if not (path / "app").is_dir():
             raise RuntimeError("Acceptance checkout requires a patched app directory")
+        if trusted is not None:
+            trusted = Path(trusted).resolve()
+            if not (trusted / "product").is_dir():
+                raise RuntimeError("Trusted acceptance release has no product checkout")
         for item in (path / "app").rglob("*"):
             if item.is_symlink():
                 raise RuntimeError(f"Symlink in patched app refused: {item.relative_to(path)}")
+        reference = trusted or self.template_dir
         target = Path(tempfile.mkdtemp(prefix="acceptance-", dir=self.runs_dir))
         try:
             shutil.copytree(path / "app", target / "app", ignore=IGNORE)
@@ -308,13 +323,18 @@ class SandboxManager:
                 # Keep the patched product implementation, restore the trusted
                 # product tests and build configuration.
                 for relative in ("product/backend/src/test", "product/frontend/tests"):
-                    source = self.template_dir / relative
+                    source = reference / relative
                     destination = target / relative
                     if source.is_dir():
+                        for item in source.rglob("*"):
+                            if item.is_symlink():
+                                raise RuntimeError(
+                                    f"Symlink in trusted product tests refused: {item.relative_to(reference)}"
+                                )
                         shutil.rmtree(destination, ignore_errors=True)
                         shutil.copytree(source, destination, ignore=IGNORE)
                 for relative in ("product/backend/pom.xml", "product/frontend/deno.json"):
-                    source = self.template_dir / relative
+                    source = reference / relative
                     if source.is_file():
                         shutil.copy2(source, target / relative)
         except Exception:

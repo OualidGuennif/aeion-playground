@@ -106,3 +106,75 @@ def test_acceptance_checkout_keeps_product_implementation_and_trusted_product_te
     finally:
         import shutil
         shutil.rmtree(target, ignore_errors=True)
+
+
+def test_acceptance_checkout_uses_the_accepted_release_product_tests(runtime, tmp_path):
+    run = runtime.sandbox.create_run("acceptance-accepted-product")
+    path = Path(run["path"])
+    release = tmp_path / "release"
+    tests = release / "product/backend/src/test/java/com/aeion/parceldesk"
+    tests.mkdir(parents=True)
+    (tests / "AcceptedReleaseTest.java").write_text("class AcceptedReleaseTest {}\n")
+    frontend = release / "product/frontend/tests"
+    frontend.mkdir(parents=True)
+    (frontend / "accepted_test.ts").write_text("Deno.test(\"accepted\", () => {});\n")
+    (release / "product/backend/pom.xml").write_text("<project><!--accepted--></project>\n")
+    (release / "product/frontend/deno.json").write_text("{\"accepted\": true}\n")
+    target = runtime.sandbox.acceptance_checkout(path, trusted=release)
+    try:
+        assert (target / "product/backend/src/test/java/com/aeion/parceldesk/AcceptedReleaseTest.java").is_file()
+        assert not (target / "product/backend/src/test/java/com/aeion/parceldesk/OrderApiTest.java").exists()
+        assert (target / "product/frontend/tests/accepted_test.ts").is_file()
+        assert "accepted" in (target / "product/backend/pom.xml").read_text()
+        assert "accepted" in (target / "product/frontend/deno.json").read_text()
+        # Policy and the Python contract still come from the trusted template.
+        assert (target / "policy/policy.yaml").is_file()
+        assert "Boundary contract" in (target / "tests/test_pricing.py").read_text()
+    finally:
+        import shutil
+        shutil.rmtree(target, ignore_errors=True)
+
+
+def test_acceptance_checkout_refuses_a_trusted_release_without_product(runtime, tmp_path):
+    run = runtime.sandbox.create_run("acceptance-bad-trusted")
+    with __import__("pytest").raises(RuntimeError, match="no product"):
+        runtime.sandbox.acceptance_checkout(Path(run["path"]), trusted=tmp_path)
+
+
+def test_a_minimal_hunk_without_trailing_context_applies(runtime):
+    run = runtime.sandbox.create_run("minimal-hunk")
+    path = Path(run["path"])
+    source = path / "product/frontend/lib/format.ts"
+    original = source.read_text().splitlines()
+    assert original[0].startswith("export function money")
+    patch = (
+        "diff --git a/product/frontend/lib/format.ts b/product/frontend/lib/format.ts\n"
+        "--- a/product/frontend/lib/format.ts\n"
+        "+++ b/product/frontend/lib/format.ts\n"
+        "@@ -1,2 +1,2 @@\n"
+        f" {original[0]}\n"
+        f"-{original[1]}\n"
+        f"+{original[1]} // minimal hunk\n"
+    )
+    applied = runtime.sandbox.apply_patch(path, patch)
+    assert applied.returncode == 0, applied.stderr
+    assert "// minimal hunk" in source.read_text()
+
+
+def test_a_miscounted_hunk_is_recounted_from_its_content(runtime):
+    run = runtime.sandbox.create_run("miscounted-hunk")
+    path = Path(run["path"])
+    source = path / "product/frontend/lib/format.ts"
+    original = source.read_text().splitlines()
+    patch = (
+        "diff --git a/product/frontend/lib/format.ts b/product/frontend/lib/format.ts\n"
+        "--- a/product/frontend/lib/format.ts\n"
+        "+++ b/product/frontend/lib/format.ts\n"
+        "@@ -1,9 +1,9 @@\n"
+        f" {original[0]}\n"
+        f"-{original[1]}\n"
+        f"+{original[1]} // recounted\n"
+    )
+    applied = runtime.sandbox.apply_patch(path, patch)
+    assert applied.returncode == 0, applied.stderr
+    assert "// recounted" in source.read_text()

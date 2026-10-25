@@ -32,11 +32,18 @@ approve its patch or retry it. Reported overruns are retained and stop further i
 
 A timeout, lost receipt, interruption or unknown usage remains held across restart and
 authorization expiry. It blocks new inference globally, including a new request ID or
-paid fallback. There is no automatic age-based refund. Operator reconciliation requires
-external usage evidence; editing a terminal mission or inventing a zero cost is not a
-recovery procedure. Persisted gateway receipts and immutable run logs must be preserved
-for that investigation. Explicit native inference remains legacy diagnostics outside
-this qualified reservation protocol; historical results/seals are not backfilled.
+paid fallback. There is no automatic age-based refund. Editing a terminal mission or
+inventing a zero cost is not a recovery procedure. Persisted gateway receipts and
+immutable run logs must be preserved for that investigation.
+
+`Store.reconcile_unknown_attempt(run_id, note)` is the one operator settlement: it
+charges the attempt's **full held reservation** as `reconciled_usd`, clears the block and
+keeps the original reservation in the row. It cannot understate the provider bill, and it
+is not an invoice match; it is the conservative choice when the upstream stream exceeded
+the mediator's response bound and no usage record exists. The note is required and stored
+with the attempt. Reconciled charges count in `exposure_usd` and are never refunded
+automatically. Explicit native inference remains legacy diagnostics outside this
+qualified reservation protocol; historical results/seals are not backfilled.
 
 Reported costs and catalog-based CLI estimates remain distinct from an actual provider
 invoice. These local reservations do not impose a provider billing cap. A durable event

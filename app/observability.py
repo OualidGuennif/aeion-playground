@@ -116,6 +116,7 @@ def kpis(agent_rows: list[dict[str, Any]], budget_total: float) -> dict[str, Any
         "budget_total": budget_total,
         "budget_used": round(budget["reported_usd"] + budget["carried_usd"], 4),
         "budget_held": budget["held_usd"],
+        "budget_reconciled": budget.get("reconciled_usd", 0.0),
         "budget_unsettled_attempts": budget["unsettled_attempts"],
         "budget_remaining": round(max(0.0, budget_total - budget["exposure_usd"]), 4),
     }

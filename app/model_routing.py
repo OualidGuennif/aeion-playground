@@ -18,6 +18,17 @@ def task_class(scenario):
     return ("coverage" if scenario.get("source") == "local-product" else "implementation") + ":" + scenario["risk"]
 
 
+def local_inference_error(error):
+    """A trusted local gateway/setup failure says nothing about model quality."""
+    text = (error or "").lower()
+    return any(phrase in text for phrase in (
+        "gateway provider credential is not configured",
+        "gateway provider credential cannot be loaded",
+        "gateway requires an opencode api credential",
+        "canonical inference executor unavailable",
+    ))
+
+
 def availability_error(error):
     text = (error or "").lower()
     if any(phrase in text for phrase in ("free usage limit", "rate limit", "ratelimit", "too many requests", "quota exhausted", "usage limit reached")):
@@ -143,6 +154,8 @@ class ModelRouter:
     def observe(self, model, result, observed_at=None):
         if (getattr(result, "raw", {}) or {}).get("dispatch") == "not_started":
             return  # An unavailable local backend says nothing about model availability.
+        if local_inference_error(getattr(result, "error", "")):
+            return  # A local gateway/configuration fault never reached the model.
         observed_at = observed_at or time.time()
         previous = json.loads(self.ledger.get_kv(f"routing:health:{model}", "{}"))
         if previous.get("observed_at", 0) > observed_at:
@@ -151,7 +164,12 @@ class ModelRouter:
         finish_reason = raw.get("finish_reason")
         classification = availability_error(result.error) if result.status != "completed" else None
         mediated = raw.get("inference")
-        if mediated and mediated.get("state") != "refused" and result.status != "completed":
+        if classification is None and finish_reason == "length":
+            # The provider answered and the CLI used its whole admitted output
+            # bound. That is a deterministic quality failure, not unknown
+            # provider state, even when the mediator recorded a completed lease.
+            pass
+        elif mediated and mediated.get("state") != "refused" and result.status != "completed":
             classification = "unknown_outcome"
         if (classification is None and result.status != "completed"
                 and finish_reason not in {"stop", "length"}):

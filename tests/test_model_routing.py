@@ -281,3 +281,23 @@ def test_invalid_owner_policy_fails_closed(tmp_path, monkeypatch, change):
 ])
 def test_provider_recovery_categories_are_explicit(message, classification):
     assert availability_error(message) == classification
+
+
+def test_a_truncated_mediated_completion_does_not_cool_the_model(runtime):
+    router = ModelRouter(runtime.store, policy())
+    failed = AgentResult(status="failed", runtime="controlled", run_id="length-mediated", model=DS_GO,
+                         error="OpenCode did not finish normally (length).",
+                         raw={"finish_reason": "length", "inference": {"state": "completed"}})
+    router.observe(DS_GO, failed)
+    state = json.loads(runtime.store.get_kv(f"routing:health:{DS_GO}"))
+    assert state["classification"] is None and state["retry_at"] == 0
+    assert state["finish_reason"] == "length"
+
+
+def test_a_local_gateway_configuration_error_does_not_cool_the_model(runtime):
+    router = ModelRouter(runtime.store, policy())
+    failed = AgentResult(status="failed", runtime="controlled", run_id="gateway-config", model=DS_GO,
+                         error="Gateway provider credential is not configured")
+    router.observe(DS_GO, failed)
+    assert runtime.store.get_kv(f"routing:health:{DS_GO}") is None
+    assert DS_GO in ModelRouter(runtime.store, policy()).plan({"risk": "low"}, "sentinel", GLM_GO)["candidates"]

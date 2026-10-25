@@ -25,7 +25,7 @@ import uuid
 MAX_REQUEST = 1024 * 1024
 MAX_RESPONSE = 2 * 1024 * 1024
 MAX_PROMPT = 512 * 1024
-MAX_OUTPUT_TOKENS = 8192
+MAX_OUTPUT_TOKENS = 16384
 UPSTREAM_DEADLINE = 90
 UPSTREAM_PATHS = {"opencode": "/inference/openai/v1/chat/completions",
                   "opencode-go": "/inference/go/openai/v1/chat/completions"}

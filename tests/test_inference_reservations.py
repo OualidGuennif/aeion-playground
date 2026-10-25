@@ -59,7 +59,8 @@ def test_precise_usage_and_reservation_release_commit_once(runtime):
     assert runtime.store.mission(mission["id"])["cost_usd"] == .123456789
     assert runtime.store.attempt("run-controlled")["state"] == "settled"
     assert runtime.store.budget_snapshot() == {"reported_usd": .123456789, "carried_usd": 0, "held_usd": 0,
-                                             "unsettled_attempts": 0, "exposure_usd": .123456789}
+                                             "reconciled_usd": 0, "unsettled_attempts": 0,
+                                             "exposure_usd": .123456789}
     assert reserve(runtime, mission, "run-next")["reserved_usd"] == pytest.approx(2 - .123456789)
 
 
@@ -192,6 +193,27 @@ def test_reported_overrun_is_recorded_and_blocks_all_further_inference(runtime):
     assert runtime.store.mission(mission["id"])["cost_usd"] == 3
     assert runtime.store.attempt("run-controlled")["state"] == "overrun"
     assert runtime.store.budget_snapshot()["unsettled_attempts"] == 1
+
+
+def test_operator_reconciliation_charges_the_full_hold_and_unblocks(runtime):
+    mission, contract = fixture_mission(runtime)
+    reserve(runtime, mission)
+    runtime.engine.recover_interrupted()
+    assert runtime.store.budget_snapshot()["unsettled_attempts"] == 1
+    with pytest.raises(ValueError, match="note"):
+        runtime.store.reconcile_unknown_attempt("run-controlled", "short")
+    reconciled = runtime.store.reconcile_unknown_attempt(
+        "run-controlled", "Provider stream exceeded the 2 MiB bound; charged the full reservation.")
+    assert reconciled["state"] == "reconciled"
+    assert reconciled["held_usd"] == 0
+    assert reconciled["reconciled_usd"] == 2
+    assert "2 MiB" in reconciled["reconcile_note"]
+    snapshot = runtime.store.budget_snapshot()
+    assert snapshot["held_usd"] == 0 and snapshot["reconciled_usd"] == 2
+    assert snapshot["unsettled_attempts"] == 0 and snapshot["exposure_usd"] == 2
+    with pytest.raises(ValueError, match="unknown attempt"):
+        runtime.store.reconcile_unknown_attempt("run-controlled", "A second attempt at reconciliation.")
+    assert ModelRouter(runtime.store, contract["routing"]).remaining() > 0
 
 
 def test_recovery_keeps_interrupted_reservation_unknown_and_never_redispatches(runtime):

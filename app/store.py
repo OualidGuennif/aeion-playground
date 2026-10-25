@@ -157,6 +157,8 @@ CREATE TABLE IF NOT EXISTS inference_attempts (
     state TEXT NOT NULL,
     reserved_usd REAL NOT NULL,
     held_usd REAL NOT NULL,
+    reconciled_usd REAL NOT NULL DEFAULT 0,
+    reconcile_note TEXT,
     lease_id TEXT UNIQUE,
     created_at TEXT NOT NULL,
     settled_at TEXT
@@ -212,6 +214,11 @@ class Store:
             for name in ("request_id", "contract_json"):
                 if name not in columns:
                     self._conn.execute(f"ALTER TABLE missions ADD COLUMN {name} TEXT")
+            attempt_columns = {row["name"] for row in self._conn.execute("PRAGMA table_info(inference_attempts)")}
+            if "reconciled_usd" not in attempt_columns:
+                self._conn.execute("ALTER TABLE inference_attempts ADD COLUMN reconciled_usd REAL NOT NULL DEFAULT 0")
+            if "reconcile_note" not in attempt_columns:
+                self._conn.execute("ALTER TABLE inference_attempts ADD COLUMN reconcile_note TEXT")
             self._conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS missions_request_id ON missions(request_id)")
             self._conn.execute("INSERT OR IGNORE INTO kv(key,value) VALUES('observability:instance_id',?)", (uuid.uuid4().hex,))
             self.instance_id = self._conn.execute("SELECT value FROM kv WHERE key='observability:instance_id'").fetchone()[0]
@@ -521,8 +528,11 @@ class Store:
         carried = Decimal(str(json.loads(carry[0])["cost_usd"])) if carry else Decimal(0)
         rows = db.execute("SELECT state,held_usd FROM inference_attempts WHERE state IN ('reserved','unknown','overrun')").fetchall()
         held = sum((Decimal(str(row[1])) for row in rows), Decimal(0))
+        reconciled = db.execute("SELECT COALESCE(SUM(reconciled_usd),0) FROM inference_attempts").fetchone()[0]
+        reconciled = Decimal(str(reconciled or 0))
         return {"reported_usd": float(spent), "carried_usd": float(carried), "held_usd": float(held),
-                "unsettled_attempts": len(rows), "exposure_usd": float(spent + carried + held)}
+                "reconciled_usd": float(reconciled), "unsettled_attempts": len(rows),
+                "exposure_usd": float(spent + carried + held + reconciled)}
 
     def budget_snapshot(self) -> dict:
         with self._lock:
@@ -588,6 +598,35 @@ class Store:
     def attempt(self, run_id: str) -> dict | None:
         rows = self._query("SELECT * FROM inference_attempts WHERE run_id=?", (run_id,))
         return dict(rows[0]) if rows else None
+
+    def reconcile_unknown_attempt(self, run_id: str, note: str) -> dict:
+        """Operator settlement: charge the full held reservation, never zero.
+
+        This is only for a mediator outcome that lost its usage record. The
+        provider may have billed; the conservative charge is the whole reserved
+        envelope. The attempt keeps its original reservation, gains the charge
+        and note, and no longer blocks new inference. This is not an invoice
+        reconciliation: it can only overstate, never understate, the spend.
+        """
+        if not isinstance(run_id, str) or not run_id.startswith("run-") or len(run_id) > 80:
+            raise ValueError("Invalid attempt identity")
+        note = " ".join(str(note or "").split())
+        if not 8 <= len(note) <= 500:
+            raise ValueError("A reconciliation note of 8-500 characters is required")
+        with self._lock, self._conn:
+            self._conn.execute("BEGIN IMMEDIATE")
+            row = self._conn.execute("SELECT * FROM inference_attempts WHERE run_id=?", (run_id,)).fetchone()
+            if not row:
+                raise ValueError("Unknown inference attempt")
+            if row["state"] != "unknown" or float(row["held_usd"]) <= 0:
+                raise ValueError("Only an unknown attempt with a held reservation can be reconciled")
+            charge = float(row["held_usd"])
+            self._conn.execute(
+                "UPDATE inference_attempts SET state='reconciled', held_usd=0, reconciled_usd=?, "
+                "reconcile_note=?, settled_at=? WHERE run_id=?",
+                (charge, note, utc_now(), run_id),
+            )
+            return dict(self._conn.execute("SELECT * FROM inference_attempts WHERE run_id=?", (run_id,)).fetchone())
 
     def bind_attempt_lease(self, run_id: str, lease_id: str) -> None:
         if not isinstance(lease_id, str) or len(lease_id) != 32 or any(value not in "0123456789abcdef" for value in lease_id):
