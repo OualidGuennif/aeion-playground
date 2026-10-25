@@ -1,8 +1,11 @@
 # Live provider inference: measured status
 
-Status: **one live provider-backed role completed through the gateway.** A full live
-mission, a hosted provider-backed CI run and the free tier remain unqualified. This file
-records both the refusal and the successful run; do not turn either into a broader claim.
+Status: **live provider inference is qualified through the containerised cockpit.** A full
+PD01 mission and a bounded Factory ticket have completed through the host executor and the
+gateway with paid models, the second publishing a local Git release. A hosted
+provider-backed CI run, independent providers, a durable credential refresh and the free
+tier remain unqualified. This file records the refusal and the successful runs; do not turn
+either into a broader claim.
 
 ## Successful run — 2026-10-25
 
@@ -55,7 +58,58 @@ vs glm) · not independent providers": both roles use the same OpenCode gateway 
 account. The approval was a real human checkpoint, not a model verdict. Paperclip issue
 creation returned HTTP 403 "Board access required", so the workboard link is missing; the
 ledger and sealed packet are authoritative. PD01 has no delivery target, so this mission
-sealed evidence without publishing a local release.
+sealed evidence without publishing a local release; the Factory ticket below did publish
+one.
+
+## Factory ticket and local release — TCK-E68512F8 / PD-006, 2026-10-25
+
+The final end-to-end validation was a bounded ticket filed from the warehouse surface, not
+a canned fixture: *Charge the started kilogram for 1,001-1,999 g*, area pricing, risk low,
+with the existing 19-case pricing suite as its acceptance.
+
+Two earlier live tickets failed and are recorded rather than hidden:
+
+- `TCK-368CF6A6` / `PD-004` asked for an exhaustive 1..30,000 regression test. The paid
+  DeepSeek role used its whole output bound: 1,223 prompt / 8,192 completion tokens,
+  `$0.005099`, `finish_reason=length`, blocked `AGENT_BLOCKED`. The router then treated the
+  truncation as unknown provider state and withheld DeepSeek for an hour.
+- `TCK-C7998C79` / `PD-005` therefore fell back to `opencode-go/glm-5.3-flash` (1,139 / 273
+  tokens, `$0.000307`); its patch was corrupt (`error: corrupt patch at line 9`,
+  `MODEL_PATCH_INVALID`).
+- Fix `a01cc7f` (PR #23): a length stop is a bounded output failure, not provider
+  uncertainty. It no longer opens a cooldown, while repeated truncation still counts as a
+  deterministic quality failure. The stale cooldown was cleared by an audited
+  `operator.routing_health_cleared` event after its attempt was verified settled.
+
+The successful ticket:
+
+- **forge** `opencode-go/deepseek-v4.1-flash`: 1,171 prompt / 2,020 completion tokens,
+  `$0.001388`; a one-line ceiling-division patch, 1 file, +1/-1.
+- **tests**: 19/19 on the worker run and 19/19 on the Gate-owned trusted rerun, with the
+  same frozen `aeion.pytest-executor/v1` identity.
+- **sentinel** `opencode-go/glm-5.3-flash`: 1,324 prompt / 352 completion tokens,
+  `$0.000375`, verdict `OK`.
+- **Gate**: `HUMAN_CHECKPOINT` because the diff touches `app/pricing.py`; the operator read
+  the evidence and approved.
+- **result**: `PD-006` completed `assisted`, gate `HUMAN_APPROVED`, packet sealed at
+  `sha256:40dbb227147920738c592648ef48589795f55066bad2100e6b1e4eec5eae4aa9`.
+- **delivery**: local Git release commit `fc6ca0df544e5132ae154ac9ba462789a3b1156e`,
+  parent `86ff1351a6079d22cf1351e8fbe7a911b14c2b54`, tree `97d3856e5a6d...`, 19/19 tests;
+  `product_head` points at it. Ticket totals: `$0.001763`, 2,495 prompt / 2,372 completion
+  tokens.
+
+The live run also exposed a demo-surface bug: linked tickets stayed `running` after their
+missions ended, so `open_tickets` kept growing. Fix `1b5ed0c` (PR #24) closes a ticket when
+its mission reaches a terminal state; an audited `operator.tickets_reconciled` event closed
+the three rows written before the fix and the API now reports `open_tickets: 0`.
+
+The release is a local Git artifact at `runtime/cockpit/sandbox/releases/PD-006/`; it is
+**not** hot-deployed to the ParcelDesk quote surface. The sandbox slice contains only the
+pricing module and its tests, so a Factory ticket cannot implement refunds or orders in it.
+The released diff keeps the baseline "DEFECT" comment above the corrected expression
+because the ticket constrained the edit to the rounding line; the arithmetic and tests are
+correct. Cumulative model spend recorded in the cockpit ledger after all live runs is
+`$0.009619`, with no unsettled attempt.
 
 ## Refusal before the credential — 2026-10-25
 
@@ -93,8 +147,11 @@ for live work; do not weaken the gateway to force the free tier.
 - A hosted CI provider-backed run; CI stays on controlled fixtures.
 - The free tier; it remains refused outside OpenCode's own client path.
 - Independent providers. Both live roles share one OpenCode gateway and operator account.
-- GitHub delivery or a Factory-ticket release: PD01 has no delivery target, and the
-  Paperclip issue was refused with HTTP 403.
+- GitHub delivery or any remote publication. The Factory ticket published a local Git
+  artifact only; nothing was pushed, deployed or hot-swapped into the demo surface. The
+  Paperclip workboard still refuses issue creation with HTTP 403 "Board access required".
+- Refunds, orders or warehouse features through the Factory. The sandbox slice holds only
+  the pricing module and its tests.
 - A durable credential refresh path. The Console access token has an expiry; the gateway
   does not refresh OAuth. Re-export and rewrite the gateway file before it expires.
 
