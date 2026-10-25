@@ -431,6 +431,9 @@ class GitHubDelivery:
         result = self._gh("pr", "checks", str(number), "--repo", self.repository,
                           "--json", "name,state,bucket", check=False)
         if result.returncode not in (0, 8):
+            text = f"{result.stderr or ''}\n{result.stdout or ''}".lower()
+            if "no checks reported" in text:
+                return []  # The workflow has not registered its checks yet.
             raise DeliveryError(f"GitHub check query failed: {(result.stderr or '').strip()[:400]}")
         return _json(result, "GitHub check query")
 
@@ -454,6 +457,26 @@ class GitHubDelivery:
                 return {"checks": checks, "ok": True}
             time.sleep(20)
         raise DeliveryError(f"Timed out waiting for GitHub checks; last state: {json.dumps(last)[:800]}")
+
+    def merge_existing(self, *, timeout: float = 1800) -> dict[str, Any]:
+        """Wait for and merge the PR recorded by an earlier prepare/publish."""
+        state = self.state() or {}
+        issue = state.get("issue") if isinstance(state.get("issue"), dict) else None
+        pr = state.get("pr") if isinstance(state.get("pr"), dict) else None
+        if not pr or pr.get("number") is None:
+            raise DeliveryError("No recorded pull request to merge")
+        if pr.get("state") == "MERGED":
+            return {"ok": True, "issue": issue, "pr": pr, "merged": True,
+                    "checks": state.get("checks") or []}
+        checks = self.wait_for_checks(int(pr["number"]), timeout=timeout)
+        result = self._gh("pr", "merge", str(pr["number"]), "--repo", self.repository,
+                          "--squash", "--delete-branch", check=False)
+        if result.returncode != 0:
+            raise DeliveryError(f"GitHub merge failed: {(result.stderr or '').strip()[:500]}")
+        pr = {**pr, "state": "MERGED", "merged_at": _now()}
+        self._record(pr=pr, checks=checks.get("checks"), merged_at=_now())
+        return {"ok": True, "issue": issue, "pr": pr, "merged": True,
+                "checks": checks.get("checks")}
 
     def publish(self, plan: Plan, *, create_issue: bool = True,
                 wait: bool = False, merge: bool = False, timeout: float = 1800) -> dict[str, Any]:

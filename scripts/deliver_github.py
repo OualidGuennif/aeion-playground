@@ -25,12 +25,17 @@ def main() -> int:
     parser.add_argument("--no-issue", action="store_true", help="Do not create a GitHub issue")
     parser.add_argument("--wait", action="store_true", help="Wait for every GitHub check")
     parser.add_argument("--merge", action="store_true", help="Squash-merge only after every check passes")
+    parser.add_argument("--merge-only", action="store_true",
+                        help="Wait for and merge the pull request already recorded for this mission")
     parser.add_argument("--force", action="store_true", help="Allow replacing a diverged product tree")
     parser.add_argument("--timeout", type=float, default=1800)
     args = parser.parse_args()
     try:
         release = load_release(args.runtime_root, args.mission)
         delivery = GitHubDelivery(release, args.repo, base=args.base)
+        if args.merge_only:
+            print(json.dumps(delivery.merge_existing(timeout=args.timeout), indent=2, ensure_ascii=False))
+            return 0
         plan = delivery.prepare(force=args.force, dry_run=args.dry_run)
         summary = {
             "mission": plan.mission, "branch": plan.branch, "commit": plan.commit,
