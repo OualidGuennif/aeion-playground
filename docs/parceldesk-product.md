@@ -159,7 +159,7 @@ remains `fc6ca0d`. The API image was promoted from PD-032 and the web image from
   it asserts the header, the attachment disposition, the seeded PD-1050 row, the absence of
   a non-refunded order, and quoting for a reason containing a comma and quotes. This is a
   manual operator/Codex contribution, not a paid Factory release. The backend suite is
-  **12 tests**; the combined product suite is **19** (12 Maven + 7 Deno). PD-029, PD-030,
+  **12 tests**; the combined product suite is **21** (12 Maven + 9 Deno). PD-029, PD-030,
   PD-034, PD-035 and PD-036 remain in the ledger as failed or missing-test evidence.
 
 ### Reliability fixes found by the live tickets
