@@ -196,6 +196,7 @@ def test_http_roles_cannot_issue_inspect_or_revoke_admin_leases(gateway):
 
 def test_the_upstream_deadline_never_cuts_a_role_before_its_own_deadline():
     # A mediator deadline shorter than the admitted role deadline truncates a
-    # legitimate reasoning stream and turns it into an unknown, held attempt.
+    # legitimate reasoning stream and turns it into an unknown, held attempt. A
+    # 170 s mediator cut a still-running stream at 169 s on PD-031.
     assert UPSTREAM_DEADLINE >= LIMITS["deadline_seconds"] - 10
     assert UPSTREAM_DEADLINE < LIMITS["deadline_seconds"]

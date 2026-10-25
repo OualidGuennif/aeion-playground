@@ -45,7 +45,7 @@ default UID 1000; use the helper to match your non-root operator UID/GID for pri
 The controller's gateway administration token is a separate owner-only local secret.
 An agent receives a random expiring single-use token whose hash alone is stored. Its
 lease binds the attempt ID, role, exact admitted prompt digest, model, expiry (at most
-180 seconds) and output bound (at most 16384 tokens). SQLite consumes it before dispatch.
+300 seconds) and output bound (at most 16384 tokens). SQLite consumes it before dispatch.
 Unknown/consumed requests are never replayed after timeout, crash or gateway restart.
 Known provider refusals keep their original HTTP status and response digest. The role
 receives a terminal local error; the adapter stops a CLI that internally retries quota
@@ -61,7 +61,8 @@ finite nonnegative integer token usage are required; CLI usage must match the me
 
 Each role has no mounts, UID 65532, no capabilities, no-new-privileges, read-only root,
 1 GiB RAM/no swap, one CPU, 128 PIDs, 256 MiB noexec tmpfs, 4 MiB per file, 256 open files,
-bounded 2 MiB combined process output and at most 180 seconds. Daemon logging is disabled.
+bounded 2 MiB combined process output and at most 300 seconds. The mediator's upstream
+deadline is 290 seconds, below the role admission. Daemon logging is disabled.
 The controller always removes its container and revokes an unused lease. A consumed or
 unknown lease cannot be refunded by revoke. Cleanup uncertainty is an explicit failure.
 

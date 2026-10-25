@@ -126,9 +126,10 @@ Gate test counts, the reviewer verdict, the diff and the release commit. The liv
 was rebuilt from PD-021; the live API remains from PD-010 because PD-020/PD-021 changed no
 backend code.
 
-Cumulative cockpit model spend after these live runs is **$0.132792**, plus **$4.000**
-of conservative operator settlements for two unknown upstream outcomes (PD-014 and
-PD-022), no unsettled attempt. The local authorization ceiling is $10.
+Cumulative cockpit model spend after these live runs is **$0.162985**, plus **$8.000**
+of conservative operator settlements for four unknown upstream outcomes (PD-014, PD-022,
+PD-031 and PD-035), no unsettled attempt. The local authorization ceiling is $10; at
+$8.162985 exposure a new $2 reservation is refused.
 
 ### Fourth and fifth autonomous releases
 
@@ -142,8 +143,21 @@ PD-022), no unsettled attempt. The local authorization ceiling is $10.
   acceptance **17/17**; Gate `CLEAN`; packet `sha256:7518c6d6…`; release `b5fe5f7`;
   PR-005 auto-merged. The live web shows `€40.00 refunded · Damaged in transit · 2026-10-17`.
 
-The chain is `3df45d5 → b592d1f → b01d4f7 → aeeeb7a1 → b5fe5f7`; the legacy head remains
-`fc6ca0d`. The API image was promoted from PD-024 and the web image from PD-028.
+The chain is `3df45d5 → b592d1f → b01d4f7 → aeeeb7a1 → b5fe5f7 → 393f3fe`; the legacy head
+remains `fc6ca0d`. The API image was promoted from PD-032 and the web image from PD-028.
+
+### Sixth autonomous release
+
+- **PD-032 / TCK-218D9489** *(Add the refund CSV endpoint)*, low risk. Author GLM
+  4,654 / 4,950 `$0.003173`; reviewer DeepSeek 5,607 / 9,530 `$0.006559` `OK`; worker
+  **17/17**; Gate acceptance **17/17**; Gate `CLEAN`; one file, +41 lines; packet
+  `sha256:cb2dca37…`; release `393f3fe`; PR-006 auto-merged. `GET /api/refunds.csv` is live
+  with `text/csv`, an attachment disposition and one row per refunded order.
+- The dedicated CSV test is still missing. PD-029 compiled-failed, PD-030 hit the 16,384
+  token bound, PD-034's test collided with `RefundLedgerTest` by refunding PD-1049, and
+  PD-035's stream crossed the 2 MiB response bound. PD-033 was `STALE_BASE`; PD-036 was
+  refused because $8.162985 exposure plus a $2 envelope exceeds the $10 ceiling. Those
+  tickets remain in the ledger as evidence.
 
 ### Reliability fixes found by the live tickets
 
@@ -157,9 +171,11 @@ Each failure is preserved in the ledger; the fixes are covered by tests:
   uses `--recount`. A miscounted hunk and a minimal hunk have regression tests.
 - PD-014: an upstream stream crossed the 2 MiB mediator bound, so no usage record existed
   and $2 was held. PD-022: the mediator's 90 s upstream deadline cut a role still inside its
-  180 s admission at 91.7 s. `Store.reconcile_unknown_attempt` charges the **full reservation**
-  (never zero), records a note and clears the global block; both $2 reservations were
-  reconciled conservatively, and the upstream deadline is now 170 s.
+  180 s admission at 91.7 s. PD-031 repeated the class at 169 s under a 170 s deadline.
+  `Store.reconcile_unknown_attempt` charges the **full reservation** (never zero), records a
+  note and clears the global block. The role admission is now **300 s** and the mediator
+  deadline **290 s**. PD-035 then crossed the 2 MiB response bound; that bound is unchanged
+  and remains a known unknown-hold risk.
 - PD-016/PD-017: a length stop with a mediated completion was misclassified as provider
   unavailability, and a missing local gateway credential also cooled the model. The router
   now treats length stops and local gateway/configuration errors as non-cooldowns; the
@@ -196,11 +212,10 @@ docker compose -f compose.yaml up -d --no-deps parceldesk-api
 
 - The review ledger is local H2. The cockpit still creates no remote GitHub PR, branch push
   or deployment; the local PR is the product's auditable record.
-- A host-side operator command, `scripts/deliver_github.py`, turned PD-028 into real GitHub
-  issue #33 and PR #34, waited for 8/8 checks including the new `product-tests` job, and
-  squash-merged it as `59ae38a`; the remote product tree exactly matches the sealed release.
-  This remains operator authority, not a cockpit action; see
-  [`github-delivery.md`](github-delivery.md).
+- A host-side operator command, `scripts/deliver_github.py`, delivered PD-028 as issue #33 /
+  PR #34 (`59ae38a`) and PD-032 as issue #39 / PR #40 (`e0ebc9f`), waiting for 8/8 checks
+  both times; each remote product tree exactly matches its sealed release. This remains
+  operator authority, not a cockpit action; see [`github-delivery.md`](github-delivery.md).
 - Promotion of the running Compose services is still a host-side build of the sealed release,
   not an autonomous deploy.
 - The hosted `stack-tests` job still starts only the cockpit, Paperclip and Postgres; the

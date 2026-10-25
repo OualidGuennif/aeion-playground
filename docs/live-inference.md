@@ -138,11 +138,13 @@ Two earlier product tickets remain as evidence instead of being hidden:
   The fix admits `product/**`, keeps the task scope check, restores trusted product tests in
   the acceptance checkout and advances a separate product release head.
 
-Cumulative product-ticket spend: **$0.009011**; cumulative live model spend after all runs:
-**$0.132792**, plus $4.000 conservatively reconciled (two mediator-truncated attempts),
-no unsettled attempt. The local model authorization is **$10**; this is a ceiling, not spend.
+Cumulative product-ticket spend: **$0.153366**; cumulative live model spend after all runs:
+**$0.162985**, plus $8.000 conservatively reconciled (four unknown upstream outcomes:
+PD-014, PD-022, PD-031 and PD-035), no unsettled attempt. The local model authorization is
+**$10**; this is a ceiling, not spend. At $8.162985 exposure, a new $2 mission reservation
+is refused until the operator raises or changes the authorization.
 
-## Product releases PD-020, PD-021, PD-024 and PD-028, 2026-10-25
+## Product releases PD-020 through PD-032, 2026-10-25
 
 Two more paid product missions built on `product_head:product` (PD-010), with the Gate
 acceptance restored from the accepted release's own product tests:
@@ -178,13 +180,33 @@ Two further product releases followed:
 The API image was rebuilt from PD-024 and exposes `GET /api/refunds`; the web image was
 rebuilt from PD-028. The live product still runs on loopback only.
 
-Cumulative reported spend after all live runs is **$0.132792**. Two upstream outcomes had
+### Sixth release and the paid-budget stop, 2026-10-25
+
+- **PD-032 / TCK-218D9489** — *Add the refund CSV endpoint*, low risk. Author GLM
+  4,654 / 4,950 `$0.003173`; reviewer DeepSeek 5,607 / 9,530 `$0.006559` `OK`; worker
+  **17/17**; Gate acceptance **17/17**; Gate `CLEAN`; one file, +41 lines; packet
+  `sha256:cb2dca372c50356760fe13d361c9a06ef66ce02e707a785f384783de17731ffb`; release
+  `393f3fed624443efd3a852cc478f01952ad036b5`; PR-006 auto-merged locally. The API image was
+  promoted from PD-032 and `GET /api/refunds.csv` is live: `text/csv`, attachment
+  `refunds.csv`, header plus one row per refunded order.
+- A dedicated Quarkus CSV test was attempted four times. PD-029 compiled-failed
+  (`TEST_EXECUTION_ERROR`, `$0.005901`); PD-030 exhausted the 16,384-token output bound
+  (`$0.008898`); PD-034 produced a passing test but refunded PD-1049, colliding with the
+  existing `RefundLedgerTest` (`TEST_FAILURE`, `$0.005662`); PD-035 was cut by the 2 MiB
+  upstream response bound and its $2 reservation was reconciled. **The CSV endpoint has no
+  dedicated regression test yet.** The existing 17 backend tests pass, the reviewer
+  approved, and the endpoint is verified live.
+- PD-033 was denied `STALE_BASE` because PD-032 was delivered after admission. PD-036 was
+  denied `BUDGET_RESERVATION_DENIED`: $8.162985 exposure plus a $2 envelope exceeds the $10
+  ceiling. No further paid mission can start without operator budget authority.
+
+Cumulative reported spend after all live runs is **$0.162985**. Four upstream outcomes had
 no usage record and were settled at their **full $2.000** reservations as `reconciled_usd`
-rather than inventing a zero cost: PD-014 (the 2 MiB mediator bound) and PD-022 (a 90 s
-mediator deadline that cut a role still inside its 180 s admission; the deadline is now
-170 s). No attempt is unsettled. The local authorization cap was raised from $5 to $10
-after those two conservative settlements left less than one $2 reservation; reported
-spend remains a fraction of either cap.
+rather than inventing a zero cost: PD-014 (the 2 MiB mediator bound), PD-022 (a 90 s
+mediator deadline), PD-031 (a 170 s deadline that cut a still-running stream at 169 s) and
+PD-035 (the 2 MiB response bound). No attempt is unsettled. The role admission is now
+**300 s** and the mediator deadline **290 s**; the local authorization cap is $10. At
+$8.162985 exposure, a $2 reservation is refused.
 
 The failed attempts remain in the ledger and are documented in
 [`parceldesk-product.md`](parceldesk-product.md): completion-bound truncation (PD-011/PD-015,
