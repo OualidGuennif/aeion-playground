@@ -161,6 +161,15 @@ def _loads(value: str | None, default: Any) -> Any:
         return default
 
 
+def _release_head_key(admitted: dict[str, Any]) -> str:
+    """The accepted release line a mission builds on.
+
+    Legacy Python missions anchor to ``product_head`` and product missions to
+    ``product_head:product``; the two histories are independent.
+    """
+    return "product_head:product" if admitted.get("test_profile") == "product" else "product_head"
+
+
 class RealEngine:
     def __init__(self, executor: ExecutorClient | None = None) -> None:
         self._lock = threading.RLock()
@@ -420,20 +429,34 @@ class RealEngine:
                 "Backend code is product/backend/src/main/java/com/aeion/parceldesk, backend tests are "
                 "product/backend/src/test/java/com/aeion/parceldesk, and frontend code is product/frontend. "
                 "Work only in product/**. Preserve every existing contract and test. Add or update tests so the "
-                "outcome is observable; the worker runs the existing Python contract suite, the Maven backend suite "
-                "and the Deno frontend suite. Do not edit policy, configuration, AGENTS.md, build output or Git "
-                "history. Return only the patch protocol JSON."
+                "outcome is observable; the worker runs the Maven backend suite and the Deno frontend suite. "
+                "The Python pricing contract is a separate release line and is not part of this product. "
+                "Do not edit policy, configuration, AGENTS.md, build output or Git history. "
+                "Keep the patch minimal and return only the patch protocol JSON. The patch must be a "
+                "standard unified diff that `git apply` accepts: every context line, including braces "
+                "and blank lines, starts with a single space; added lines start with +; removed lines "
+                "start with -; and each @@ header count matches its hunk."
             )
             allowed_paths = ["product/**"]
-            context_files = [
-                "product/README.md",
-                "product/backend/src/main/java/com/aeion/parceldesk/dto/OrderView.java",
-                "product/backend/src/main/java/com/aeion/parceldesk/model/Order.java",
-                "product/backend/src/main/java/com/aeion/parceldesk/api/OrderResource.java",
-                "product/backend/src/test/java/com/aeion/parceldesk/OrderApiTest.java",
-                "product/frontend/lib/format.ts",
-                "product/frontend/routes/index.tsx",
-            ]
+            if area in {"warehouse", "accessibility"}:
+                context_files = [
+                    "product/README.md",
+                    "product/frontend/lib/format.ts",
+                    "product/frontend/tests/format_test.ts",
+                    "product/frontend/routes/index.tsx",
+                    "product/frontend/static/warehouse.js",
+                ]
+            else:
+                context_files = [
+                    "product/README.md",
+                    "product/backend/src/main/java/com/aeion/parceldesk/dto/OrderView.java",
+                    "product/backend/src/main/java/com/aeion/parceldesk/model/Order.java",
+                    "product/backend/src/main/java/com/aeion/parceldesk/api/OrderResource.java",
+                    "product/backend/src/main/java/com/aeion/parceldesk/service/RefundService.java",
+                    "product/backend/src/test/java/com/aeion/parceldesk/OrderApiTest.java",
+                    "product/backend/src/test/java/com/aeion/parceldesk/RefundRuleTest.java",
+                    "product/frontend/lib/format.ts",
+                ]
         else:
             task = (
                 "ParcelDesk improvement ticket.\n"
@@ -678,7 +701,8 @@ class RealEngine:
                 try:
                     source_release = contract.get("source_release")
                     source_path = Path(source_release["path"]) if source_release else None
-                    if source_release and _loads(store.get_kv("product_head"), {}).get("commit") != source_release.get("commit"):
+                    head = _loads(store.get_kv(_release_head_key(admitted)), {})
+                    if source_release and head.get("commit") != source_release.get("commit"):
                         self._block(mission_id, "STALE_BASE", "The accepted local product advanced after admission. Submit a fresh task.")
                     elif (
                         not admitted or contract.get("template_digest") != sandbox.template_digest(source_path)
@@ -1145,7 +1169,9 @@ class RealEngine:
         tests_complete = _tests_complete(tests)
         if tests_complete:
             try:
-                acceptance_path = sandbox.acceptance_checkout(Path(run["path"]))
+                release_path = (contract.get("source_release") or {}).get("path")
+                trusted = Path(release_path) if release_path and scenario.get("test_profile") == "product" else None
+                acceptance_path = sandbox.acceptance_checkout(Path(run["path"]), trusted=trusted)
             except Exception as error:
                 self._block(mission_id, "EXTERNAL_ACCEPTANCE", f"Trusted acceptance checkout failed: {error}", step_index=4)
                 return

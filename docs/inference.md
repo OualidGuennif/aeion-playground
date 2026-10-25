@@ -45,7 +45,7 @@ default UID 1000; use the helper to match your non-root operator UID/GID for pri
 The controller's gateway administration token is a separate owner-only local secret.
 An agent receives a random expiring single-use token whose hash alone is stored. Its
 lease binds the attempt ID, role, exact admitted prompt digest, model, expiry (at most
-180 seconds) and output bound (at most 8192 tokens). SQLite consumes it before dispatch.
+180 seconds) and output bound (at most 16384 tokens). SQLite consumes it before dispatch.
 Unknown/consumed requests are never replayed after timeout, crash or gateway restart.
 Known provider refusals keep their original HTTP status and response digest. The role
 receives a terminal local error; the adapter stops a CLI that internally retries quota

@@ -104,8 +104,51 @@ Two earlier live tickets are kept as evidence:
   `app/tests` scope (`$0.00475`, 5,434 / 6,558 tokens). The scope fix and a regression test
   followed.
 
-Cumulative cockpit model spend after the three product tickets and all earlier live runs:
-**$0.01863**, no unsettled attempt.
+### Second and third autonomous releases
+
+The next product tickets build on the accepted release rather than the template:
+
+- **PD-020 / TCK-B82E1033** *(Add a tested refund note formatter)*, low risk.
+  author `opencode-go/glm-5.3-flash` 7,835 / 3,765 tokens `$0.003058`; reviewer
+  `opencode-go/deepseek-v4.1-flash` 9,150 / 3,362 tokens `$0.003390` `OK`; worker **16/16**;
+  Gate acceptance **13/13**: the Gate restored the *accepted PD-010* product tests plus its
+  `OrderRefundListTest`, proving the trusted-product-test path; Gate `CLEAN`; packet
+  `sha256:1041f53d…61eb`; release `b592d1f` (parent `3df45d5`).
+- **PD-021 / TCK-AB19B7EB** *(Use the refund note in the refund desk)*, low risk.
+  author GLM 8,112 / 2,852 `$0.002643`; reviewer DeepSeek 9,014 / 1,112 `$0.002019` `OK`;
+  worker **16/16**; Gate acceptance **16/16**; Gate `CLEAN`; packet `sha256:f0087ba4…2ed09`;
+  release `b01d4f7` (parent `b592d1f`).
+  The accepted frontend now renders `€40.00 refunded · Damaged in transit` in the live refund
+  desk; the old separate amount/reason fields are gone.
+
+PR-002 and PR-003 were created by the web sync and **auto-merged**; both show the worker and
+Gate test counts, the reviewer verdict, the diff and the release commit. The live web image
+was rebuilt from PD-021; the live API remains from PD-010 because PD-020/PD-021 changed no
+backend code.
+
+Cumulative cockpit model spend after these live runs is **$0.055208**, plus a **$2.000**
+conservative operator settlement for the one unknown upstream stream (PD-014), no
+unsettled attempt.
+
+### Reliability fixes found by the live tickets
+
+Each failure is preserved in the ledger; the fixes are covered by tests:
+
+- PD-011/PD-015: the models spent the whole **8,192-token** completion bound on reasoning
+  before the patch. The admitted bound is now **16,384** tokens (gateway and role lease);
+  the provider response and usage are still bounded and validated.
+- PD-012/PD-013: a correct patch was rejected because git requires trailing context.
+  `apply_patch` now uses `--unidiff-zero`; PD-018 then showed wrong `@@` counts, so it also
+  uses `--recount`. A miscounted hunk and a minimal hunk have regression tests.
+- PD-014: an upstream stream crossed the 2 MiB mediator bound, so no usage record existed
+  and $2 was held. `Store.reconcile_unknown_attempt` charges the **full reservation** (never
+  zero), records a note and clears the global block; $2 was reconciled conservatively.
+- PD-016/PD-017: a length stop with a mediated completion was misclassified as provider
+  unavailability, and a missing local gateway credential also cooled the model. The router
+  now treats length stops and local gateway/configuration errors as non-cooldowns; the
+  incorrect DeepSeek cooldown was cleared with a correction note.
+- PD-019: the author and tests were green (16/16, 13/13) but the reviewer route was cooled by
+  the credential error above. PD-020 reran the same ticket successfully after the routing fix.
 
 ## Commands
 

@@ -139,7 +139,39 @@ Two earlier product tickets remain as evidence instead of being hidden:
   the acceptance checkout and advances a separate product release head.
 
 Cumulative product-ticket spend: **$0.009011**; cumulative live model spend after all runs:
-**$0.018630**, no unsettled attempt.
+**$0.055208**, plus $2.000 conservatively reconciled, no unsettled attempt.
+
+## Product releases PD-020 and PD-021, 2026-10-25
+
+Two more paid product missions built on `product_head:product` (PD-010), with the Gate
+acceptance restored from the accepted release's own product tests:
+
+- **PD-020 / TCK-B82E1033** — *Add a tested refund note formatter*. Author
+  `opencode-go/glm-5.3-flash` 7,835 / 3,765 tokens `$0.003058`; reviewer
+  `opencode-go/deepseek-v4.1-flash` 9,150 / 3,362 `$0.003390`, verdict `OK`; worker 16/16;
+  Gate acceptance **13/13** (the accepted PD-010 tests, including `OrderRefundListTest`);
+  Gate `CLEAN`; packet `sha256:1041f53d056ede3bce89049f77e475689889380f049ef88f3a22be7a07ac61eb`;
+  release `b592d1f999227803242e980baa7f2c178f1c4683`.
+- **PD-021 / TCK-AB19B7EB** — *Use the refund note in the refund desk*. Author GLM
+  8,112 / 2,852 `$0.002643`; reviewer DeepSeek 9,014 / 1,112 `$0.002019`, `OK`; worker
+  16/16; Gate acceptance 16/16; Gate `CLEAN`; packet
+  `sha256:f0087ba4aa13b4138759dbc9bba384ccb0dc72377608cf6308842a7d9c92ed09`; release
+  `b01d4f77b9b6d3ad8f8831923b495b80b8ba773e`.
+
+PR-002 and PR-003 were auto-merged by the product web sync. The live web image was rebuilt
+from PD-021 and renders `€40.00 refunded · Damaged in transit`; the old separate amount and
+reason fields are gone. The API image stays from PD-010 because neither release changed the
+backend.
+
+Cumulative reported spend after all live runs is **$0.055208**. One upstream stream exceeded
+the 2 MiB mediator bound with no usage record; the operator settled its **full $2.000**
+reservation as `reconciled_usd` rather than inventing a zero cost. No attempt is unsettled.
+
+The failed attempts remain in the ledger and are documented in
+[`parceldesk-product.md`](parceldesk-product.md): completion-bound truncation (PD-011/PD-015,
+now 16,384 tokens), a corrupt/miscounted unified diff (PD-012/PD-013/PD-018, now
+`--unidiff-zero --recount`), the unknown stream (PD-014, conservative settlement), and
+reviewer-route misclassification (PD-016/PD-017/PD-019, fixed in the router).
 
 ## Refusal before the credential — 2026-10-25
 

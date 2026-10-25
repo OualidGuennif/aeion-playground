@@ -218,3 +218,31 @@ def test_a_product_ticket_is_persisted_with_its_product(desk):
             title="Bad product", outcome="This should be refused.", area="support", risk="low",
             acceptance="The ticket is refused.", product="other",
         )
+
+
+def test_product_and_legacy_missions_use_separate_release_heads():
+    from app.real_engine import _release_head_key
+    assert _release_head_key({"test_profile": "product"}) == "product_head:product"
+    assert _release_head_key({}) == "product_head"
+    assert _release_head_key({"test_profile": "legacy"}) == "product_head"
+
+
+def test_a_warehouse_ticket_gets_the_frontend_context(runtime):
+    captured = {}
+
+    def capture(scenario, **kwargs):
+        captured.update({"scenario": scenario, **kwargs})
+        return {"id": "PD-902", "status": "queued", "fixture": "TCK"}
+
+    runtime.monkeypatch.setattr(runtime.engine, "_admit_scenario", capture)
+    runtime.engine.launch_ticket(
+        request_id="ticket-product-frontend", title="Show the refund note",
+        outcome="The warehouse refund desk shows the refund amount and reason on one line.",
+        area="warehouse", risk="low",
+        acceptance="The refund note formatter is covered by a Deno test and every suite passes.",
+        product="product",
+    )
+    files = captured["scenario"]["context_files"]
+    assert "product/frontend/tests/format_test.ts" in files
+    assert "product/frontend/static/warehouse.js" in files
+    assert not any(path.endswith("OrderApiTest.java") for path in files)
