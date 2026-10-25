@@ -25,6 +25,7 @@ from typing import Any, Iterable
 
 from .config import settings
 from .event_protocol import metadata as event_metadata
+from .operator_settings import effective_budget
 
 SCHEMA = """
 PRAGMA journal_mode=WAL;
@@ -576,7 +577,7 @@ class Store:
             deadline = datetime.fromisoformat(policy["authorization_expires_at"].replace("Z", "+00:00"))
             if deadline.tzinfo is None or deadline <= datetime.now(timezone.utc):
                 raise InferenceBudgetError("AUTHORIZATION_EXPIRED", "No model dispatch after its authorization expiry")
-            budget = policy["budget_usd"]
+            budget = effective_budget(policy["budget_usd"])
             if isinstance(budget, bool) or not isinstance(budget, (int, float)) or not math.isfinite(budget) or not 0 < budget <= 100:
                 raise ValueError("Invalid admitted budget")
             if self._conn.execute("SELECT 1 FROM inference_attempts WHERE run_id=?", (run_id,)).fetchone():

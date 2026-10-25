@@ -13,7 +13,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-from .operator_settings import operator_value
+from .operator_settings import effective_budget, operator_value
 
 POC_DIR = Path(__file__).resolve().parent.parent
 WORKSPACE_ROOT = POC_DIR
@@ -51,7 +51,9 @@ class Settings:
     mode: str = field(default_factory=lambda: os.environ.get("AEION_MODE", "real").strip().lower())
     approval_mode: str = field(default_factory=lambda: os.environ.get("AEION_APPROVAL_MODE", "human"))
     max_active_missions: int = field(default_factory=lambda: _int("AEION_MAX_ACTIVE_MISSIONS", 1))
-    budget_usd: float = field(default_factory=lambda: float(operator_value("budget_usd", os.environ.get("AEION_BUDGET_USD", "5.00") or 5.00)))
+    budget_usd: float = field(default_factory=lambda: effective_budget(
+        float(operator_value("budget_usd", float(os.environ.get("AEION_BUDGET_USD", "5.00") or 5.00)))
+    ))
 
     workspace_root: Path = field(default_factory=lambda: WORKSPACE_ROOT)
     poc_dir: Path = field(default_factory=lambda: POC_DIR)
@@ -67,6 +69,13 @@ class Settings:
         default_factory=lambda: os.environ.get("PAPERCLIP_BASE_URL", "http://127.0.0.1:3101").rstrip("/")
     )
     paperclip_api_token: str = field(default_factory=lambda: os.environ.get("PAPERCLIP_API_TOKEN", ""))
+    paperclip_public_url: str = field(
+        default_factory=lambda: os.environ.get("PAPERCLIP_PUBLIC_URL", "http://127.0.0.1:3101").rstrip("/")
+    )
+    paperclip_api_token_file: Path | None = field(
+        default_factory=lambda: _path("PAPERCLIP_API_TOKEN_FILE", "runtime/secrets/paperclip_api_token")
+        if os.environ.get("PAPERCLIP_API_TOKEN_FILE") else None
+    )
     paperclip_company_id: str = field(default_factory=lambda: os.environ.get("PAPERCLIP_COMPANY_ID", ""))
 
     agent_runtime: str = field(default_factory=lambda: os.environ.get("AEION_AGENT_RUNTIME", "opencode-cli"))

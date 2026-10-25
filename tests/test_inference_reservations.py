@@ -263,3 +263,11 @@ def test_engine_reserves_before_io_and_falls_back_only_after_known_settlement(ru
     assert len(calls) == (1 if unknown else 2)
     assert outcome.status == ("blocked" if unknown else "completed")
     assert runtime.store.budget_snapshot()["unsettled_attempts"] == (1 if unknown else 0)
+
+
+def test_env_budget_cap_blocks_a_reservation_above_the_local_cap(runtime, monkeypatch):
+    mission, _ = fixture_mission(runtime, budget=10)
+    monkeypatch.setenv("AEION_BUDGET_USD", "1.00")
+    with pytest.raises(InferenceBudgetError) as outcome:
+        reserve(runtime, mission)
+    assert outcome.value.code == "BUDGET_RESERVATION_DENIED"

@@ -13,7 +13,7 @@ from typing import Any
 import httpx
 
 from .config import settings
-from .paperclip_auth import load_board_token
+from .paperclip_auth import load_api_token_file, load_board_token
 from .store import store
 
 COMPANY_NAME = "ParcelDesk"
@@ -27,11 +27,15 @@ class PaperclipClient:
     # ------------------------------------------------------------------ basics
     def _headers(self) -> dict[str, str]:
         headers = {"Content-Type": "application/json"}
+        token = settings.paperclip_api_token
         try:
-            token = settings.paperclip_api_token or load_board_token(self.base_url)
+            if not token and settings.paperclip_api_token_file:
+                token = load_api_token_file(settings.paperclip_api_token_file)
+            if not token:
+                token = load_board_token(self.base_url)
         except (OSError, ValueError):
             # A containerised cockpit reaches the workboard by service name, not
-            # loopback; without an explicit token it stays unauthenticated and the
+            # loopback; without a mounted token it stays unauthenticated and the
             # caller reports Paperclip as unavailable instead of crashing.
             token = ""
         if token:
@@ -162,7 +166,7 @@ class PaperclipClient:
             "issue_id": issue.get("id"),
             "identifier": issue.get("identifier"),
             "status": issue.get("status"),
-            "url": f"{self.base_url}/{prefix}/issues/{issue.get('identifier')}",
+            "url": f"{settings.paperclip_public_url}/{prefix}/issues/{issue.get('identifier')}",
         }
 
     def update_issue(

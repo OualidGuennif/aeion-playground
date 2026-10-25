@@ -54,6 +54,71 @@ def load_board_token(base, path=AUTH_STORE):
     return token
 
 
+def load_api_token_file(path):
+    """Read a plain bearer token from an owner-only regular file.
+
+    This is the container path: the token is mounted read-only at a fixed path,
+    never placed in the environment or printed. Missing means unauthenticated;
+    insecure ownership/mode or a symlink fails closed.
+    """
+    target = Path(path).expanduser()
+    try:
+        descriptor = os.open(target, os.O_RDONLY | os.O_NONBLOCK | os.O_NOFOLLOW)
+    except FileNotFoundError:
+        return ""
+    with os.fdopen(descriptor, "r") as stream:
+        info = os.fstat(stream.fileno())
+        if not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid() or stat.S_IMODE(info.st_mode) & 0o077:
+            raise ValueError("Workboard API token must be a private operator-owned file")
+        raw = stream.read(4097)
+    if len(raw) > 4096:
+        raise ValueError("Workboard API token exceeds its bound")
+    token = raw.strip()
+    if not 16 <= len(token) <= 4096 or not all(33 <= ord(char) < 127 for char in token):
+        raise ValueError("Invalid workboard API token")
+    return token
+
+
+def save_plain_token(path, token):
+    """Publish a derived plain token with the same private-file guarantees."""
+    if not isinstance(token, str) or not 16 <= len(token) <= 4096 or not all(33 <= ord(char) < 127 for char in token):
+        raise ValueError("Invalid workboard API token")
+    target = Path(path)
+    directory = target.parent
+    if directory.is_symlink() or directory.parent.is_symlink() or target.is_symlink():
+        raise ValueError("Workboard token paths cannot be symlinks")
+    directory.mkdir(parents=True, mode=0o700, exist_ok=True)
+    if directory.stat().st_uid != os.getuid() or stat.S_IMODE(directory.stat().st_mode) & 0o077:
+        raise ValueError("Workboard token directory must be private")
+    # Write in place when the file exists: Docker bind-mounts a file inode, so an
+    # atomic os.replace would leave a running cockpit reading the deleted inode.
+    flags = os.O_WRONLY | os.O_NOFOLLOW
+    if target.exists():
+        info = target.lstat()
+        if not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid() or stat.S_IMODE(info.st_mode) & 0o077:
+            raise ValueError("Existing workboard API token must be a private operator-owned file")
+        flags |= os.O_TRUNC
+    else:
+        flags |= os.O_CREAT | os.O_EXCL
+    descriptor = os.open(target, flags, 0o600)
+    with os.fdopen(descriptor, "w") as stream:
+        stream.write(token + "\n")
+        stream.flush()
+        os.fsync(stream.fileno())
+    os.chmod(target, 0o600)
+    if load_api_token_file(target) != token:
+        raise ValueError("Workboard token validation failed")
+
+
+def export_plain_token(base, destination, path=AUTH_STORE):
+    """Derive the container token from the browser-approved board store."""
+    token = load_board_token(base, path)
+    if not token:
+        raise ValueError("No approved workboard credential to export")
+    save_plain_token(destination, token)
+    return Path(destination)
+
+
 def save_board_token(base, token, user_id, path=AUTH_STORE):
     base = local_origin(base)
     directory = path.parent

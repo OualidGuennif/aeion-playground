@@ -4,6 +4,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import os
 from datetime import datetime
 from pathlib import Path
 
@@ -50,6 +51,25 @@ def load_routing_policy() -> dict | None:
             raise ValueError("Invalid authorized role pool")
     canonical = json.dumps(data, sort_keys=True, separators=(",", ":"))
     return {**data, "digest": "sha256:" + hashlib.sha256(canonical.encode()).hexdigest()}
+
+
+def effective_budget(policy_budget: float) -> float:
+    """Apply the local `.env` cap without ever widening the signed policy.
+
+    ``AEION_BUDGET_USD`` is a hard cap on total recorded exposure. The routing
+    policy is the authorization and may be lower; the effective value is the
+    smaller of the two. An unset cap preserves the policy value.
+    """
+    raw = os.environ.get("AEION_BUDGET_USD", "").strip()
+    if not raw:
+        return float(policy_budget)
+    try:
+        cap = float(raw)
+    except ValueError:
+        raise ValueError("AEION_BUDGET_USD must be a number") from None
+    if not math.isfinite(cap) or not 0 < cap <= 100:
+        raise ValueError("AEION_BUDGET_USD must be positive and within 100 USD")
+    return min(float(policy_budget), cap)
 
 
 def operator_value(key: str, default):

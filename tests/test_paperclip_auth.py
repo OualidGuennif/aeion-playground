@@ -67,6 +67,28 @@ def test_only_browser_approved_board_challenge_can_persist_a_key(tmp_path, monke
     assert not any("approve" in route for _, route in requests)
 
 
+def test_plain_container_token_is_private_owner_only_and_exported_without_printing(tmp_path):
+    directory = tmp_path / "private"
+    directory.mkdir(mode=0o700)
+    board = directory / "auth.json"
+    auth.save_board_token(BASE, PUBLIC_TOKEN, "controlled-user", board)
+    target = directory / "paperclip_api_token"
+    auth.export_plain_token(BASE, target, board)
+    assert stat.S_IMODE(target.stat().st_mode) == 0o600
+    assert auth.load_api_token_file(target) == PUBLIC_TOKEN
+    inode = target.stat().st_ino
+    auth.export_plain_token(BASE, target, board)
+    assert target.stat().st_ino == inode
+    assert {item.name for item in directory.iterdir()} == {"auth.json", "paperclip_api_token"}
+    target.chmod(0o644)
+    with pytest.raises(ValueError, match="private"):
+        auth.load_api_token_file(target)
+    link = directory / "link-token"
+    link.symlink_to(target)
+    with pytest.raises(OSError):
+        auth.load_api_token_file(link)
+
+
 def test_controller_does_not_send_authorization_through_proxy_or_follow_redirects(monkeypatch):
     from app import paperclip as module
     observed = []

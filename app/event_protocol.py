@@ -12,7 +12,7 @@ delivery.blocked delivery.local delivery.verified diff.captured drill.patch.appl
 evidence.seal_pending evidence.sealed gate.approved gate.decided local.patch.applied
 mission.awaiting_human mission.blocked mission.created mission.projection_failed mission.started
 model.feedback model.patch.applied model.route model.route_blocked ops.integrity.checked
-paperclip.issue.created paperclip.issue.unavailable paperclip.update.failed queue.error
+paperclip.issue.created paperclip.issue.unavailable paperclip.update.failed paperclip.url.corrected queue.error
 review.blocked review.completed review.retry_queued sandbox.checked sandbox.created tests.completed""".split())
 ACTORS = frozenset("atlas scout rook forge sentinel probe gate engine delivery operator paperclip human croa ops system".split())
 SEVERITY = {"debug": 5, "info": 9, "success": 9, "warning": 13, "error": 17, "critical": 21}

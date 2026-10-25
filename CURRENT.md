@@ -130,3 +130,15 @@ est la référence : toute décision doit pouvoir être rattachée à une ligne 
   `docker compose build parceldesk-web` depuis `compose.yaml` annule le patch ; un vrai
   release reste à faire. Détails hors Git :
   `runtime/operator-patches/parceldesk-web-appfix-20261025/`.
+
+- 2026-10-25 07:4x : **Paperclip relié au cockpit + cap budget .env + statut unique** — le
+  jeton board host-only (`127.0.0.1:3101`) ne pouvait pas être utilisé depuis le conteneur.
+  Ajout d'un jeton dérivé `runtime/secrets/paperclip_api_token` (0600, jamais imprimé),
+  monté en lecture seule dans le cockpit via `PAPERCLIP_API_TOKEN_FILE`; l'URL publique est
+  `PAPERCLIP_PUBLIC_URL=http://127.0.0.1:3101`. Preuves live : composant Paperclip
+  `ready/authenticated`; `PD-037` (`PD00`, `paperclip-live-20261025`, 0 $, 12/19,
+  `NO_PATCH`) crée **AEI-2**; `PD-038` (`paperclip-live-20261025b`, 0 $, 12/19,
+  `NO_PATCH`) crée **AEI-3** avec l'URL publique. `AEION_BUDGET_USD` est un cap global
+  (min avec `config/model-routing.json`, ne peut que baisser) et `scripts/demo_status.py`
+  affiche cockpit, ledger, budget, Paperclip et produit en une commande. L'agent générique
+  Paperclip reste `paused/setup` : ce n'est pas le moteur Factory.

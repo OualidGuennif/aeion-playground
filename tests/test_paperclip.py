@@ -1,5 +1,7 @@
+import dataclasses
 import pytest
 
+from app import paperclip as module
 from app.paperclip import PaperclipClient
 
 
@@ -19,3 +21,17 @@ def test_workboard_status_uses_installed_blocker_contract(monkeypatch, status):
         assert "new mission" in payload["unblockDescriptor"]["action"]
     else:
         assert "unblockDescriptor" not in payload
+
+
+def test_issue_url_uses_the_browser_public_origin(monkeypatch):
+    client = PaperclipClient()
+    monkeypatch.setattr(client, "ensure_company", lambda: {
+        "available": True,
+        "company": {"id": "controlled", "name": "ParcelDesk", "issuePrefix": "AEI"},
+    })
+    monkeypatch.setattr(client, "_request", lambda *args, **kwargs: {
+        "ok": True, "status": 201, "data": {"id": "controlled-issue", "identifier": "AEI-9", "status": "todo"},
+    })
+    monkeypatch.setattr(module, "settings", dataclasses.replace(module.settings, paperclip_public_url="http://127.0.0.1:3101"))
+    issue = client.create_issue({"id": "PD-999", "title": "controlled", "priority": "low"})
+    assert issue["url"] == "http://127.0.0.1:3101/AEI/issues/AEI-9"

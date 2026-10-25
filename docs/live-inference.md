@@ -55,9 +55,10 @@ paths). Both fixes are merged with tests.
 
 The sealed packet records the reviewer as "different CLI-selected model families (deepseek
 vs glm) · not independent providers": both roles use the same OpenCode gateway and operator
-account. The approval was a real human checkpoint, not a model verdict. Paperclip issue
-creation returned HTTP 403 "Board access required", so the workboard link is missing; the
-ledger and sealed packet are authoritative. PD01 has no delivery target, so this mission
+account. The approval was a real human checkpoint, not a model verdict. At that time
+Paperclip issue creation returned HTTP 403 "Board access required", so the workboard link
+was missing (fixed on 2026-10-25; see the Paperclip section below). The ledger and sealed
+packet are authoritative. PD01 has no delivery target, so this mission
 sealed evidence without publishing a local release; the Factory ticket below did publish
 one.
 
@@ -251,8 +252,7 @@ for live work; do not weaken the gateway to force the free tier.
 - The free tier; it remains refused outside OpenCode's own client path.
 - Independent providers. Both live roles share one OpenCode gateway and operator account.
 - GitHub delivery or any remote publication. The Factory ticket published a local Git
-  artifact only; nothing was pushed, deployed or hot-swapped into the demo surface. The
-  Paperclip workboard still refuses issue creation with HTTP 403 "Board access required".
+  artifact only; nothing was pushed, deployed or hot-swapped into the demo surface.
 - Refunds, orders or warehouse features through the legacy Python Factory. The accepted
   Python slice holds only the pricing module; the separate ParcelDesk product accepts
   `product/**` tickets with a Java/Deno worker profile.
@@ -262,6 +262,33 @@ for live work; do not weaken the gateway to force the free tier.
   local live run are measured; the hosted `stack-tests` job still starts only the cockpit.
 - A durable credential refresh path. The Console access token has an expiry; the gateway
   does not refresh OAuth. Re-export and rewrite the gateway file before it expires.
+
+## Paperclip workboard link, 2026-10-25
+
+The host-only board credential is bound to `http://127.0.0.1:3101`, so the containerised
+cockpit cannot use it directly. The supported link is a derived plain bearer file:
+
+- `scripts/connect_paperclip.py` saves the browser-approved board store and derives
+  `runtime/secrets/paperclip_api_token` (mode `0600`, never printed);
+- the cockpit mounts that one file read-only at `/run/secrets/paperclip_api_token` and
+  reads it through `PAPERCLIP_API_TOKEN_FILE`;
+- `PAPERCLIP_PUBLIC_URL=http://127.0.0.1:3101` is used only to build browser links; the
+  API call still uses the Compose service name.
+
+Measured on the live stack after rebuilding the cockpit:
+
+- the Paperclip component reports `ready · 2026.1005.0+846.git.412914cfa · authenticated`;
+- a free `PD00` baseline (`PD-037`, request `paperclip-live-20261025`) created **AEI-2**
+  with no model call, worker 12/19, Gate `NO_PATCH`; its stored URL was corrected from the
+  internal service name to the public origin;
+- a second free `PD00` (`PD-038`, request `paperclip-live-20261025b`) created **AEI-3**
+  directly with `http://127.0.0.1:3101/AEI/issues/AEI-3`;
+- no secret appeared in the environment (`PAPERCLIP_API_TOKEN` is unset) or in the logs.
+
+**Limits:** these are workboard issues, not Paperclip agent runs. Paperclip's own generic
+`Operator` agent remains `paused` with `setupAdapterPending`; the yellow “agents paused”
+banner is about that optional runner, not the Aeion Factory. The board grant is one user
+and one local instance; there is no independent monitoring claim.
 
 ## Security properties preserved
 

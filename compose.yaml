@@ -132,6 +132,8 @@ services:
     user: '${AEION_OPERATOR_UID:-1000}:${AEION_OPERATOR_GID:-1000}'
     environment:
       PAPERCLIP_BASE_URL: http://paperclip:3101
+      PAPERCLIP_PUBLIC_URL: http://127.0.0.1:3101
+      PAPERCLIP_API_TOKEN_FILE: /run/secrets/paperclip_api_token
       AEION_OTLP_ENDPOINT: http://otel-collector:4318
       AEION_OTLP_ALLOWED_HOSTS: otel-collector
       AEION_OTEL_HEALTH_URL: http://otel-collector:13133
@@ -143,6 +145,7 @@ services:
     volumes:
       - ./runtime/cockpit:/app/runtime
       - ./runtime/secrets/executor_agent:/run/secrets/executor_agent:ro
+      - ./runtime/secrets/paperclip_api_token:/run/secrets/paperclip_api_token:ro
       - ./config:/app/config:ro
     extra_hosts:
       - host.docker.internal:host-gateway

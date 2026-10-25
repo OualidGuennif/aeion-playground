@@ -27,6 +27,18 @@ def prepare(root: Path) -> None:
             stream.write(secrets.token_hex(32) + "\n")
             stream.flush()
             os.fsync(stream.fileno())
+    # Derived from the browser-approved Paperclip board store after connect.
+    # The file must exist before the cockpit container starts so the bind mount
+    # is a file, not an automatically-created directory.
+    board_token = directory / "paperclip_api_token"
+    try:
+        descriptor = os.open(board_token, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+    except FileExistsError:
+        info = board_token.lstat()
+        if not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid() or stat.S_IMODE(info.st_mode) & 0o077:
+            raise ValueError("Existing Paperclip API token must be a regular owner-only file")
+    else:
+        os.close(descriptor)
     gateway = root / "runtime/gateway"
     if gateway.is_symlink():
         raise ValueError("Gateway state cannot be a symlink")
