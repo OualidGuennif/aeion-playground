@@ -196,9 +196,10 @@ docker compose -f compose.yaml up -d --no-deps parceldesk-api
 
 - The review ledger is local H2. The cockpit still creates no remote GitHub PR, branch push
   or deployment; the local PR is the product's auditable record.
-- A host-side operator command, `scripts/deliver_github.py`, can turn a sealed release into a
-  real GitHub issue/branch/PR and wait for the new `product-tests` CI job before a
-  squash-merge. This remains operator authority, not a cockpit action; see
+- A host-side operator command, `scripts/deliver_github.py`, turned PD-028 into real GitHub
+  issue #33 and PR #34, waited for 8/8 checks including the new `product-tests` job, and
+  squash-merged it as `59ae38a`; the remote product tree exactly matches the sealed release.
+  This remains operator authority, not a cockpit action; see
   [`github-delivery.md`](github-delivery.md).
 - Promotion of the running Compose services is still a host-side build of the sealed release,
   not an autonomous deploy.

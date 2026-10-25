@@ -74,8 +74,26 @@ sandbox/parceldesk/product/frontend/routes/index.tsx
 sandbox/parceldesk/product/frontend/tests/format_test.ts
 ```
 
-The live issue/PR/CI/merge proof is recorded in the delivery state file and in
-`CURRENT.md` once it has actually completed. A dry run is not a remote delivery.
+### Live delivery, 2026-10-25
+
+The first live run created issue **#33**
+<https://github.com/OualidGuennif/aeion-playground/issues/33> and PR **#34**
+<https://github.com/OualidGuennif/aeion-playground/pull/34> with exactly the seven product
+paths above. It then stopped because `gh pr checks` returns a non-zero "no checks reported"
+response before the workflow registers its jobs; PR #35 fixed that. The PR's first CI run
+also exposed a stale test expectation: the product worker test pinned 12 tests while PD-028
+runs 17. PR #36 relaxed the floor to "at least 12, all pass".
+
+After both fixes, a re-run on merged `main` prepared branch `factory/pd-028` at
+**`2db7bc1`**, force-pushed PR #34 with `--force-with-lease`, waited for **8/8 checks**
+(`native-tests`, `stack-tests`, `product-tests`, `docker-tests`, `secrets`,
+`inference-tests`, `telemetry-tests`, `dependencies`), and squash-merged it as
+**`59ae38a`**. Issue #33 closed at the same time. The remote
+`origin/main:sandbox/parceldesk/product` tree is **`640bdbcf2655cb34202c9841117e9a89ffc4630d`**,
+exactly the sealed release's `HEAD:product` tree. The remote route fetches `/api/refunds`
+and renders `shortDate(order.refundedAt)`.
+
+A dry run is not a remote delivery; this paragraph records the measured live run.
 
 ## Limits
 
