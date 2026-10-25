@@ -1,11 +1,13 @@
 # Running the demo in containers
 
-Status: **executor boundary and Compose cockpit implemented.** The `ExecutorClient`
-interface, the host agent (`probe`, `run_tests`, `run_role`), the cockpit image and
-Compose service exist. A cockpit container ran PD00 and PD03 end to end through the
-agent, with the worker's real Docker flags. The agent-kill test and the live-provider
-qualification are still missing; each remaining item is listed below and none is implied
-by a configuration file.
+Status: **executor boundary and Compose cockpit implemented, live inference exercised.**
+The `ExecutorClient` interface, the host agent (`probe`, `run_tests`, `run_role`), the
+cockpit image and Compose service exist. A cockpit container ran PD00 and PD03 end to end
+through the agent, with the worker's real Docker flags. A full live PD01 mission and a
+bounded Factory ticket then ran through the containerised cockpit, host agent and paid
+models; the ticket published a local Git release. The agent-kill test, a fresh-host
+install and a backup/restore drill are still missing; each remaining item is listed below
+and none is implied by a configuration file.
 
 ## The problem
 
@@ -133,8 +135,14 @@ in-process executor. With `AEION_EXECUTOR_URL` it uses the remote client and
    in-process implementation as the default. **Done.**
 2. Add the host agent with `probe` and `run_tests`; keep inference local. **Done, plus
    `run_role` because a containerised cockpit cannot run a mission without it.**
-3. Qualify `run_role` against the real gateway in a disposable container. **Not done**:
-   a full live PD01 mission has run through the containerised cockpit, host executor and gateway: paid `opencode-go/deepseek-v4.1-flash` author, paid GLM reviewer, 19/19 trusted tests, Gate checkpoint, operator approval and a sealed packet (`$0.001406`, 2,139/1,841 tokens). A hosted CI provider-backed run and independent providers are still missing. See [`live-inference.md`](live-inference.md).
+3. Qualify `run_role` against the real gateway in a disposable container. **Done (live):**
+   a full PD01 mission ran through the containerised cockpit, host executor and gateway
+   (paid DeepSeek author, paid GLM reviewer, 19/19 trusted tests, Gate checkpoint,
+   operator approval, sealed packet, `$0.001406`, 2,139/1,841 tokens). A bounded Factory
+   ticket then ran the same path, closed the ticket on completion and published local
+   release `fc6ca0d` (`$0.001763`, 2,495/2,372 tokens). A hosted CI provider-backed run,
+   independent providers and the qualification items in P7 are still missing. See
+   [`live-inference.md`](live-inference.md).
 4. Add the cockpit service to Compose and make the native path an explicit, documented
    fallback. **Done:** without `AEION_EXECUTOR_URL` the engine uses the in-process
    executor; the Compose service sets the remote URL, and a missing agent never falls
