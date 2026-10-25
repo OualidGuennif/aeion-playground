@@ -504,6 +504,11 @@ class GitHubDelivery:
             self._record(commit=plan.commit)
         if pr.get("state") == "MERGED":
             return {"ok": True, "issue": issue, "pr": pr, "merged": True, "checks": []}
+        if pr.get("state") == "OPEN":
+            # A retry prepares a new commit on the current base. Move the existing
+            # branch forward; --force-with-lease refuses if someone else changed it.
+            self._git(plan.checkout, "push", "--force-with-lease", "origin", plan.branch)
+            self._record(commit=plan.commit)
         if wait or merge:
             checks = self.wait_for_checks(int(pr["number"]), timeout=timeout)
         else:
