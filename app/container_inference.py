@@ -22,7 +22,7 @@ NETWORK = "aeion-playground-inference"
 GATEWAY_CONTAINER = "aeion-playground-inference-gateway-1"
 LIMITS = {"memory_bytes": 1024 * 1024 * 1024, "cpus": 1, "pids": 128,
           "scratch_bytes": 256 * 1024 * 1024, "file_bytes": 4 * 1024 * 1024,
-          "open_files": 256, "deadline_seconds": 180, "output_bytes": 2 * 1024 * 1024}
+          "open_files": 256, "deadline_seconds": 300, "output_bytes": 2 * 1024 * 1024}
 
 
 class GatewayClient:

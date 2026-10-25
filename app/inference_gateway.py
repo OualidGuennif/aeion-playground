@@ -26,11 +26,12 @@ MAX_REQUEST = 1024 * 1024
 MAX_RESPONSE = 2 * 1024 * 1024
 MAX_PROMPT = 512 * 1024
 MAX_OUTPUT_TOKENS = 16384
-# The role container is admitted for 180 seconds. The mediator must not cut a
+# The role container is admitted for 300 seconds. The mediator must not cut a
 # still-running upstream earlier: a 90-second cap killed a legitimate reasoning
-# stream at 91.7 seconds, which the gateway could only record as unknown. Keep a
-# margin so the role can receive the end of stream and settle its own report.
-UPSTREAM_DEADLINE = 170
+# stream at 91.7 seconds, and a 170-second cap cut another at 169 seconds; both
+# could only be recorded as unknown. Keep a margin so the role can receive the end
+# of stream and settle its own report.
+UPSTREAM_DEADLINE = 290
 UPSTREAM_PATHS = {"opencode": "/inference/openai/v1/chat/completions",
                   "opencode-go": "/inference/go/openai/v1/chat/completions"}
 MODELS = {"opencode/deepseek-v4.1-flash-free", "opencode/glm-5.3-flash-free",
