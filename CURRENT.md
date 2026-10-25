@@ -114,3 +114,19 @@ est la référence : toute décision doit pouvoir être rattachée à une ligne 
 - 2026-10-25 05:5x : **sixième release et arrêt budgétaire** — `PD-032` (`TCK-218D9489`, *Add the refund CSV endpoint*, risque low) : auteur GLM 4 654/4 950 (0,003173 $), reviewer DeepSeek 5 607/9 530 (0,006559 $) `OK`, worker 17/17, acceptance 17/17, Gate `CLEAN`, un fichier +41 lignes, packet `sha256:cb2dca37…`, release `393f3fe`, PR-006 auto-mergée. `GET /api/refunds.csv` est live (text/csv, pièce jointe, en-tête + lignes). Le test CSV dédié manque encore : `PD-029` a échoué à la compilation (TEST_EXECUTION_ERROR, 0,005901 $), `PD-030` a épuisé la borne de 16 384 tokens (0,008898 $), `PD-034` a produit un test correct mais a remboursé PD-1049, en collision avec `RefundLedgerTest` (TEST_FAILURE, 0,005662 $), et `PD-035` a dépassé la borne de 2 Mio de réponse (réservation de 2 $ réconciliée). `PD-033` a été refusé `STALE_BASE` après la livraison de PD-032 ; `PD-036` a été refusé `BUDGET_RESERVATION_DENIED` car 8,162985 $ d'exposition + 2 $ dépassent le plafond de 10 $. Aucune nouvelle mission payante sans décision opérateur sur le plafond. La deadline du rôle passe à **300 s** et celle du médiateur à **290 s** (PD-031 avait été coupé à 169 s) ; la borne de réponse de 2 Mio reste un risque connu. Dépense rapportée 0,162985 $, réconciliée 8,000 $, exposition 8,162985 $, aucun essai non réglé.
 
 - 2026-10-25 06:2x : **P7, second drill sans override** — clone public de `main bccb28f`, venv 3.12.8, lock à hashes, `check_publication` OK, **465 passed / 15 skipped** (163,70 s). Stack `aeion-qual` **sans override de nom de conteneur** : l'agent découvre `aeion-qual-inference-gateway-1` par le label Compose, probe `ready`, cockpit `agent ready`, `/`, `/parceldesk`, `/warehouse`, API et web à 200, `GET /api/refunds.csv` sert l'en-tête et PD-1050. Première mission `PD-001` (`PD00`, `fresh2-pd00-20261025`) : worker réel 12/19, Gate `NO_PATCH`, packet `sha256:1c370bf8…` valide, 1 mission / 11 événements, aucun modèle, 0 $. Le premier essai a réutilisé les volumes `aeion-qual` de la veille avec un ancien mot de passe Postgres ; seuls les volumes du projet temporaire ont été supprimés. La stack live a été remise en service et revérifiée.
+
+- 2026-10-25 08:2x : **revue visuelle et patch opérateur du web** — la revue a trouvé que
+  `fresh.gen.ts` (PD-028, identique à PD-032) omettait `./routes/_app.tsx` : pas de topbar,
+  pas de `app.css`, pas de `app.js`, canvas Three.js vide. Un second défaut : `warehouse.js`
+  ne retirait jamais `.scene-loading`. Preuve en conteneur temporaire puis en live avec
+  Chrome headless 1440×1500 + SwiftShader : topbar 65 px, canvas 942×498, contexte WebGL,
+  renderer SwiftShader, scène et ledger rendus, `40.00 refunded · Damaged in transit ·
+  2026-10-17`; seul 404 console `/favicon.ico`. Comme l'inférence payante est arrêtée à
+  8,162985 $/10 $, aucun release Factory n'a été tenté : patch opérateur local, sans packet,
+  basé sur une copie de PD-032, image
+  `aeion-parceldesk-web:operator-appfix-20261025` (`sha256:3a9f5561…`), alias `:1`, ancienne
+  image scellée conservée en `:sealed-before-appfix-20261025` (`sha256:7eef6db2…`), patch
+  `sha256:025e6f9b…`. Les packets PD-028/PD-032 et les releases sont inchangés. Limite :
+  `docker compose build parceldesk-web` depuis `compose.yaml` annule le patch ; un vrai
+  release reste à faire. Détails hors Git :
+  `runtime/operator-patches/parceldesk-web-appfix-20261025/`.
