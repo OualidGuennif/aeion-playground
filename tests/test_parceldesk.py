@@ -123,6 +123,46 @@ def ticket_patch_runner(**kwargs):
     return result("forge", num_turns=1, result_text=json.dumps({"patch": patch, "summary": "Repair started-kilogram rounding."}))
 
 
+def linked_ticket(runtime):
+    ticket = runtime.parceldesk.create_ticket(
+        title="Repair started-kilogram rounding",
+        outcome="A 1,001 g parcel is quoted at 8.00 EUR, not 5.00 EUR.",
+        area="pricing", risk="high",
+        acceptance="The started-kilogram boundary cases pass and existing behaviour is unchanged.",
+    )
+    mission = runtime.engine.launch_ticket(
+        request_id=f"ticket-{ticket['id']}", title=ticket["title"], outcome=ticket["outcome"],
+        area=ticket["area"], risk=ticket["risk"], acceptance=ticket["acceptance"],
+    )
+    runtime.parceldesk.link_ticket(ticket["id"], mission["id"])
+    runtime.engine.ticket_store = runtime.parceldesk
+    return ticket, mission
+
+
+def test_a_blocked_mission_closes_its_linked_ticket(runtime):
+    ticket, mission = linked_ticket(runtime)
+    assert runtime.parceldesk.summary()["open_tickets"] == 1
+    runtime.engine._block(mission["id"], "TEST_FAILURE", "Two started-kilogram cases failed.")
+    closed = runtime.parceldesk.ticket(ticket["id"])
+    assert closed["status"] == "blocked"
+    assert "Two started-kilogram cases failed." in closed["error"]
+    assert runtime.parceldesk.summary()["open_tickets"] == 0
+
+
+def test_an_approved_mission_closes_the_ticket_and_publishes_a_release(runtime):
+    ticket, mission = linked_ticket(runtime)
+    scenario = json.loads(runtime.store.mission(mission["id"])["contract_json"])["scenario"]
+    runtime.monkeypatch.setattr(runtime.module, "agent_runner", SimpleNamespace(run=ticket_patch_runner))
+    runtime.engine._execute_mission(mission["id"], scenario)
+    assert runtime.store.mission(mission["id"])["status"] == "awaiting_human"
+    assert runtime.parceldesk.ticket(ticket["id"])["status"] == "running"
+    assert runtime.engine.approve(mission["id"])
+    assert runtime.store.mission(mission["id"])["status"] == "completed"
+    assert runtime.parceldesk.ticket(ticket["id"])["status"] == "completed"
+    assert runtime.parceldesk.summary()["open_tickets"] == 0
+    assert json.loads(runtime.store.get_kv("product_head") or "{}")["mission"] == mission["id"]
+
+
 def test_a_ticket_mission_runs_the_full_loop(runtime):
     mission = runtime.engine.launch_ticket(
         request_id="ticket-loop", title="Repair started-kilogram rounding",

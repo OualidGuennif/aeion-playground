@@ -22,6 +22,10 @@ from .pricing import quote_or_error
 from .real_engine import VERSION, engine
 from .store import store
 
+# The warehouse board reads live mission state, but its open-ticket count comes
+# from the ParcelDesk store. Close a linked ticket when its mission is terminal.
+engine.ticket_store = parceldesk_store
+
 BASE_DIR = Path(__file__).resolve().parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 ASSET_VERSION = str(int(time.time()))
