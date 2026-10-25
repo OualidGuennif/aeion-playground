@@ -251,9 +251,21 @@ allowlist omitted `refunds.csv`; after the manual proxy fix, `GET /api/refunds.c
 the live web returns **200**, `text/csv`, `attachment; filename="refunds.csv"`, the header
 and the PD-1050 row.
 
+### Gate-reviewed local product patch, 2026-10-25
+
+PD-045, PD-046 and PD-047 all failed to seal the proxy through model-generated patches.
+A separate operator path now exists: `POST /api/parceldesk/tickets/local` admits an exact
+unified diff for a product ticket, runs the trusted product suites, and still sends the
+result to the Gate. It does not call a model and cannot self-approve.
+
+**PD-048** used that path with the 6-added/3-removed proxy diff. It applied cleanly, ran
+**17/17** tests, recorded **no agent runs** and **$0.00**, and stopped at
+`HUMAN_CHECKPOINT` (Paperclip **AEI-13**). It is awaiting the operator's approval; no seal,
+release or delivery exists yet. Budget is unchanged at **$10.203658 / $30**.
+
 The failed attempts remain in the ledger and are documented in
 [`parceldesk-product.md`](parceldesk-product.md): completion-bound truncation (PD-011/PD-015,
-now 16,384 tokens), a corrupt/miscounted unified diff (PD-012/PD-013/PD-018, now
+now 32,768 tokens), a corrupt/miscounted unified diff (PD-012/PD-013/PD-018, now
 `--unidiff-zero --recount`), the unknown stream (PD-014, conservative settlement), and
 reviewer-route misclassification (PD-016/PD-017/PD-019, fixed in the router).
 

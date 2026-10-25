@@ -182,6 +182,30 @@ def api_parceldesk_ticket(payload: dict[str, Any] = Body(...)) -> JSONResponse:
     return JSONResponse({"ok": True, "ticket": _decorate_ticket(ticket), "mission": mission})
 
 
+@app.post("/api/parceldesk/tickets/local")
+def api_parceldesk_ticket_local(payload: dict[str, Any] = Body(...)) -> JSONResponse:
+    """Admit an operator-supplied product patch; the Gate still requires approval."""
+    try:
+        data = LocalTicketRequest(**payload).model_dump()
+    except ValidationError as error:
+        return JSONResponse({"ok": False, "error": "Invalid ticket: " + error.errors()[0]["msg"]}, status_code=422)
+    patch = data.pop("patch")
+    try:
+        ticket = parceldesk_store.create_ticket(**data)
+    except ValueError as error:
+        return JSONResponse({"ok": False, "error": str(error)}, status_code=422)
+    try:
+        mission = engine.launch_ticket(request_id=f"local-{ticket['id']}", local_patch=patch, **data)
+    except ValueError as error:
+        ticket = parceldesk_store.fail_ticket(ticket["id"], str(error))
+        return JSONResponse({"ok": False, "ticket": _decorate_ticket(ticket), "error": str(error)}, status_code=422)
+    except RuntimeError as error:
+        ticket = parceldesk_store.fail_ticket(ticket["id"], str(error))
+        return JSONResponse({"ok": False, "ticket": _decorate_ticket(ticket), "error": str(error)}, status_code=409)
+    ticket = parceldesk_store.link_ticket(ticket["id"], mission["id"])
+    return JSONResponse({"ok": True, "ticket": _decorate_ticket(ticket), "mission": mission})
+
+
 @app.get("/api/quote")
 def api_quote(
     grams: int = Query(default=1_200, ge=0, le=30_000),
@@ -204,6 +228,10 @@ class TicketRequest(BaseModel):
     acceptance: str = Field(min_length=10, max_length=2000)
     constraints: str = Field(default="", max_length=1000)
     product: str = Field(default="legacy", pattern=r"^(legacy|product)$")
+
+
+class LocalTicketRequest(TicketRequest):
+    patch: str = Field(min_length=10, max_length=64_000)
 
 
 class MissionRequest(BaseModel):

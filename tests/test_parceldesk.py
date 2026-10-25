@@ -108,6 +108,46 @@ def test_ticket_endpoint_links_the_mission_and_rejects_invalid_input(runtime):
     assert bad.status_code == 422
 
 
+def test_local_ticket_endpoint_admits_a_product_patch_without_a_model(runtime, monkeypatch):
+    captured = {}
+    original = runtime.engine._admit_scenario
+    def capture(scenario, **kwargs):
+        captured["scenario"] = scenario
+        captured["request"] = kwargs["request"]
+        return {"id": "PD-LOCAL", "status": "queued"}
+    monkeypatch.setattr(runtime.engine, "_admit_scenario", capture)
+    client = TestClient(runtime.main.app, base_url="http://127.0.0.1")
+    patch = """diff --git a/product/frontend/routes/api/[...path].ts b/product/frontend/routes/api/[...path].ts
+--- a/product/frontend/routes/api/[...path].ts
++++ b/product/frontend/routes/api/[...path].ts
+@@ -4,1 +4,1 @@
+-const ALLOWED = new Set(["orders", "summary", "pulls", "health"]);
++const ALLOWED = new Set(["orders", "summary", "pulls", "health", "refunds.csv"]);
+"""
+    response = client.post("/api/parceldesk/tickets/local", json={
+        "title": "Seal the refunds CSV proxy route",
+        "outcome": "The proxy serves the refunds CSV instead of a 404.",
+        "area": "refunds", "risk": "medium",
+        "acceptance": "The proxy route allows refunds.csv and forwards the CSV.",
+        "product": "product", "patch": patch,
+    })
+    assert response.status_code == 200, response.text
+    assert captured["scenario"]["kind"] == "local-patch"
+    assert captured["scenario"]["patch"] == patch
+    assert captured["scenario"]["test_profile"] == "product"
+    assert captured["scenario"]["source"] == "parceldesk-product"
+    assert captured["request"]["patch_digest"]
+    assert response.json()["ticket"]["mission_id"] == "PD-LOCAL"
+    bad = client.post("/api/parceldesk/tickets/local", json={
+        "title": "Seal the refunds CSV proxy route",
+        "outcome": "The proxy serves the refunds CSV instead of a 404.",
+        "area": "refunds", "risk": "medium",
+        "acceptance": "The proxy route allows refunds.csv and forwards the CSV.",
+        "product": "product", "patch": "short",
+    })
+    assert bad.status_code == 422
+
+
 def ticket_patch_runner(**kwargs):
     if kwargs.get("review"):
         return result("sentinel", verdict="OK", reason="Bounded rounding repair.")

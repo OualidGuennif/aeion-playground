@@ -410,6 +410,7 @@ class RealEngine:
     def launch_ticket(
         self, *, request_id: str, title: str, outcome: str, area: str,
         risk: str, acceptance: str, constraints: str = "", product: str = "legacy",
+        local_patch: str | None = None,
     ) -> dict[str, Any]:
         """Admit a structured ParcelDesk ticket as a bounded agent mission.
 
@@ -438,6 +439,12 @@ class RealEngine:
             raise ValueError("Unknown ticket product.")
         if any("\0" in value for value in (title, outcome, acceptance, constraints)):
             raise ValueError("Ticket text contains a NUL byte.")
+        if local_patch is not None and (
+            not isinstance(local_patch, str)
+            or not 10 <= len(local_patch) <= 64_000
+            or "\0" in local_patch
+        ):
+            raise ValueError("A local patch must be 10–64,000 characters without NUL.")
         if product == "product":
             task = (
                 "ParcelDesk product improvement ticket.\n"
@@ -508,8 +515,12 @@ class RealEngine:
         if product == "product":
             scenario["test_profile"] = "product"
             scenario["source"] = "parceldesk-product"
+        if local_patch is not None:
+            scenario.update(kind="local-patch", patch=local_patch)
         request = {"type": "parceldesk-ticket", "title": title, "outcome": outcome,
                    "area": area, "risk": risk, "acceptance": acceptance, "product": product}
+        if local_patch is not None:
+            request["patch_digest"] = _sha(local_patch)
         with self._lock:
             return self._admit_scenario(scenario, request_id=request_id, request=request, defer=False)
 

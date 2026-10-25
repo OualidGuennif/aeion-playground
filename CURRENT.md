@@ -211,3 +211,16 @@ est la référence : toute décision doit pouvoir être rattachée à une ligne 
   42 tickets, exposition `10,203658 $ / 30 $` (0,203658 $ rapportés + 10 $ réconciliés),
   aucun essai non réglé. Prochaine stratégie : patch local produit revu par le Gate, ou
   hunk exact plus petit ; ne plus relancer le même ticket.
+
+- 2026-10-25 11:2x : **patch local produit revu par le Gate** — ajout du chemin opérateur
+  `POST /api/parceldesk/tickets/local` : un diff unifié exact est admis comme
+  `local-patch`, sans appel modèle, avec les suites produit de confiance et le Gate.
+  **PD-048** a appliqué le diff proxy (6 lignes ajoutées / 3 retirées) sur la release
+  PD-044 : **17/17** tests, **0 run**, **0 $**, diff `sha256:bd484609…`, Gate
+  **`HUMAN_CHECKPOINT`** (« review not OK; review family not independent »), Paperclip
+  **AEI-13**. La mission est `awaiting_human` : aucune release, aucun scellé et aucune
+  livraison tant que l'opérateur n'a pas approuvé. Budget inchangé
+  `10,203658 $ / 30 $`, aucun essai non réglé ; 48 missions, 597 événements, 43 tickets
+  (1 ouvert). Cockpit reconstruit `sha256:b58bd660…`. Approbation :
+  `POST /api/missions/PD-048/approve`, puis vérification live
+  `GET /api/refunds.csv` et relance du scellement.
