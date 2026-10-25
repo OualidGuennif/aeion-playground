@@ -32,3 +32,14 @@ export function mergeable(pull: {
     ["OPEN", "APPROVED"].includes((pull.status ?? "").toUpperCase())
   );
 }
+
+export function refundNote(order: {
+  status?: string;
+  refundAmountCents?: number | null;
+  refundReason?: string | null;
+}): string | null {
+  if ((order.status ?? "").toUpperCase() !== "REFUNDED") return null;
+  const amount = money(order.refundAmountCents ?? 0);
+  const reason = order.refundReason?.trim() ? order.refundReason.trim() : "reason not recorded";
+  return `${amount} refunded · ${reason}`;
+}
