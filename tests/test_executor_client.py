@@ -97,6 +97,7 @@ def test_remote_executor_admits_editor_missions_as_text_patches(runtime):
     mission = engine.launch_mission("PD01", request_id="remote-patch-protocol", defer=True)
     contract = json.loads(mission["contract_json"])
     assert contract["scenario"]["protocol"] == PATCH_PROTOCOL
+    assert contract["scenario"]["allowed_paths"] == ["app/**", "tests/**"]
 
 
 def test_in_process_executor_keeps_editor_mode(runtime):
