@@ -5,9 +5,10 @@ The `ExecutorClient` interface, the host agent (`probe`, `run_tests`, `run_role`
 cockpit image and Compose service exist. A cockpit container ran PD00 and PD03 end to end
 through the agent, with the worker's real Docker flags. A full live PD01 mission and a
 bounded Factory ticket then ran through the containerised cockpit, host agent and paid
-models; the ticket published a local Git release. A same-host backup/restore drill has
-also passed. The agent-kill test, a fresh-host install and an off-host restore are still
-missing; each remaining item is listed below and none is implied by a configuration file.
+models; the ticket published a local Git release. A same-host backup/restore drill and the
+agent-kill/orphan drill have also passed. A fresh-host install and an off-host restore are
+still missing; each remaining item is listed below and none is implied by a configuration
+file.
 
 ## The problem
 
@@ -102,12 +103,11 @@ Implemented properties:
 | 1 | cockpit container has no socket, host home or credentials, asserted from `docker inspect` | covered by the opt-in `tests/test_compose_stack.py` |
 | 2 | `run_tests` with an unprepared digest is refused and nothing is launched | covered by `tests/test_executor_agent.py` (fake workspace) |
 | 3 | missing/wrong token refused; a world-readable host token is refused at startup | covered by `tests/test_executor_agent.py` |
-| 4 | worker launched by the agent has `--network none`, read-only root, non-root, dropped caps, documented limits | **not written** — requires an opt-in Docker qualification |
-| 5 | killing the agent mid-run leaves no orphan container and records a blocked mission | **not written** |
+| 4 | worker launched by the agent has `--network none`, read-only root, non-root, dropped caps, documented limits | covered by the opt-in `tests/test_docker_isolation.py`; the hosted `docker-tests` job builds the worker image and runs it with `AEION_DOCKER_TESTS=1` |
+| 5 | killing the agent mid-run records a blocked mission without replay and leaves no orphan | measured 2026-10-25: `PD-007` blocked `EXECUTION_FAILED` in the same second (0 runs, 0 cost, one `mission.started`), still blocked after the restart; the worker stayed running and the restart logged `removed 1 container(s) left by a previous run`; opt-in `tests/test_agent_kill.py` repeats the kill/reap half |
 | 6 | cockpit serves Mission Control and ParcelDesk with the agent stopped, reporting `executor unavailable` | covered by the hosted `stack-tests` job: it starts the cockpit with no host agent and checks `/`, `/parceldesk`, `/warehouse` and `/api/health` |
 | 7 | backup and restore of the cockpit state directory on the same host and image | measured 2026-10-25: 228,094-byte archive, SQLite integrity ok, 6 missions / 8 attempts / 3 tickets restored, PD-006 packet valid, `product_head` unchanged; off-host restore not tested |
-| 8 | killing the agent mid-run leaves no orphan container and records a blocked mission | **not written** — needs a live opt-in Docker qualification |
-| 9 | fresh-host install and first mission | **not tested** |
+| 8 | fresh-host install and first mission | **not tested** |
 
 The unit tests use a fake workspace and a fake role runner. They prove the protocol and
 the refusals; they do not prove container isolation. What was measured with real
@@ -140,6 +140,50 @@ backup. It does not simulate disk corruption. The archive contains `runtime/cock
 `runtime/secrets/executor_agent` and the gateway credential are separate files that a new
 host must provision. The archive includes the local ledger, including the bound model
 outputs stored in `agent_runs`, so it must stay outside Git and off shared storage.
+
+### Agent-kill drill — 2026-10-25
+
+Measured on the live stack, with no model call and no provider credential:
+
+1. Added one temporary sleeping test to the baked sandbox, rebuilt the cockpit and launched
+   `PD03` (`request_id qual-agent-kill-20261025T012706Z`) as `PD-007`.
+2. At `01:27:11Z`, while its worker container had been up for three seconds, killed the host
+   executor agent (`SIGKILL`, pid 87613) and its Docker client.
+3. The mission blocked in the same second: `EXECUTION_FAILED`,
+   `ExecutorUnavailable: Executor agent unavailable: Remote end closed connection without
+   response`; no model run, no token, no cost. Its events hold exactly one
+   `mission.started` and one `mission.blocked`.
+4. The worker (`aeion-test-2cf3fca9bace46429d62104f99981442`, id `fa525fab2d85`) stayed
+   running: `--rm` only removes a container at exit, and the killed agent's cleanup never
+   ran.
+5. Restarted the agent (pid 94383) on the same state directory. Before serving, it listed
+   only its own owner label and logged `removed 1 container(s) left by a previous run`; the
+   worker was removed while its 30-second test was still running. The restart landed just
+   before that deadline; the opt-in test below repeats the reap with a strict 10-second
+   bound.
+6. Waited, then re-read the mission: still `blocked` / `EXECUTION_FAILED`, one
+   `mission.started`, zero runs. No automatic replay.
+7. Removed the temporary test, rebuilt, and verified `template_digest` returned to
+   `c3ce129af915ca90d11e68daf55a605c7032bafb811a8767bbf089105c2e3c02` (the PD-006 value),
+   `/warehouse` returned 200 and `open_tickets` was 0.
+
+The hosted Docker job that repeats the drill exposed a second defect: the agent's
+`umask 077` left the worker snapshot directories at 0700, so the container's uid 65532
+could not traverse `/work` on Linux (`Permission denied: '/work'`). Docker Desktop masked
+it on macOS. Snapshot directories are now normalized to 0755 while files stay 0444, with a
+unit test that builds the snapshot under the same umask.
+
+The ledger records `operator.agent_kill_drill` on `PD-007` with the container identity, both
+agent pids, zero model calls and the reap count. `PD-007` stays blocked in the demo
+history as a drill: it is not an acceptance, has no sealed packet and publishes nothing.
+
+Limits: the killed container was a test worker, not a paid role. Role containers carry the
+same owner label and take the same cleanup path, but that path was not exercised with a
+live model. Reaping runs only at agent start: while the agent is down, the orphan survives.
+A killed agent can leave owner-only scratch directories under
+`runtime/executor-agent/{roles,runs}`, which are not pruned. The opt-in
+`tests/test_agent_kill.py` (`AEION_DOCKER_TESTS=1`) repeats the kill/reap half on a
+throwaway agent and worker, without the live cockpit or a model.
 
 ## Running the agent today
 

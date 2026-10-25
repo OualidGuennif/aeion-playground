@@ -17,7 +17,7 @@ evidence; they are not copied into this public repository or replayed for activi
 | Observability | Real collector/export with task/run/digest linkage and unavailable states | Local pinned collector, metadata-only logs/spans, real outage/restart and privacy qualification; at-least-once IDs |
 | Context | Scoped provenance/freshness, no automatic private sibling sources | Partial |
 | GitHub delivery | Dedicated demo scope, branch/PR/checks tied to exact head, separate human merge authority | Pending |
-| Qualification | Fresh install, escape/failure/recovery tests, backup/restore and documented limits | Same-host cockpit backup/restore drilled on 2026-10-25 (228,094-byte archive, integrity ok, 6 missions / 8 attempts / 3 tickets restored, PD-006 packet valid); agent-kill/orphan test, fresh-host install and off-host restore still pending |
+| Qualification | Fresh install, escape/failure/recovery tests, backup/restore and documented limits | Same-host cockpit backup/restore drilled on 2026-10-25 (228,094-byte archive, integrity ok, 6 missions / 8 attempts / 3 tickets restored, PD-006 packet valid); agent-kill drill measured the same day (PD-007 blocked `EXECUTION_FAILED` with 0 runs and 0 cost; the orphan worker was reaped on the next agent start, no replay); fresh-host install and off-host restore still pending |
 
 Preserve existing source designs and sealed local history throughout. No public application
 hosting or production access is implied by publishing this source repository.
