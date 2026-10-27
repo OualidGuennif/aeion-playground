@@ -167,17 +167,20 @@ remains `fc6ca0d`. The API image was promoted from PD-032 and the web image from
   `health`. The manual proxy fix adds `refunds.csv` and forwards `Content-Disposition`; it is
   covered by `tests/csv_proxy_test.ts`. PD-045 (`MODEL_PATCH_INVALID`, `$0.000944`),
   PD-046 (`AGENT_BLOCKED` length, `$0.010630`) and PD-047 (`MODEL_PATCH_INVALID` after the
-  bound was raised to 32,768, `$0.006958`) all failed to seal it, so the proxy fix is
-  **not** in a sealed packet. PD-047 finished at 10,264 output tokens, proving the larger
-  bound removed the length stop but not the invalid-diff failure.
+  bound was raised to 32,768, `$0.006958`) all failed to seal it. PD-047 finished at 10,264
+  output tokens, proving the larger bound removed the length stop but not the invalid-diff
+  failure. **PD-048** then sealed the same proxy diff through the operator local-patch path,
+  with human approval.
   The live web (`sha256:e8b62b77…`) serves `GET /api/refunds.csv` as 200 `text/csv` with the
   attachment header and the PD-1050 row.
 
 - A Gate-reviewed local-patch path (`POST /api/parceldesk/tickets/local`) admits an exact
   operator diff without a model call. **PD-048** applied the proxy diff (6 added / 3
   removed), ran **17/17**, recorded no agent runs and `$0.00`, and stopped at
-  `HUMAN_CHECKPOINT` (Paperclip **AEI-13**). It is awaiting operator approval; no release
-  exists yet.
+  `HUMAN_CHECKPOINT` (Paperclip **AEI-13**). The operator then approved it: the packet is
+  sealed `HUMAN_APPROVED`, local delivery is commit `4a6be70`, and the product head is now
+  PD-048. The `_app` manifest registration is still a manual follow-up and is **not** in
+  this release.
 
 ### Reliability fixes found by the live tickets
 

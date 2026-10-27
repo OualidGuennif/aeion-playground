@@ -260,8 +260,11 @@ result to the Gate. It does not call a model and cannot self-approve.
 
 **PD-048** used that path with the 6-added/3-removed proxy diff. It applied cleanly, ran
 **17/17** tests, recorded **no agent runs** and **$0.00**, and stopped at
-`HUMAN_CHECKPOINT` (Paperclip **AEI-13**). It is awaiting the operator's approval; no seal,
-release or delivery exists yet. Budget is unchanged at **$10.203658 / $30**.
+`HUMAN_CHECKPOINT` (Paperclip **AEI-13**). The operator approved it; the packet is sealed
+with `HUMAN_APPROVED`, the local release is commit `4a6be70`, and `product_head:product`
+now points at PD-048. Local delivery re-ran the **17/17** product tests in the Docker pytest
+executor. Paperclip **AEI-13** is `done`; budget is unchanged at
+**$10.203658 / $30**.
 
 The failed attempts remain in the ledger and are documented in
 [`parceldesk-product.md`](parceldesk-product.md): completion-bound truncation (PD-011/PD-015,

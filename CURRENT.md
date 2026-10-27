@@ -224,3 +224,16 @@ est la référence : toute décision doit pouvoir être rattachée à une ligne 
   (1 ouvert). Cockpit reconstruit `sha256:b58bd660…`. Approbation :
   `POST /api/missions/PD-048/approve`, puis vérification live
   `GET /api/refunds.csv` et relance du scellement.
+
+- 2026-10-27 22:4x : **PD-048 approuvé, scellé et livré localement** — l'opérateur a
+  approuvé le checkpoint (`POST /api/missions/PD-048/approve`). Le packet est scellé
+  `HUMAN_APPROVED` avec `human_approval=operator`, diff `sha256:bd484609…`, **17/17**
+  tests, **0 run agent**, **0 $**, Paperclip **AEI-13** `done`. La livraison locale a
+  produit le commit `4a6be7044024f2e017d39ec45ad1d1e49ec0d571` (parent `8733f9c`) ;
+  `product_head:product` pointe désormais **PD-048**. Le redémarrage de Docker Desktop a
+  interrompu la première reprise du cockpit (`Waiting for application startup`) ; après
+  redémarrage, `recover_interrupted` a terminé la livraison locale et le cockpit est
+  `healthy`. État mesuré : 48 missions, 603 événements, 43 tickets, **0 ouvert**,
+  exposition `10,203658 $ / 30 $`, aucun essai non réglé. `GET /api/refunds.csv` reste
+  **200** avec `text/csv` et `Content-Disposition`. Limite : le manifeste `_app` reste
+  manuel et n'est pas dans la release PD-048 ; la livraison GitHub distante reste bloquée.
