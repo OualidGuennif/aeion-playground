@@ -201,6 +201,27 @@ owner's approval instead of self-approving.
 The accepted patch becomes a **local Git release** under `runtime/releases/`. It is not
 hot-deployed to the quote reference; the release is the artifact to inspect and promote.
 
+## Keep the Factory alive
+
+The cockpit is not a replay: every mission below is a real model patch, a real
+review, a trusted test run, a Gate decision and a sealed local release. To make
+the board move without clicking, run the host-side pulse:
+
+```sh
+.venv/bin/python scripts/pulse.py --dry-run
+.venv/bin/python scripts/pulse.py --interval-minutes 12 --max-runs 24 --max-exposure-usd 20
+```
+
+It admits a low-risk product ticket every 12 minutes (five per hour), waits for
+each mission, and stops on the local exposure cap, an unsettled attempt, a
+human checkpoint, three consecutive failures or `touch runtime/pulse/stop`. It
+never approves a checkpoint, pushes or deploys. The checked-in backlog is
+`config/pulse-tickets.json`; the full guide, safety rules and measured cost are
+in [docs/autonomous-demo.md](docs/autonomous-demo.md).
+
+The UI already polls `/api/snapshot` every 1.2 seconds, so new missions and
+agent steps appear while the pulse runs. Paperclip gets one issue per mission.
+
 ## Install and run
 
 Requires Python 3.12, Git and a running Docker Engine/Desktop with Linux containers.

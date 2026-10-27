@@ -102,6 +102,15 @@ def main() -> int:
           + (f"  ({paperclip['error']})" if paperclip["error"] else ""))
     print(f"  product    web HTTP {web_status} · api HTTP {product_status} · {product.get('orders', '?')} orders · "
           f"{product.get('refunds', '?')} refunded · {refund_note}")
+    pulse_path = ROOT / "runtime/pulse/status.json"
+    try:
+        pulse = json.loads(pulse_path.read_text())
+    except (OSError, ValueError):
+        pulse = None
+    if isinstance(pulse, dict):
+        print(f"  pulse      {pulse.get('state', '?')} · {pulse.get('runs', 0)} run(s) · "
+              f"last {pulse.get('last_mission') or '—'} {pulse.get('last_status') or ''} · "
+              f"next {pulse.get('next_at') or '—'}")
     print(f"  links      {COCKPIT}/  ·  {WEB}/  ·  {PAPERCLIP}/")
     return 0 if cockpit_status == 200 and product_status == 200 and web_status == 200 else 1
 

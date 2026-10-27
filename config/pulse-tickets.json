@@ -1,0 +1,137 @@
+{
+  "schema": "aeion.pulse/v1",
+  "tickets": [
+    {
+      "id": "frontend-money-edge",
+      "title": "Add money edge-case tests",
+      "outcome": "The frontend format tests cover zero, one cent and ninety-nine cent amounts.",
+      "area": "warehouse",
+      "risk": "low",
+      "acceptance": "Create exactly product/frontend/tests/money_edge_test.ts. Import money from ../lib/format.ts and assert money(0).includes('0.00'), money(1).includes('0.01') and money(99).includes('0.99') are all true. Do not modify production code or existing tests. The full product suite passes.",
+      "constraints": "Add one frontend test file only; no production behavior change.",
+      "product": "product",
+      "target_file": "product/frontend/tests/money_edge_test.ts"
+    },
+    {
+      "id": "frontend-short-date-edge",
+      "title": "Add short date edge-case tests",
+      "outcome": "The frontend format tests cover a plain date, a timestamp and an empty value.",
+      "area": "warehouse",
+      "risk": "low",
+      "acceptance": "Create exactly product/frontend/tests/short_date_edge_test.ts. Import shortDate from ../lib/format.ts and assert shortDate('2026-10-22') === '2026-10-22', shortDate('2026-10-22T23:59:59Z') === '2026-10-22' and shortDate('') === '—'. Do not modify production code or existing tests. The full product suite passes.",
+      "constraints": "Add one frontend test file only; no production behavior change.",
+      "product": "product",
+      "target_file": "product/frontend/tests/short_date_edge_test.ts"
+    },
+    {
+      "id": "frontend-mergeable-edge",
+      "title": "Add mergeable edge-case tests",
+      "outcome": "The frontend format tests cover empty pulls, approved pulls and merged pulls.",
+      "area": "warehouse",
+      "risk": "low",
+      "acceptance": "Create exactly product/frontend/tests/mergeable_edge_test.ts. Import mergeable from ../lib/format.ts and assert mergeable({}) === false, mergeable({status:'OPEN', checks:{tests:{passed:1,total:1}}, review:{verdict:'ok'}}) === true, mergeable({status:'APPROVED', checks:{tests:{passed:1,total:1}}, review:{verdict:'OK'}}) === true and mergeable({status:'MERGED', checks:{tests:{passed:1,total:1}}, review:{verdict:'OK'}}) === false. Do not modify production code or existing tests. The full product suite passes.",
+      "constraints": "Add one frontend test file only; no production behavior change.",
+      "product": "product",
+      "target_file": "product/frontend/tests/mergeable_edge_test.ts"
+    },
+    {
+      "id": "frontend-refund-note-edge",
+      "title": "Add refund note edge-case tests",
+      "outcome": "The frontend format tests cover a zero refund with a blank reason and a non-refunded order.",
+      "area": "warehouse",
+      "risk": "low",
+      "acceptance": "Create exactly product/frontend/tests/refund_note_edge_test.ts. Import refundNote from ../lib/format.ts. For refundNote({status:'refunded', refundAmountCents:0, refundReason:'   '}) assert the result includes '0.00' and 'reason not recorded'. Assert refundNote({status:'DELIVERED', refundAmountCents:null, refundReason:null}) === null. Do not modify production code or existing tests. The full product suite passes.",
+      "constraints": "Add one frontend test file only; no production behavior change.",
+      "product": "product",
+      "target_file": "product/frontend/tests/refund_note_edge_test.ts"
+    },
+    {
+      "id": "frontend-status-case",
+      "title": "Add status label case tests",
+      "outcome": "The frontend format tests cover lowercase, uppercase and hyphenated status labels.",
+      "area": "warehouse",
+      "risk": "low",
+      "acceptance": "Create exactly product/frontend/tests/status_case_test.ts. Import statusLabel from ../lib/format.ts and assert statusLabel('in_transit') === 'In Transit', statusLabel('PACKING') === 'Packing' and statusLabel('on-hold') === 'On-hold'. Do not modify production code or existing tests. The full product suite passes.",
+      "constraints": "Add one frontend test file only; no production behavior change.",
+      "product": "product",
+      "target_file": "product/frontend/tests/status_case_test.ts"
+    },
+    {
+      "id": "frontend-short-date-iso",
+      "title": "Add ISO date parsing tests",
+      "outcome": "The frontend format tests cover timestamp and date-only inputs without shifting the day.",
+      "area": "warehouse",
+      "risk": "low",
+      "acceptance": "Create exactly product/frontend/tests/short_date_iso_test.ts. Import shortDate from ../lib/format.ts and assert shortDate('2026-01-02T00:00:00Z') === '2026-01-02', shortDate('2026-01-02') === '2026-01-02' and shortDate(undefined) === '—'. Do not modify production code or existing tests. The full product suite passes.",
+      "constraints": "Add one frontend test file only; no production behavior change.",
+      "product": "product",
+      "target_file": "product/frontend/tests/short_date_iso_test.ts"
+    },
+    {
+      "id": "frontend-mergeable-missing-review",
+      "title": "Add mergeable missing-review tests",
+      "outcome": "The frontend format tests reject pulls without green tests or a review verdict.",
+      "area": "warehouse",
+      "risk": "low",
+      "acceptance": "Create exactly product/frontend/tests/mergeable_missing_review_test.ts. Import mergeable from ../lib/format.ts and assert mergeable({status:'OPEN'}) === false, mergeable({status:'OPEN', checks:{tests:{passed:0,total:0}}, review:{verdict:'OK'}}) === false and mergeable({status:'OPEN', checks:{tests:{passed:2,total:2}}}) === false. Do not modify production code or existing tests. The full product suite passes.",
+      "constraints": "Add one frontend test file only; no production behavior change.",
+      "product": "product",
+      "target_file": "product/frontend/tests/mergeable_missing_review_test.ts"
+    },
+    {
+      "id": "frontend-refund-note-missing-amount",
+      "title": "Add refund note missing-amount tests",
+      "outcome": "The frontend format tests cover a missing amount and a whitespace-only reason.",
+      "area": "warehouse",
+      "risk": "low",
+      "acceptance": "Create exactly product/frontend/tests/refund_note_missing_amount_test.ts. Import refundNote from ../lib/format.ts. For refundNote({status:'REFUNDED', refundAmountCents:undefined, refundReason:'x'}) assert the result includes '0.00' and 'x'. For refundNote({status:'REFUNDED', refundAmountCents:1234, refundReason:'  '}) assert the result includes 'reason not recorded'. Do not modify production code or existing tests. The full product suite passes.",
+      "constraints": "Add one frontend test file only; no production behavior change.",
+      "product": "product",
+      "target_file": "product/frontend/tests/refund_note_missing_amount_test.ts"
+    },
+    {
+      "id": "frontend-money-thousands",
+      "title": "Add money thousands-separator tests",
+      "outcome": "The frontend format tests cover euro amounts above one thousand.",
+      "area": "warehouse",
+      "risk": "low",
+      "acceptance": "Create exactly product/frontend/tests/money_thousands_test.ts. Import money from ../lib/format.ts and assert money(123456).includes('1,234.56') and money(100000).includes('1,000.00'). Do not modify production code or existing tests. The full product suite passes.",
+      "constraints": "Add one frontend test file only; no production behavior change.",
+      "product": "product",
+      "target_file": "product/frontend/tests/money_thousands_test.ts"
+    },
+    {
+      "id": "frontend-status-empty",
+      "title": "Add status label empty-input tests",
+      "outcome": "The frontend format tests keep an empty status empty and preserve a single letter.",
+      "area": "warehouse",
+      "risk": "low",
+      "acceptance": "Create exactly product/frontend/tests/status_empty_test.ts. Import statusLabel from ../lib/format.ts and assert statusLabel('') === '', statusLabel('A') === 'A' and statusLabel('IN_TRANSIT') === 'In Transit'. Do not modify production code or existing tests. The full product suite passes.",
+      "constraints": "Add one frontend test file only; no production behavior change.",
+      "product": "product",
+      "target_file": "product/frontend/tests/status_empty_test.ts"
+    },
+    {
+      "id": "frontend-short-date-invalid",
+      "title": "Add invalid short-date tests",
+      "outcome": "The frontend format tests render a dash for invalid and null dates.",
+      "area": "warehouse",
+      "risk": "low",
+      "acceptance": "Create exactly product/frontend/tests/short_date_invalid_test.ts. Import shortDate from ../lib/format.ts and assert shortDate('not-a-date') === '—', shortDate(null) === '—' and shortDate('2026-13-40') === '—'. Do not modify production code or existing tests. The full product suite passes.",
+      "constraints": "Add one frontend test file only; no production behavior change.",
+      "product": "product",
+      "target_file": "product/frontend/tests/short_date_invalid_test.ts"
+    },
+    {
+      "id": "frontend-refund-note-case",
+      "title": "Add refund note status-case tests",
+      "outcome": "The frontend format tests treat refunded status case-insensitively and keep non-refunded orders empty.",
+      "area": "warehouse",
+      "risk": "low",
+      "acceptance": "Create exactly product/frontend/tests/refund_note_case_test.ts. Import refundNote from ../lib/format.ts. For refundNote({status:'refunded', refundAmountCents:1500, refundReason:'Damaged'}) assert the result includes '15.00' and 'Damaged'. Repeat for status 'Refunded'. Assert refundNote({status:'DELIVERED', refundAmountCents:1500, refundReason:'Damaged'}) === null. Do not modify production code or existing tests. The full product suite passes.",
+      "constraints": "Add one frontend test file only; no production behavior change.",
+      "product": "product",
+      "target_file": "product/frontend/tests/refund_note_case_test.ts"
+    }
+  ]
+}
