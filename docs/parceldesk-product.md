@@ -178,9 +178,16 @@ remains `fc6ca0d`. The API image was promoted from PD-032 and the web image from
   operator diff without a model call. **PD-048** applied the proxy diff (6 added / 3
   removed), ran **17/17**, recorded no agent runs and `$0.00`, and stopped at
   `HUMAN_CHECKPOINT` (Paperclip **AEI-13**). The operator then approved it: the packet is
-  sealed `HUMAN_APPROVED`, local delivery is commit `4a6be70`, and the product head is now
-  PD-048. The `_app` manifest registration is still a manual follow-up and is **not** in
-  this release.
+  sealed `HUMAN_APPROVED`, local delivery is commit `4a6be70`, and the product head became
+  PD-048. **PD-049** then sealed the `_app` manifest registration and the
+  `csv_proxy_test.ts`/`layout_test.ts` regression tests: **48 added lines**, **20/20** tests,
+  no agent runs, `$0.00`, commit `38b9180` (packet `sha256:67f51f69…`), Paperclip
+  **AEI-14**. **PD-050** then sealed the last manual backend test, `RefundCsvTest.java`
+  (**50 added lines**, **22/22** tests, no agent runs, `$0.00`, commit `48bb47b`, packet
+  `sha256:6d301fd1…`, Paperclip **AEI-15**). The product head is now PD-050 and the sealed
+  tree matches `sandbox/parceldesk/product` on `main`. The GitHub delivery dry-run reports
+  the release tree is already on the base branch, so there is no product diff left to
+  publish and no PR was created.
 
 ### Reliability fixes found by the live tickets
 

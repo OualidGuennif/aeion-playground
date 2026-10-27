@@ -266,6 +266,21 @@ now points at PD-048. Local delivery re-ran the **17/17** product tests in the D
 executor. Paperclip **AEI-13** is `done`; budget is unchanged at
 **$10.203658 / $30**.
 
+**PD-049** then sealed the remaining manual frontend state through the same path: the
+`_app` manifest registration plus the `csv_proxy_test.ts` and `layout_test.ts` regression
+tests, **48 added lines** across three files. It passed **20/20** tests, recorded **no agent
+runs** and **$0.00**, stopped at `HUMAN_CHECKPOINT` (Paperclip **AEI-14**), and was approved
+by the operator. The sealed local release is commit `38b9180` (packet `sha256:67f51f69…`),
+and `product_head:product` points at PD-049. The product release now rebuilds without the
+manual `_app` or test follow-ups.
+
+**PD-050** sealed the last manual backend test, `RefundCsvTest.java` (**50 added lines**):
+**22/22** tests, **no agent runs**, **$0.00**, `HUMAN_CHECKPOINT` (Paperclip **AEI-15**),
+operator approval, packet `sha256:6d301fd1…`, local release commit `48bb47b`. The product
+head is PD-050 and the sealed tree matches `sandbox/parceldesk/product` on `main`. The
+GitHub delivery dry-run therefore reports **“The release product tree is already on the
+base branch”**: there is no product diff left to publish, and no PR was created.
+
 The failed attempts remain in the ledger and are documented in
 [`parceldesk-product.md`](parceldesk-product.md): completion-bound truncation (PD-011/PD-015,
 now 32,768 tokens), a corrupt/miscounted unified diff (PD-012/PD-013/PD-018, now

@@ -237,3 +237,26 @@ est la référence : toute décision doit pouvoir être rattachée à une ligne 
   exposition `10,203658 $ / 30 $`, aucun essai non réglé. `GET /api/refunds.csv` reste
   **200** avec `text/csv` et `Content-Disposition`. Limite : le manifeste `_app` reste
   manuel et n'est pas dans la release PD-048 ; la livraison GitHub distante reste bloquée.
+
+- 2026-10-27 23:0x : **PD-049 scellé et livré : manifeste `_app` + tests** — l'opérateur a
+  approuvé le checkpoint de **PD-049**. Le patch local ajoute `./routes/_app.tsx` au
+  manifeste Fresh et les tests `csv_proxy_test.ts` / `layout_test.ts` : **48 lignes
+  ajoutées**, **20/20** tests, **0 run agent**, **0 $**, diff `sha256:cd954e79…`.
+  Packet scellé `HUMAN_APPROVED`, `human_approval=operator`, packet
+  `sha256:67f51f69…` (fichier `002b0638…`), Paperclip **AEI-14** `done`. Livraison locale :
+  commit `38b9180ce390c7a911453a18e124ac631123bb06` (parent `4a6be70`), `product_head`
+  = **PD-049**. Le produit scellé contient désormais le manifeste et les tests, donc la
+  livraison GitHub distante n'est plus bloquée par ces éléments manuels ; elle n'a pas été
+  lancée. Budget inchangé `10,203658 $ / 30 $`, 0 essai non réglé ; 49 missions,
+  618 événements, 44 tickets, **0 ouvert**. `GET /api/refunds.csv` reste **200**.
+
+- 2026-10-27 23:1x : **PD-050 scellé : dernier test backend, livraison GitHub sans diff** —
+  **PD-050** a scellé `RefundCsvTest.java` (**50 lignes ajoutées**) après approbation
+  humaine : **22/22** tests, **0 run**, **0 $**, diff `sha256:cb62cea8…`, packet
+  `sha256:6d301fd1…` (fichier `c1e57aeb…`), Paperclip **AEI-15** `done`, release locale
+  `48bb47bebd284eb631bb270bbe5dec8141dc93ea` (parent `38b9180`). `product_head` = **PD-050**.
+  Le dry-run `scripts/deliver_github.py --mission PD-050 --dry-run` répond « The release
+  product tree is already on the base branch » : l'arbre scellé est identique à
+  `sandbox/parceldesk/product` sur `main`, aucun diff produit ni PR à publier. Budget
+  inchangé `10,203658 $ / 30 $`, 0 essai non réglé ; 50 missions, 633 événements,
+  45 tickets, **0 ouvert**. `GET /api/refunds.csv` reste **200**.
