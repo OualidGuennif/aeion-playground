@@ -260,3 +260,15 @@ est la référence : toute décision doit pouvoir être rattachée à une ligne 
   `sandbox/parceldesk/product` sur `main`, aucun diff produit ni PR à publier. Budget
   inchangé `10,203658 $ / 30 $`, 0 essai non réglé ; 50 missions, 633 événements,
   45 tickets, **0 ouvert**. `GET /api/refunds.csv` reste **200**.
+
+- 2026-10-27 23:1x : **pulse autonome de la Factory** — ajout d'un pilote hôte
+  `scripts/pulse.py` (+ `app/pulse.py`) qui admet un ticket produit low-risk toutes les
+  12 minutes (5/heure) depuis `config/pulse-tickets.json`, attend chaque mission, et
+  s'arrête sur le plafond d'exposition, un essai non réglé, un checkpoint humain, trois
+  échecs consécutifs ou `runtime/pulse/stop`. Il n'approuve jamais, ne pousse rien et ne
+  contourne pas le Gate. Premiers passages réels : **PD-054** (money edge, 24/24, CLEAN,
+  livraison `de89d42f…`) et **PD-055** (short-date edge, 24/24, CLEAN, livraison
+  `28a117be…`), ~0,0028 $ chacun. Le pulse tourne en arrière-plan (pid dans
+  `runtime/pulse/pid`), état dans `runtime/pulse/status.json`, logs dans
+  `runtime/logs/pulse.out`. Tests unitaires du pulse : **6 passed**. Budget
+  `10,217100 $ / 30 $`, 0 essai non réglé. Docs : `docs/autonomous-demo.md`, README.
