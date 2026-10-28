@@ -407,6 +407,226 @@
       "constraints": "One frontend file, copy only.",
       "product": "product",
       "target_file": "product/frontend/routes/index.tsx"
+    },
+    {
+      "id": "test-money-negative",
+      "title": "Cover negative money values",
+      "outcome": "Money formatting is pinned for negative cent amounts.",
+      "area": "warehouse",
+      "risk": "low",
+      "acceptance": "Create product/frontend/tests/money_negative_test.ts importing money from ../lib/format.ts. Assert that money(-1) includes '0.01', money(-99) includes '0.99', and money(-100) includes '1.00'. Do not change product code, policy or configuration. The full product suite passes.",
+      "constraints": "One frontend test file; no product behavior change.",
+      "product": "product",
+      "target_file": "product/frontend/tests/money_negative_test.ts"
+    },
+    {
+      "id": "test-money-large",
+      "title": "Cover large money values",
+      "outcome": "Money formatting is pinned for million-euro amounts.",
+      "area": "warehouse",
+      "risk": "low",
+      "acceptance": "Create product/frontend/tests/money_large_test.ts importing money from ../lib/format.ts. Assert that money(100000000) includes '1,000,000.00' and money(123456789) includes '1,234,567.89'. Do not change product code, policy or configuration. The full product suite passes.",
+      "constraints": "One frontend test file; no product behavior change.",
+      "product": "product",
+      "target_file": "product/frontend/tests/money_large_test.ts"
+    },
+    {
+      "id": "test-money-rounding",
+      "title": "Cover money rounding boundaries",
+      "outcome": "Money formatting is pinned at cent rounding boundaries.",
+      "area": "warehouse",
+      "risk": "low",
+      "acceptance": "Create product/frontend/tests/money_rounding_test.ts importing money from ../lib/format.ts. Assert that money(1234) includes '12.34', money(1235) includes '12.35', and money(999) includes '9.99'. Do not change product code, policy or configuration. The full product suite passes.",
+      "constraints": "One frontend test file; no product behavior change.",
+      "product": "product",
+      "target_file": "product/frontend/tests/money_rounding_test.ts"
+    },
+    {
+      "id": "test-status-single-word",
+      "title": "Cover single-word status labels",
+      "outcome": "Single-word status labels are pinned in title case.",
+      "area": "warehouse",
+      "risk": "low",
+      "acceptance": "Create product/frontend/tests/status_single_word_test.ts importing statusLabel from ../lib/format.ts. Assert statusLabel('PACKING') is 'Packing' and statusLabel('transit') is 'Transit'. Do not change product code, policy or configuration. The full product suite passes.",
+      "constraints": "One frontend test file; no product behavior change.",
+      "product": "product",
+      "target_file": "product/frontend/tests/status_single_word_test.ts"
+    },
+    {
+      "id": "test-status-multi-underscore",
+      "title": "Cover multi-underscore status labels",
+      "outcome": "Status labels with several underscores are pinned.",
+      "area": "warehouse",
+      "risk": "low",
+      "acceptance": "Create product/frontend/tests/status_multi_underscore_test.ts importing statusLabel from ../lib/format.ts. Assert statusLabel('OUT_FOR_DELIVERY') is 'Out For Delivery' and statusLabel('A_B_C') is 'A B C'. Do not change product code, policy or configuration. The full product suite passes.",
+      "constraints": "One frontend test file; no product behavior change.",
+      "product": "product",
+      "target_file": "product/frontend/tests/status_multi_underscore_test.ts"
+    },
+    {
+      "id": "test-status-mixed-case",
+      "title": "Cover mixed-case status labels",
+      "outcome": "Mixed-case status input is normalized consistently.",
+      "area": "warehouse",
+      "risk": "low",
+      "acceptance": "Create product/frontend/tests/status_mixed_case_test.ts importing statusLabel from ../lib/format.ts. Assert statusLabel('in_Transit') is 'In Transit' and statusLabel('Refunded') is 'Refunded'. Do not change product code, policy or configuration. The full product suite passes.",
+      "constraints": "One frontend test file; no product behavior change.",
+      "product": "product",
+      "target_file": "product/frontend/tests/status_mixed_case_test.ts"
+    },
+    {
+      "id": "test-short-date-leap",
+      "title": "Cover leap-day short dates",
+      "outcome": "Short dates are pinned for a leap day and a timezone rollover.",
+      "area": "warehouse",
+      "risk": "low",
+      "acceptance": "Create product/frontend/tests/short_date_leap_test.ts importing shortDate from ../lib/format.ts. Assert shortDate('2024-02-29T12:00:00Z') is '2024-02-29' and shortDate('2023-03-01T00:00:00+02:00') is '2023-02-28'. Do not change product code, policy or configuration. The full product suite passes.",
+      "constraints": "One frontend test file; no product behavior change.",
+      "product": "product",
+      "target_file": "product/frontend/tests/short_date_leap_test.ts"
+    },
+    {
+      "id": "test-short-date-boundary",
+      "title": "Cover year-boundary short dates",
+      "outcome": "Short dates are pinned at the end and start of a year.",
+      "area": "warehouse",
+      "risk": "low",
+      "acceptance": "Create product/frontend/tests/short_date_boundary_test.ts importing shortDate from ../lib/format.ts. Assert shortDate('2026-12-31T23:59:59Z') is '2026-12-31' and shortDate('2027-01-01T00:00:00Z') is '2027-01-01'. Do not change product code, policy or configuration. The full product suite passes.",
+      "constraints": "One frontend test file; no product behavior change.",
+      "product": "product",
+      "target_file": "product/frontend/tests/short_date_boundary_test.ts"
+    },
+    {
+      "id": "test-short-date-timezone",
+      "title": "Cover timezone short dates",
+      "outcome": "Short dates normalize an offset timestamp to UTC.",
+      "area": "warehouse",
+      "risk": "low",
+      "acceptance": "Create product/frontend/tests/short_date_timezone_test.ts importing shortDate from ../lib/format.ts. Assert shortDate('2026-10-28T00:30:00+02:00') is '2026-10-27'. Do not change product code, policy or configuration. The full product suite passes.",
+      "constraints": "One frontend test file; no product behavior change.",
+      "product": "product",
+      "target_file": "product/frontend/tests/short_date_timezone_test.ts"
+    },
+    {
+      "id": "test-short-date-empty",
+      "title": "Cover empty short-date inputs",
+      "outcome": "Short dates return the em dash for empty inputs.",
+      "area": "warehouse",
+      "risk": "low",
+      "acceptance": "Create product/frontend/tests/short_date_empty_test.ts importing shortDate from ../lib/format.ts. Assert shortDate('') is '—', shortDate(null) is '—', and shortDate(undefined) is '—'. Do not change product code, policy or configuration. The full product suite passes.",
+      "constraints": "One frontend test file; no product behavior change.",
+      "product": "product",
+      "target_file": "product/frontend/tests/short_date_empty_test.ts"
+    },
+    {
+      "id": "test-mergeable-zero-total",
+      "title": "Cover mergeable zero totals",
+      "outcome": "Mergeable is false when the test total is zero or missing.",
+      "area": "warehouse",
+      "risk": "low",
+      "acceptance": "Create product/frontend/tests/mergeable_zero_total_test.ts importing mergeable from ../lib/format.ts. Assert mergeable({status:'OPEN', checks:{tests:{passed:0,total:0}}, review:{verdict:'OK'}}) is false and mergeable({status:'OPEN', checks:{tests:{}}, review:{verdict:'OK'}}) is false. Do not change product code, policy or configuration. The full product suite passes.",
+      "constraints": "One frontend test file; no product behavior change.",
+      "product": "product",
+      "target_file": "product/frontend/tests/mergeable_zero_total_test.ts"
+    },
+    {
+      "id": "test-mergeable-partial",
+      "title": "Cover mergeable partial test runs",
+      "outcome": "Mergeable is false for a partial test run and true for a full green run.",
+      "area": "warehouse",
+      "risk": "low",
+      "acceptance": "Create product/frontend/tests/mergeable_partial_test.ts importing mergeable from ../lib/format.ts. Assert mergeable({status:'OPEN', checks:{tests:{passed:7,total:8}}, review:{verdict:'OK'}}) is false and mergeable({status:'OPEN', checks:{tests:{passed:8,total:8}}, review:{verdict:'OK'}}) is true. Do not change product code, policy or configuration. The full product suite passes.",
+      "constraints": "One frontend test file; no product behavior change.",
+      "product": "product",
+      "target_file": "product/frontend/tests/mergeable_partial_test.ts"
+    },
+    {
+      "id": "test-mergeable-lowercase",
+      "title": "Cover lowercase mergeable decisions",
+      "outcome": "Mergeable accepts lowercase status and review verdicts.",
+      "area": "warehouse",
+      "risk": "low",
+      "acceptance": "Create product/frontend/tests/mergeable_lowercase_test.ts importing mergeable from ../lib/format.ts. Assert mergeable({status:'open', checks:{tests:{passed:3,total:3}}, review:{verdict:'ok'}}) is true. Do not change product code, policy or configuration. The full product suite passes.",
+      "constraints": "One frontend test file; no product behavior change.",
+      "product": "product",
+      "target_file": "product/frontend/tests/mergeable_lowercase_test.ts"
+    },
+    {
+      "id": "test-mergeable-missing-checks",
+      "title": "Cover missing mergeable checks",
+      "outcome": "Mergeable is false when checks are absent.",
+      "area": "warehouse",
+      "risk": "low",
+      "acceptance": "Create product/frontend/tests/mergeable_missing_checks_test.ts importing mergeable from ../lib/format.ts. Assert mergeable({status:'OPEN', review:{verdict:'OK'}}) is false and mergeable({status:'OPEN', checks:{}, review:{verdict:'OK'}}) is false. Do not change product code, policy or configuration. The full product suite passes.",
+      "constraints": "One frontend test file; no product behavior change.",
+      "product": "product",
+      "target_file": "product/frontend/tests/mergeable_missing_checks_test.ts"
+    },
+    {
+      "id": "test-mergeable-approved",
+      "title": "Cover approved mergeable status",
+      "outcome": "Mergeable accepts APPROVED but not MERGED.",
+      "area": "warehouse",
+      "risk": "low",
+      "acceptance": "Create product/frontend/tests/mergeable_approved_test.ts importing mergeable from ../lib/format.ts. Assert mergeable({status:'APPROVED', checks:{tests:{passed:2,total:2}}, review:{verdict:'OK'}}) is true and mergeable({status:'MERGED', checks:{tests:{passed:2,total:2}}, review:{verdict:'OK'}}) is false. Do not change product code, policy or configuration. The full product suite passes.",
+      "constraints": "One frontend test file; no product behavior change.",
+      "product": "product",
+      "target_file": "product/frontend/tests/mergeable_approved_test.ts"
+    },
+    {
+      "id": "test-refund-note-zero",
+      "title": "Cover zero refund notes",
+      "outcome": "A zero refund still names the amount and reason.",
+      "area": "warehouse",
+      "risk": "low",
+      "acceptance": "Create product/frontend/tests/refund_note_zero_test.ts importing refundNote from ../lib/format.ts. Assert the note for status 'REFUNDED', amount 0 and reason 'Damaged' includes '0.00' and 'Damaged'. Do not change product code, policy or configuration. The full product suite passes.",
+      "constraints": "One frontend test file; no product behavior change.",
+      "product": "product",
+      "target_file": "product/frontend/tests/refund_note_zero_test.ts"
+    },
+    {
+      "id": "test-refund-note-bulk",
+      "title": "Cover large refund notes",
+      "outcome": "A large refund formats its amount with thousands separators.",
+      "area": "warehouse",
+      "risk": "low",
+      "acceptance": "Create product/frontend/tests/refund_note_bulk_test.ts importing refundNote from ../lib/format.ts. Assert the note for status 'REFUNDED', amount 123456789 and reason 'Lost' includes '1,234,567.89' and 'Lost'. Do not change product code, policy or configuration. The full product suite passes.",
+      "constraints": "One frontend test file; no product behavior change.",
+      "product": "product",
+      "target_file": "product/frontend/tests/refund_note_bulk_test.ts"
+    },
+    {
+      "id": "test-refund-note-non-refunded",
+      "title": "Cover non-refunded refund notes",
+      "outcome": "Refund notes are null for every non-refunded status.",
+      "area": "warehouse",
+      "risk": "low",
+      "acceptance": "Create product/frontend/tests/refund_note_non_refunded_test.ts importing refundNote from ../lib/format.ts. Assert refundNote({status:'DELIVERED', refundAmountCents:100, refundReason:'x'}) is null and refundNote({status:'IN_TRANSIT', refundAmountCents:null, refundReason:null}) is null. Do not change product code, policy or configuration. The full product suite passes.",
+      "constraints": "One frontend test file; no product behavior change.",
+      "product": "product",
+      "target_file": "product/frontend/tests/refund_note_non_refunded_test.ts"
+    },
+    {
+      "id": "test-refund-note-lowercase",
+      "title": "Cover lowercase refunded status",
+      "outcome": "A lowercase refunded status still produces a note.",
+      "area": "warehouse",
+      "risk": "low",
+      "acceptance": "Create product/frontend/tests/refund_note_lowercase_test.ts importing refundNote from ../lib/format.ts. Assert the note for status 'refunded', amount 500 and reason 'Late' includes '5.00' and 'Late'. Do not change product code, policy or configuration. The full product suite passes.",
+      "constraints": "One frontend test file; no product behavior change.",
+      "product": "product",
+      "target_file": "product/frontend/tests/refund_note_lowercase_test.ts"
+    },
+    {
+      "id": "test-refund-note-missing-reason",
+      "title": "Cover missing refund reasons",
+      "outcome": "A blank refund reason falls back to reason not recorded.",
+      "area": "warehouse",
+      "risk": "low",
+      "acceptance": "Create product/frontend/tests/refund_note_missing_reason_test.ts importing refundNote from ../lib/format.ts. Assert the note for status 'REFUNDED', amount 250 and reason '   ' includes 'reason not recorded'. Do not change product code, policy or configuration. The full product suite passes.",
+      "constraints": "One frontend test file; no product behavior change.",
+      "product": "product",
+      "target_file": "product/frontend/tests/refund_note_missing_reason_test.ts"
     }
   ]
 }
