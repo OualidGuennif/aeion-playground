@@ -76,9 +76,9 @@ pulse also stops on `SIGINT`/`SIGTERM`.
 ## What it admits
 
 `config/pulse-tickets.json` is an operator-editable backlog. The checked-in
-backlog contains **sixteen** tickets: twelve deterministic frontend test-only
-tickets, three small visible frontend features (refund-window days, high-value
-label, refund deadline) and one backend summary change. They use the same
+backlog contains **seventeen** tickets: twelve deterministic frontend test-only
+tickets, four small visible frontend features (refund-window days, high-value
+label, refund deadline, CSV link label) and one backend summary change. They use the same
 low-risk product path as PD-053, which completed autonomously with `CLEAN`:
 23/23 tests, two model runs, `$0.002819` and a local release.
 
