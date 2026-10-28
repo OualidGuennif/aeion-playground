@@ -51,7 +51,7 @@ export default function Warehouse({ data }: PageProps<Data>) {
         </div>
         <div class="hero-actions">
           <a class="button primary" href="/tickets">File a Factory ticket →</a>
-          <a class="button ghost" href="/pulls">Review queue ({data.summary.openPulls})</a>
+          <a class="button ghost" href="/pulls">Review pull requests ({data.summary.openPulls})</a>
         </div>
       </section>
 
