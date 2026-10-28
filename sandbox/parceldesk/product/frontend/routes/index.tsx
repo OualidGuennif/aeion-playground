@@ -96,8 +96,8 @@ export default function Warehouse({ data }: PageProps<Data>) {
             <span class={`signal ${data.backendOnline ? "ok" : "bad"}`}>{data.backendOnline ? "api online" : "api offline"}</span>
           </div>
           <p class="muted">
-            Refunds are deterministic: delivered only, 30 days, shipping excluded, a written reason
-            above €200.
+            Refunds are delivered-only and must be requested within 30 days. Shipping is excluded,
+            and a written reason is required for refunds above €200.
           </p>
           {refunded.length === 0
             ? <p class="empty">No refund yet.</p>
