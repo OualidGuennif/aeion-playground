@@ -325,3 +325,10 @@ est la référence : toute décision doit pouvoir être rattachée à une ligne 
   `CLEAN`, livré `ca77ccc3…`, exposition du jour `8.0515`. Pulse relancé (pid 62273,
   37 tickets) ; train 4×/jour inchangé (pid 18847), prochain cycle 21:24 UTC.
   `config/model-routing.json` et `.env` locaux passés à **15** (fichiers ignorés par Git).
+
+- 2026-10-28 16:5x : **backlog prolongé jusqu’au reset** — 20 tickets de tests unitaires
+  ciblés (`money`, `statusLabel`, `shortDate`, `mergeable`, `refundNote`) ajoutés à
+  `config/pulse-tickets.json`. Le pulse recharge **57 tickets** (35 non utilisés, ~7 h à
+  5/h) et tourne sous le pid **68404** après redémarrage ; PD-076 est la première mission
+  du nouveau lot. Les tickets restent mono-fichier, low-risk, sans changement de
+  comportement produit.
