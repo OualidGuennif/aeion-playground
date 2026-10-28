@@ -51,6 +51,18 @@ def test_review_accepts_explicit_final_json():
     assert AgentRunner._parse_verdict('Read-only review.\n{"verdict":"OK","reason":"Bounded fix."}') == ("OK", "Bounded fix.")
 
 
+def test_review_accepts_braces_inside_the_reason():
+    text = 'Read-only review.\n{"verdict":"OK","reason":"Keeps {data.summary.openPulls} and href=\\"/pulls\\" unchanged."}'
+    assert AgentRunner._parse_verdict(text) == (
+        "OK", 'Keeps {data.summary.openPulls} and href="/pulls" unchanged.'
+    )
+
+
+def test_review_still_rejects_truncated_json_with_braces():
+    text = '{"verdict":"OK","reason":"Keeps {data.summary.openPulls} but the JSON is cut'
+    assert AgentRunner._parse_verdict(text)[0] == "UNPARSED"
+
+
 @pytest.mark.parametrize("path", ["README.md", "pytest.ini", "junit.xml", "other/code.py"])
 def test_successful_review_cannot_widen_the_task_edit_scope(path):
     gate = PolicyEngine({}).evaluate(
