@@ -752,21 +752,35 @@ class AgentRunner:
     @staticmethod
     def _parse_verdict(text: str) -> tuple[str, str]:
         candidate = text.strip()
-        start = candidate.rfind("{")
-        end = candidate.rfind("}")
-        if start != -1 and end > start:
-            candidate = candidate[start : end + 1]
+        payload = None
         try:
-            payload = json.loads(candidate)
-            if not isinstance(payload, dict):
-                return "UNPARSED", text.strip()[:500]
+            parsed = json.loads(candidate)
+            if isinstance(parsed, dict):
+                payload = parsed
+        except (json.JSONDecodeError, TypeError):
+            pass
+        if payload is None:
+            # A valid trailing object must win even when the review prose or a
+            # code snippet contains braces. raw_decode stops at the matching
+            # object boundary, unlike a last-brace slice.
+            decoder = json.JSONDecoder()
+            for index, char in enumerate(candidate):
+                if char != "{":
+                    continue
+                try:
+                    parsed, _ = decoder.raw_decode(candidate[index:])
+                except (json.JSONDecodeError, TypeError):
+                    continue
+                if isinstance(parsed, dict):
+                    payload = parsed
+                    break
+        if payload is not None:
             verdict = payload.get("verdict")
             reason = payload.get("reason")
-            if verdict in {"OK", "CHANGES_REQUIRED"} and isinstance(reason, str) and reason.strip():
+            if (isinstance(verdict, str) and verdict in {"OK", "CHANGES_REQUIRED"}
+                    and isinstance(reason, str) and reason.strip()):
                 return verdict, reason
-            return "UNPARSED", text.strip()[:500]
-        except (json.JSONDecodeError, TypeError):
-            return "UNPARSED", text.strip()[:500]
+        return "UNPARSED", text.strip()[:500]
 
 
 def _now() -> str:
