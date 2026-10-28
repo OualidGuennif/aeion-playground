@@ -65,6 +65,8 @@ class Plan:
     issue_title: str
     pr_title: str
     release: Release
+    lines_added: int = 0
+    lines_removed: int = 0
     notes: list[str] = field(default_factory=list)
 
 
@@ -333,10 +335,20 @@ class GitHubDelivery:
         if base_tree == self.release.head_tree:
             raise DeliveryError("The release product tree is already on the base branch")
         if base_tree not in expected - {None} and not force:
-            raise DeliveryError(
-                f"{PRODUCT_PREFIX} on {self.base} does not match the release parent or template; "
-                "refuse to overwrite diverged product code (use --force only after inspection)"
-            )
+            # The public base can lag several sealed releases. Accept it only when
+            # it is a product tree from this release's own ancestry; a diverged
+            # tree still requires the explicit operator --force.
+            ancestor_trees = set()
+            for commit in self._git(self.release.repo, "rev-list", "HEAD").stdout.split():
+                tree = self._git(self.release.repo, "rev-parse", f"{commit}:product", check=False)
+                if tree.returncode == 0:
+                    ancestor_trees.add(tree.stdout.strip())
+            if base_tree not in ancestor_trees:
+                raise DeliveryError(
+                    f"{PRODUCT_PREFIX} on {self.base} does not match the release parent, template "
+                    "or any ancestor release; refuse to overwrite diverged product code "
+                    "(use --force only after inspection)"
+                )
         target = checkout / PRODUCT_PREFIX
         shutil.rmtree(target, ignore_errors=True)
         shutil.copytree(self.release.product, target, ignore=_ignore_build_output)
@@ -348,6 +360,13 @@ class GitHubDelivery:
         scope = _scope_error(changed)
         if scope:
             raise DeliveryError(scope)
+        numstat = self._git(checkout, "diff", "--cached", "--numstat")
+        lines_added = lines_removed = 0
+        for line in numstat.stdout.splitlines():
+            parts = line.split("\t")
+            if len(parts) >= 2 and parts[0].isdigit() and parts[1].isdigit():
+                lines_added += int(parts[0])
+                lines_removed += int(parts[1])
         ticket = self.release.ticket or {}
         message = "\n".join([
             f"{self.release.mission}: {ticket.get('title') or self.release.packet.get('mission', {}).get('title')}",
@@ -368,8 +387,10 @@ class GitHubDelivery:
             mission=self.release.mission, branch=branch, checkout=checkout, commit=commit,
             changed_files=changed, issue_body=issue_body, pr_body=pr_body,
             issue_title=issue_title, pr_title=pr_title, release=self.release,
+            lines_added=lines_added, lines_removed=lines_removed,
         )
         self._record(branch=branch, commit=commit, changed_files=changed,
+                     lines_added=lines_added, lines_removed=lines_removed,
                      prepared_at=_now(), dry_run=bool(dry_run))
         return plan
 

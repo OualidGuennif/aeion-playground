@@ -132,6 +132,50 @@
       "constraints": "Add one frontend test file only; no production behavior change.",
       "product": "product",
       "target_file": "product/frontend/tests/refund_note_case_test.ts"
+    },
+    {
+      "id": "feature-refund-window-days",
+      "title": "Show the remaining refund window",
+      "outcome": "The refund desk shows how many full days remain in the 30-day window for delivered orders.",
+      "area": "warehouse",
+      "risk": "low",
+      "acceptance": "Create exactly product/frontend/tests/refund_days_test.ts. Add refundDaysLeft(deliveredAt, now) to product/frontend/lib/format.ts: null for missing or invalid dates, otherwise the number of full days remaining until deliveredAt + 30 days, clamped at 0. In product/frontend/routes/index.tsx show the remaining days for delivered orders in the order table or refund desk. Do not change backend code, refund rules, policy, configuration or existing tests. The full product suite passes.",
+      "constraints": "Frontend only; preserve the 30-day refund contract.",
+      "product": "product",
+      "target_file": "product/frontend/tests/refund_days_test.ts"
+    },
+    {
+      "id": "feature-high-value-label",
+      "title": "Label high-value orders in the refund desk",
+      "outcome": "Support agents can see which orders need a written refund reason because they are worth 200 EUR or more.",
+      "area": "warehouse",
+      "risk": "low",
+      "acceptance": "Add isHighValue(totalCents) to product/frontend/lib/format.ts returning true when totalCents >= 20000. Create product/frontend/tests/high_value_test.ts with 19999 false, 20000 true and 25000 true. In product/frontend/routes/index.tsx show a 'high value' label for orders where it is true. Do not change backend code, refund rules, policy, configuration or existing tests. The full product suite passes.",
+      "constraints": "Frontend only; preserve the refund rule and all existing tests.",
+      "product": "product",
+      "target_file": "product/frontend/tests/high_value_test.ts"
+    },
+    {
+      "id": "feature-refund-deadline",
+      "title": "Show the refund deadline date",
+      "outcome": "The refund desk shows the last calendar day on which a delivered order can be refunded.",
+      "area": "warehouse",
+      "risk": "low",
+      "acceptance": "Add refundDeadline(deliveredAt) to product/frontend/lib/format.ts returning the ISO date 30 days after delivery, or null for missing or invalid dates. Create product/frontend/tests/refund_deadline_test.ts with a valid delivery date, a null value and an invalid value. In product/frontend/routes/index.tsx show the deadline for delivered orders. Do not change backend code, refund rules, policy, configuration or existing tests. The full product suite passes.",
+      "constraints": "Frontend only; preserve the 30-day refund contract.",
+      "product": "product",
+      "target_file": "product/frontend/tests/refund_deadline_test.ts"
+    },
+    {
+      "id": "feature-summary-refunded-total",
+      "title": "Expose refunded total in the summary API",
+      "outcome": "The summary endpoint returns the total refunded amount so the dashboard can show the money returned.",
+      "area": "refunds",
+      "risk": "low",
+      "acceptance": "Add a refundedCents field to the summary response in product/backend/src/main/java/com/aeion/parceldesk/dto/SummaryView.java and populate it in SummaryResource.java as the sum of refundAmountCents for refunded orders. Keep every existing summary field unchanged. Update the backend summary test to assert the total. The full product suite passes. Do not change refund rules or existing tests except the summary assertion.",
+      "constraints": "Backend production change; publication requires operator approval under the deterministic policy.",
+      "product": "product",
+      "target_file": "product/backend/src/main/java/com/aeion/parceldesk/dto/SummaryView.java"
     }
   ]
 }
