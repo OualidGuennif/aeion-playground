@@ -107,6 +107,18 @@ def test_protected_path_is_denied(policy):
     assert any("protected path" in reason for reason in result.reasons)
 
 
+def test_an_approved_local_patch_is_human_not_denied(policy):
+    payload = packet(
+        files=["product/frontend/fresh.gen.ts"], risk="low",
+        decision="approved", review=None, independent=False,
+    )
+    payload["mission"]["outcome"] = "assisted"
+    payload["mission"]["human_approval"] = "operator"
+    result = evaluate_release(payload, policy)
+    assert result.decision == "human"
+    assert any("critical path" in reason or "independent review" in reason for reason in result.reasons)
+
+
 def test_a_valid_operator_approval_upgrades_human(policy):
     payload = packet(files=["product/backend/src/main/java/com/aeion/parceldesk/service/RefundService.java"])
     approval = {

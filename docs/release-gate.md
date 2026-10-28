@@ -23,7 +23,13 @@ enough. Those rules are in `config/publication-policy.json`.
 | `auto` | small, allowed path, tests/review/Gate accepted | yes | yes |
 | `human` | critical path, oversized, high risk or unknown path | only with an operator approval file | only after approval |
 | `human_approved` | `human` plus a valid, recent approval file | yes | yes |
-| `deny` | unsealed, incomplete, failing tests, non-OK review, protected path | no | no |
+| `deny` | unsealed, incomplete, failing tests, autonomous mission without independent review, protected path | no | no |
+
+An **operator-approved local patch** (a critical fix admitted through
+`POST /api/parceldesk/tickets/local`) is `human`, not `deny`: the mission has
+human approval but no independent model review, so the publication approval
+file is the explicit second validation. A sealed PD-048 or PD-049 packet is
+therefore `human` because it touches the CSV proxy or the Fresh manifest.
 
 The policy is intentionally conservative:
 
@@ -118,8 +124,14 @@ touch runtime/redeploy/stop
 - Deployment: image `sha256:c86a6315…`, `parceldesk-web` recreated,
   `/` and `/api/refunds.csv` both healthy.
 - **PD-056** dry-run: 4 test files, 34 lines → `auto`.
-- **PD-066**: provider outcome unknown; reconciled at the full `$2.00`
-  reservation, mission blocked `EXPOSURE_HELD`, no publication or deployment.
+- **PD-069**: one frontend file, 2 lines → `auto`; GitHub PR **#61** merged
+  with 8/8 checks; deployed image `sha256:9364d4f6…`; live page shows
+  “Download all refunds (CSV)”.
+- **PD-049** and **PD-048**: real sealed local patches → `human` (critical
+  Fresh manifest/proxy path and no independent review), so they require an
+  approval file before GitHub or deployment.
+- **PD-066/PD-067/PD-070**: provider outcomes unknown or invalid patches;
+  reservations reconciled conservatively, missions blocked, nothing published.
 
 ## Limits
 

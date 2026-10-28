@@ -287,3 +287,18 @@ est la référence : toute décision doit pouvoir être rattachée à une ligne 
   changement backend critique). **PD-066** a échoué sur un essai d'inférence inconnu
   (`EXPOSURE_HELD`) ; réservation de 2 $ réconciliée, 0 essai non réglé. Budget
   `12,244824 $ / 30 $`, head `PD-065` (les features suivantes arrivent).
+
+- 2026-10-28 09:2x : **premier feature auto-publié et déployé** — **PD-069** (libellé
+  « Download all refunds (CSV) » dans `index.tsx`, 1 fichier) est passé **CLEAN**,
+  39/39 tests, 0,007666 $, release `7b9ec2f1…`. Le train l'a classé **auto** : issue/PR
+  GitHub **#61**, **8/8** checks, merge squash, puis build et redéploiement de
+  `parceldesk-web` avec l'image `sha256:9364d4f6…` et health-check `/` +
+  `/api/refunds.csv`. Le texte est visible sur <http://127.0.0.1:8125/>. **PD-070**
+  (backend critique `SummaryView`/`SummaryResource`) a échoué avant acceptation sur une
+  sortie provider inconnue (`EXPOSURE_HELD`, réservation de 2 $ réconciliée). La politique
+  de publication accepte désormais un patch local approuvé comme **`human`** (approbation
+  explicite requise), pas `deny` : PD-048 et PD-049 sont classés `human`. Le train
+  `redeploy.py --loop --interval-hours 6 --publish` tourne (pid dans
+  `runtime/redeploy/pid`), prochain cycle à 15:24 UTC. Le routing local a été épinglé
+  forge=DeepSeek / sentinel=GLM pour éviter la borne 2 MiB de GLM. Budget
+  `16,260386 $ / 30 $`, 0 essai non réglé ; head **PD-069**.

@@ -143,16 +143,15 @@ def _gate_is_accepted(packet: dict[str, Any]) -> tuple[bool, list[str]]:
         reasons.append("trusted tests contain failures, errors or skips")
     if tests.get("exit_code") not in (0, None):
         reasons.append("trusted test exit code is not zero")
-    if packet.get("review") != "OK":
-        reasons.append("independent review did not return OK")
     checks = gate.get("checks") if isinstance(gate.get("checks"), list) else []
     independent = any(
         isinstance(check, dict) and check.get("id") == "review" and check.get("status") == "pass"
         and "independent" in str(check.get("detail") or "").lower()
         for check in checks
     )
-    if not independent:
-        reasons.append("review independence is not established")
+    review_ok = packet.get("review") == "OK" and independent
+    if decision == "allow" and not review_ok:
+        reasons.append("independent review is not established for an autonomous release")
     return not reasons, reasons
 
 
@@ -227,6 +226,15 @@ def evaluate_release(
     unknown = [path for path in files if not _matches(path, auto["auto_paths"]) and path not in critical]
 
     reasons: list[str] = []
+    gate = packet.get("gate") if isinstance(packet.get("gate"), dict) else {}
+    if gate.get("decision") == "approved" and (packet.get("review") != "OK"
+                                               or not any(
+                                                   isinstance(check, dict) and check.get("id") == "review"
+                                                   and check.get("status") == "pass"
+                                                   and "independent" in str(check.get("detail") or "").lower()
+                                                   for check in (gate.get("checks") or [])
+                                               )):
+        reasons.append("independent review is not established; operator publication approval is required")
     if risk in auto["human_risks"]:
         reasons.append(f"risk is {risk}")
     if critical:

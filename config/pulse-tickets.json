@@ -167,6 +167,17 @@
       "target_file": "product/frontend/tests/refund_deadline_test.ts"
     },
     {
+      "id": "feature-csv-link-label",
+      "title": "Clarify the refunds CSV download label",
+      "outcome": "The refund desk makes it clear that the link downloads a CSV containing every refunded order.",
+      "area": "warehouse",
+      "risk": "low",
+      "acceptance": "In product/frontend/routes/index.tsx, change the refunds CSV link text to 'Download all refunds (CSV)' and add title='Download every refunded order as CSV'. Do not change the route, backend, tests, policy or configuration. The full product suite passes.",
+      "constraints": "One frontend file, text and title attribute only.",
+      "product": "product",
+      "target_file": "product/frontend/routes/index.tsx"
+    },
+    {
       "id": "feature-summary-refunded-total",
       "title": "Expose refunded total in the summary API",
       "outcome": "The summary endpoint returns the total refunded amount so the dashboard can show the money returned.",
