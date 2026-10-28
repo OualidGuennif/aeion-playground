@@ -302,3 +302,13 @@ est la référence : toute décision doit pouvoir être rattachée à une ligne 
   `runtime/redeploy/pid`), prochain cycle à 15:24 UTC. Le routing local a été épinglé
   forge=DeepSeek / sentinel=GLM pour éviter la borne 2 MiB de GLM. Budget
   `16,260386 $ / 30 $`, 0 essai non réglé ; head **PD-069**.
+
+- 2026-10-28 14:2x : **deuxième feature publié/déployé, pulse arrêté proprement** — **PD-072**
+  (« refund window note », 1 fichier) est `CLEAN`, livré `6855dfe8…`, publié **PR #64**
+  avec **8/8** checks, puis déployé : image `sha256:a1e91bdf…`, health-check OK ; le live
+  affiche la note de remboursement détaillée. **PD-071** a échoué `NO_PATCH` ; **PD-073**
+  a échoué `EXPOSURE_HELD` (review Sentinel, réponse > 2 MiB) et sa réservation de
+  1,995907 $ a été réconciliée. Le pulse s'est arrêté sur `budget_stop` après 20 runs ;
+  aucun essai non réglé. Budget `18,272091 $ / 30 $`, reste `11,727909 $`. Le train
+  4×/jour tourne (pid 18847), head `PD-072`, prochain cycle 15:24 UTC. Python système
+  passé à **3.15.2** (python.org), le venv du projet reste **3.12.8**.

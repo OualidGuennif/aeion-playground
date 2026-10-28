@@ -187,6 +187,50 @@
       "constraints": "Backend production change; publication requires operator approval under the deterministic policy.",
       "product": "product",
       "target_file": "product/backend/src/main/java/com/aeion/parceldesk/dto/SummaryView.java"
+    },
+    {
+      "id": "feature-search-placeholder",
+      "title": "Clarify the order search placeholder",
+      "outcome": "The order search makes it clear that status is searchable too.",
+      "area": "warehouse",
+      "risk": "low",
+      "acceptance": "In product/frontend/routes/index.tsx, change the order search placeholder to 'Search order, customer, city or status'. Do not change the search behavior, backend, tests, policy or configuration. The full product suite passes.",
+      "constraints": "One frontend file, placeholder text only.",
+      "product": "product",
+      "target_file": "product/frontend/routes/index.tsx"
+    },
+    {
+      "id": "feature-refund-window-note",
+      "title": "Make the refund window note explicit",
+      "outcome": "The refund desk states that the 30-day window excludes shipping.",
+      "area": "warehouse",
+      "risk": "low",
+      "acceptance": "In product/frontend/routes/index.tsx, update the refund desk paragraph to state that refunds are delivered-only, within 30 days, exclude shipping, and require a written reason above 200 EUR. Do not change refund behavior, backend, tests, policy or configuration. The full product suite passes.",
+      "constraints": "One frontend file, copy only.",
+      "product": "product",
+      "target_file": "product/frontend/routes/index.tsx"
+    },
+    {
+      "id": "feature-refund-button-label",
+      "title": "Label the refund action clearly",
+      "outcome": "The order table makes the refund action explicit instead of a bare button.",
+      "area": "warehouse",
+      "risk": "low",
+      "acceptance": "In product/frontend/routes/index.tsx, change the refund button text from 'Refund' to 'Refund order'. Do not change the click behavior, backend, tests, policy or configuration. The full product suite passes.",
+      "constraints": "One frontend file, button label only.",
+      "product": "product",
+      "target_file": "product/frontend/routes/index.tsx"
+    },
+    {
+      "id": "feature-hero-cta",
+      "title": "Clarify the Factory call to action",
+      "outcome": "The warehouse hero makes it clear that the button files a Factory ticket.",
+      "area": "warehouse",
+      "risk": "low",
+      "acceptance": "In product/frontend/routes/index.tsx, change the primary hero link text from 'Open the Factory →' to 'File a Factory ticket →'. Do not change the link target, backend, tests, policy or configuration. The full product suite passes.",
+      "constraints": "One frontend file, link text only.",
+      "product": "product",
+      "target_file": "product/frontend/routes/index.tsx"
     }
   ]
 }
