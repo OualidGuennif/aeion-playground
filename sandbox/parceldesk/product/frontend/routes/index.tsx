@@ -59,7 +59,7 @@ export default function Warehouse({ data }: PageProps<Data>) {
         <div class="kpi"><span>orders</span><strong>{data.summary.orders}</strong><small>{totalGrams.toLocaleString("en-US")} g in transit</small></div>
         <div class="kpi"><span>delivered</span><strong>{data.summary.counts.delivered ?? 0}</strong><small>refund window 30 days</small></div>
         <div class="kpi"><span>refunded</span><strong>{data.summary.refunds}</strong><small>{money(data.summary.refundedCents)} returned</small></div>
-        <div class="kpi"><span>factory tickets</span><strong>{openTickets}</strong><small>open or under review</small></div>
+        <div class="kpi"><span>open Factory tickets</span><strong>{openTickets}</strong><small>open or under review</small></div>
         <div class="kpi accent"><span>merged PRs</span><strong>{data.summary.mergedPulls}</strong><small>every one tested and reviewed</small></div>
       </section>
 
