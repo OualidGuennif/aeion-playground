@@ -42,15 +42,15 @@ export default function Warehouse({ data }: PageProps<Data>) {
     <div class="page page-warehouse">
       <section class="hero">
         <div>
-          <p class="eyebrow">live operations floor</p>
+          <p class="eyebrow">live parcel operations</p>
           <h1>Every parcel, <em>accounted for.</em></h1>
           <p class="lede">
             A real Quarkus + Hibernate back office, a Three.js warehouse and a Factory that turns
-            support tickets into reviewed pull requests.
+            improvement tickets into reviewed pull requests.
           </p>
         </div>
         <div class="hero-actions">
-          <a class="button primary" href="/tickets">Open the Factory →</a>
+          <a class="button primary" href="/tickets">File a Factory ticket →</a>
           <a class="button ghost" href="/pulls">Review queue ({data.summary.openPulls})</a>
         </div>
       </section>
