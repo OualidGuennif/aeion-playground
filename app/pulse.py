@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import re
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -97,10 +98,24 @@ def budget_stop(kpis: dict[str, Any], max_exposure_usd: float, reservation_floor
         return f"{unsettled} unsettled inference attempt(s); reconcile before new calls"
     exposure = total - remaining
     if exposure >= max_exposure_usd:
-        return f"exposure ${exposure:.6f} reached the pulse limit ${max_exposure_usd:.2f}"
+        return f"today's exposure ${exposure:.6f} reached the daily pulse limit ${max_exposure_usd:.2f}"
     if remaining < reservation_floor:
-        return f"remaining ${remaining:.6f} is below the ${reservation_floor:.2f} mission reservation floor"
+        return f"today's remaining ${remaining:.6f} is below the ${reservation_floor:.2f} mission reservation floor"
     return None
+
+
+def is_daily_budget_stop(reason: str | None) -> bool:
+    """True when the pulse can resume by itself after the UTC-day reset."""
+    return bool(reason) and ("daily pulse limit" in reason or "mission reservation floor" in reason)
+
+
+def next_utc_midnight(now: datetime | None = None) -> datetime:
+    current = now or datetime.now(timezone.utc)
+    if current.tzinfo is None:
+        current = current.replace(tzinfo=timezone.utc)
+    return (current.astimezone(timezone.utc) + timedelta(days=1)).replace(
+        hour=0, minute=0, second=0, microsecond=0
+    )
 
 
 def next_ticket(tickets: list[dict[str, Any]], used: set[str], cursor: int) -> tuple[int, dict[str, Any]] | None:

@@ -38,20 +38,21 @@ failure; it is the Gate refusing to self-approve.
 .venv/bin/python scripts/pulse.py --dry-run
 .venv/bin/python scripts/pulse.py \
   --interval-minutes 12 \
-  --max-runs 24 \
-  --max-exposure-usd 20
+  --max-runs 0 \
+  --max-exposure-usd 15
 ```
 
-`--interval-minutes 12` gives **five admissions per hour**. The default
-`--max-runs 24` covers about five hours; `--max-exposure-usd 20` stops the
-pulse before the authorized `$30` ceiling, leaving a buffer for other work.
+`--interval-minutes 12` gives **five admissions per hour**. `--max-runs 0` means
+no process run cap: the **$15 UTC-day budget** governs. When the day's budget is
+spent, the pulse pauses itself until `00:00 UTC`, then resumes automatically.
+An unsettled attempt still stops it immediately until an operator reconciles it.
 
 Run it in the background so it survives the terminal:
 
 ```sh
 mkdir -p runtime/logs runtime/pulse
 nohup .venv/bin/python scripts/pulse.py \
-  --interval-minutes 12 --max-runs 24 --max-exposure-usd 20 \
+  --interval-minutes 12 --max-runs 0 --max-exposure-usd 15 \
   > runtime/logs/pulse.out 2>&1 &
 echo $! > runtime/pulse/pid
 ```
@@ -116,9 +117,11 @@ cockpit. The API fields are `title`, `outcome`, `area`, `risk`, `acceptance`,
 ## Safety model
 
 - **Budget:** the pulse reads `budget_remaining`, `budget_total` and
-  `budget_unsettled_attempts` from `/api/snapshot`. It stops at the exposure
-  cap, below the `$2.00` per-mission reservation floor, or on any unsettled
-  attempt. It never reconciles or refunds automatically.
+  `budget_unsettled_attempts` from `/api/snapshot`; those fields now describe
+  the current **UTC day**. At the daily cap it sleeps until `00:00 UTC` and
+  resumes on its own. It still hard-stops below the `$2.00` per-mission
+  reservation floor or on any unsettled attempt. It never reconciles or
+  refunds automatically.
 - **One mission at a time:** it waits for the active mission to become
   terminal before admitting the next one.
 - **Human checkpoints:** if a mission returns `awaiting_human`, the pulse

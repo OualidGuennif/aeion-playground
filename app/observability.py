@@ -114,11 +114,17 @@ def kpis(agent_rows: list[dict[str, Any]], budget_total: float) -> dict[str, Any
         "corrective_minutes": 0,
         "events_total": store.count_events(),
         "budget_total": budget_total,
-        "budget_used": round(budget["reported_usd"] + budget["carried_usd"], 4),
+        "budget_used": round(budget["daily_exposure_usd"], 4),
         "budget_held": budget["held_usd"],
         "budget_reconciled": budget.get("reconciled_usd", 0.0),
         "budget_unsettled_attempts": budget["unsettled_attempts"],
-        "budget_remaining": round(max(0.0, budget_total - budget["exposure_usd"]), 4),
+        "budget_remaining": round(max(0.0, budget_total - budget["daily_exposure_usd"]), 4),
+        "budget_day_start": budget.get("day_start"),
+        "budget_daily_reported": round(budget.get("daily_reported_usd", 0.0), 6),
+        "budget_daily_held": round(budget.get("daily_held_usd", 0.0), 6),
+        "budget_daily_reconciled": round(budget.get("daily_reconciled_usd", 0.0), 6),
+        "budget_lifetime_exposure": round(budget["exposure_usd"], 6),
+        "budget_lifetime_reported": round(budget["reported_usd"] + budget["carried_usd"], 6),
     }
 
 

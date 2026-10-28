@@ -126,26 +126,28 @@ accepted. Never commit the auth store, copy it into a role, or paste it into a p
 
 ### 2. Global model-spend cap
 
-Set the hard local guard in `.env`:
+Set the local daily guard in `.env`:
 
 ```dotenv
-AEION_BUDGET_USD=30
+AEION_BUDGET_USD=15
 ```
 
-The effective ceiling is `min(AEION_BUDGET_USD, config/model-routing.json budget_usd)`:
-the environment can only **lower** the authorized policy, never raise it. The ledger
-applies it to total recorded exposure, not to a calendar-month counter. The Docker stack
-passes this value into the cockpit, so the same cap applies to the container and to the
-host scripts. If you need a monthly reset, apply the monthly limit in the OpenCode Console
-as well; this local ledger remains the auditable hard stop. To authorize more, edit
-`config/model-routing.json` (`budget_usd` and `authorization_expires_at`) as the operator,
-then restart the stack.
+The effective daily ceiling is
+`min(AEION_BUDGET_USD, config/model-routing.json budget_usd)`: the environment can only
+**lower** the authorized policy, never raise it. The ledger applies it to exposure booked
+during the current **UTC day**; the window resets automatically at `00:00 UTC`, so a
+completed day never becomes a permanent stop. The Docker stack passes this value into the
+cockpit, so the same cap applies to the container and to the host scripts. Lifetime
+exposure is still reported for audit, but it is not the admission gate. To change the
+daily authorization, edit `config/model-routing.json` (`budget_usd` and
+`authorization_expires_at`) as the operator, then restart the stack. A provider monthly
+limit still has to be set separately in the OpenCode Console.
 
-The live ledger keeps **unknown upstream settlements** at the full reservation. Current
-exposure is `$10.182358` of the authorized `$30.00`: `$0.182358` reported usage plus
-`$10.000000` reconciled for five upstream outcomes that had no usage record. A failed
-2 MiB stream is charged at its full `$2.00` reservation rather than silently zeroed. The
-remaining local headroom is `$19.817642`.
+The live ledger keeps **unknown upstream settlements** at the full reservation. An
+attempt that loses its usage record is charged its whole `$2.00` (or `$1.995907`)
+reservation rather than silently zeroed. That conservative charge counts in the UTC day
+in which the attempt started; it is never refunded automatically. To go past a daily
+limit, wait for the next UTC day or raise the operator policy deliberately.
 
 ### 3. Paperclip workboard
 

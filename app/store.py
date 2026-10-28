@@ -531,9 +531,29 @@ class Store:
         held = sum((Decimal(str(row[1])) for row in rows), Decimal(0))
         reconciled = db.execute("SELECT COALESCE(SUM(reconciled_usd),0) FROM inference_attempts").fetchone()[0]
         reconciled = Decimal(str(reconciled or 0))
+        # The daily window is the admission authority. Lifetime exposure stays
+        # visible for accounting, but it never becomes a permanent stop.
+        day_start = utc_now()[:10] + "T00:00:00+00:00"
+        daily_spent = Decimal(str(db.execute(
+            "SELECT COALESCE(SUM(cost_usd),0) FROM missions WHERE created_at >= ?", (day_start,)
+        ).fetchone()[0] or 0))
+        daily_rows = db.execute(
+            "SELECT state,held_usd,reconciled_usd FROM inference_attempts WHERE created_at >= ?", (day_start,)
+        ).fetchall()
+        daily_held = sum(
+            (Decimal(str(row["held_usd"])) for row in daily_rows if row["state"] in {"reserved", "unknown", "overrun"}),
+            Decimal(0),
+        )
+        daily_reconciled = sum((Decimal(str(row["reconciled_usd"] or 0)) for row in daily_rows), Decimal(0))
+        daily_exposure = daily_spent + daily_held + daily_reconciled
         return {"reported_usd": float(spent), "carried_usd": float(carried), "held_usd": float(held),
                 "reconciled_usd": float(reconciled), "unsettled_attempts": len(rows),
-                "exposure_usd": float(spent + carried + held + reconciled)}
+                "exposure_usd": float(spent + carried + held + reconciled),
+                "day_start": day_start,
+                "daily_reported_usd": float(daily_spent),
+                "daily_held_usd": float(daily_held),
+                "daily_reconciled_usd": float(daily_reconciled),
+                "daily_exposure_usd": float(daily_exposure)}
 
     def budget_snapshot(self) -> dict:
         with self._lock:
@@ -558,8 +578,13 @@ class Store:
             self._conn.execute("INSERT INTO kv(key,value) VALUES('budget:carried_usage',?)", (value,))
             return True
 
-    def reserve_attempt(self, *, run_id: str, mission_id: str, agent: str, model: str, mission_limit: float) -> dict:
-        """Serialize dispatch and reserve the full remaining mission envelope before IO."""
+    def reserve_attempt(self, *, run_id: str, mission_id: str, agent: str, model: str, mission_limit: float,
+                        daily_budget: float | None = None) -> dict:
+        """Serialize dispatch and reserve the full remaining mission envelope before IO.
+
+        ``daily_budget`` is the operator's current UTC-day ceiling. The frozen
+        mission policy remains the fallback for callers that do not pass one.
+        """
         if (not isinstance(run_id, str) or not run_id.startswith("run-") or not 5 <= len(run_id) <= 80
                 or agent not in {"forge", "sentinel"} or isinstance(mission_limit, bool)
                 or not isinstance(mission_limit, (int, float)) or not math.isfinite(mission_limit) or not 0 < mission_limit <= 2):
@@ -578,6 +603,7 @@ class Store:
             if deadline.tzinfo is None or deadline <= datetime.now(timezone.utc):
                 raise InferenceBudgetError("AUTHORIZATION_EXPIRED", "No model dispatch after its authorization expiry")
             budget = effective_budget(policy["budget_usd"])
+            budget = effective_budget(daily_budget) if daily_budget is not None else budget
             if isinstance(budget, bool) or not isinstance(budget, (int, float)) or not math.isfinite(budget) or not 0 < budget <= 100:
                 raise ValueError("Invalid admitted budget")
             if self._conn.execute("SELECT 1 FROM inference_attempts WHERE run_id=?", (run_id,)).fetchone():
@@ -588,8 +614,8 @@ class Store:
             reserved = Decimal(str(mission_limit)) - Decimal(str(mission["cost_usd"]))
             if reserved <= 0:
                 raise InferenceBudgetError("MISSION_BUDGET_EXHAUSTED", "The mission's reported budget is exhausted")
-            if Decimal(str(snapshot["exposure_usd"])) + reserved > Decimal(str(budget)):
-                raise InferenceBudgetError("BUDGET_RESERVATION_DENIED", "The full remaining mission envelope does not fit the reported local budget")
+            if Decimal(str(snapshot["daily_exposure_usd"])) + reserved > Decimal(str(budget)):
+                raise InferenceBudgetError("BUDGET_RESERVATION_DENIED", "The full remaining mission envelope does not fit today's local budget")
             self._conn.execute("""INSERT INTO inference_attempts
                 (run_id,mission_id,agent,model,policy_digest,state,reserved_usd,held_usd,created_at)
                 VALUES(?,?,?,?,?,'reserved',?,?,?)""",

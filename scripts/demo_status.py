@@ -94,8 +94,8 @@ def main() -> int:
     print(f"  cockpit    {COCKPIT}  HTTP {cockpit_status}  agent={agent.get('status', '?')}  sandbox={sandbox.get('status', '?')}")
     print(f"  ledger     {kpis.get('events_total', '?')} events · {len(snapshot.get('missions', [])) if isinstance(snapshot, dict) else '?'} recent missions · "
           f"{kpis.get('completed', '?')} completed · {kpis.get('failed', '?')} failed")
-    print(f"  budget     reported ${float(kpis.get('cost_total', 0)):.6f} · exposure ${float(kpis.get('budget_used', 0)) + float(kpis.get('budget_reconciled', 0)) + float(kpis.get('budget_held', 0)):.6f} · "
-          f"remaining ${float(kpis.get('budget_remaining', 0)):.6f} / ${float(kpis.get('budget_total', 0)):.2f}")
+    print(f"  budget     today ${float(kpis.get('budget_used', 0)):.6f} · remaining ${float(kpis.get('budget_remaining', 0)):.6f} / ${float(kpis.get('budget_total', 0)):.2f} daily · "
+          f"lifetime ${float(kpis.get('budget_lifetime_exposure', 0)):.6f}")
     if isinstance(cockpit, dict) and agent.get("detail"):
         print(f"  agent      {agent['detail']}")
     print(f"  paperclip  {PAPERCLIP}  health={paperclip['health']}  board={paperclip['board']}  issues={paperclip['issues']}"

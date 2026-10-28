@@ -1,6 +1,7 @@
 """The Factory pulse's validation and safety rules."""
 from __future__ import annotations
 
+from datetime import datetime, timezone
 import json
 from pathlib import Path
 
@@ -10,8 +11,10 @@ from app.pulse import (
     PulseConfigError,
     budget_stop,
     classify,
+    is_daily_budget_stop,
     load_tickets,
     next_ticket,
+    next_utc_midnight,
     ticket_payload,
 )
 
@@ -51,6 +54,15 @@ def test_budget_guard_refuses_unsettled_or_over_limit():
     assert budget_stop({
         "budget_total": 30, "budget_remaining": 19.7, "budget_unsettled_attempts": 0,
     }, 20.0) is None
+
+
+def test_only_the_daily_budget_pause_resumes_automatically():
+    assert is_daily_budget_stop("today's exposure $15.000000 reached the daily pulse limit $15.00")
+    assert is_daily_budget_stop("today's remaining $1.50 is below the $2.00 mission reservation floor")
+    assert not is_daily_budget_stop("1 unsettled inference attempt(s); reconcile before new calls")
+    assert not is_daily_budget_stop(None)
+    now = datetime(2026, 10, 28, 14, 30, tzinfo=timezone.utc)
+    assert next_utc_midnight(now) == datetime(2026, 10, 29, 0, 0, tzinfo=timezone.utc)
 
 
 def test_next_ticket_skips_used_and_does_not_wrap():

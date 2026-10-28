@@ -231,6 +231,182 @@
       "constraints": "One frontend file, link text only.",
       "product": "product",
       "target_file": "product/frontend/routes/index.tsx"
+    },
+    {
+      "id": "feature-hero-eyebrow",
+      "title": "Clarify the warehouse hero eyebrow",
+      "outcome": "The hero labels the page as live parcel operations rather than a generic operations floor.",
+      "area": "warehouse",
+      "risk": "low",
+      "acceptance": "In product/frontend/routes/index.tsx, change the hero eyebrow text from 'live operations floor' to 'live parcel operations'. Do not change behavior, backend, tests, policy or configuration. The full product suite passes.",
+      "constraints": "One frontend file, copy only.",
+      "product": "product",
+      "target_file": "product/frontend/routes/index.tsx"
+    },
+    {
+      "id": "feature-hero-lede",
+      "title": "Say improvement tickets in the hero lede",
+      "outcome": "The hero lede describes the Factory as turning improvement tickets into reviewed pull requests.",
+      "area": "warehouse",
+      "risk": "low",
+      "acceptance": "In product/frontend/routes/index.tsx, change 'support tickets' to 'improvement tickets' in the hero lede. Do not change behavior, backend, tests, policy or configuration. The full product suite passes.",
+      "constraints": "One frontend file, copy only.",
+      "product": "product",
+      "target_file": "product/frontend/routes/index.tsx"
+    },
+    {
+      "id": "feature-review-link-label",
+      "title": "Name the review queue link precisely",
+      "outcome": "The review link says it opens pull requests instead of a generic queue.",
+      "area": "warehouse",
+      "risk": "low",
+      "acceptance": "In product/frontend/routes/index.tsx, change the ghost hero link text from 'Review queue' to 'Review pull requests', keeping the count and link target unchanged. Do not change behavior, backend, tests, policy or configuration. The full product suite passes.",
+      "constraints": "One frontend file, copy only.",
+      "product": "product",
+      "target_file": "product/frontend/routes/index.tsx"
+    },
+    {
+      "id": "feature-parcels-kpi-label",
+      "title": "Label the order KPI accurately",
+      "outcome": "The first KPI counts orders, so its label says orders instead of parcels.",
+      "area": "warehouse",
+      "risk": "low",
+      "acceptance": "In product/frontend/routes/index.tsx, change the first KPI label from 'parcels' to 'orders' and keep the value and small text unchanged. Do not change behavior, backend, tests, policy or configuration. The full product suite passes.",
+      "constraints": "One frontend file, copy only.",
+      "product": "product",
+      "target_file": "product/frontend/routes/index.tsx"
+    },
+    {
+      "id": "feature-factory-kpi-label",
+      "title": "Clarify the Factory ticket KPI",
+      "outcome": "The Factory KPI makes clear that it counts open tickets.",
+      "area": "warehouse",
+      "risk": "low",
+      "acceptance": "In product/frontend/routes/index.tsx, change the KPI label 'factory tickets' to 'open Factory tickets' and keep the value and small text unchanged. Do not change behavior, backend, tests, policy or configuration. The full product suite passes.",
+      "constraints": "One frontend file, copy only.",
+      "product": "product",
+      "target_file": "product/frontend/routes/index.tsx"
+    },
+    {
+      "id": "feature-merged-kpi-label",
+      "title": "Spell out merged pull requests",
+      "outcome": "The merged KPI uses the full term pull requests instead of the abbreviation PRs.",
+      "area": "warehouse",
+      "risk": "low",
+      "acceptance": "In product/frontend/routes/index.tsx, change the KPI label 'merged PRs' to 'merged pull requests' and keep the value and small text unchanged. Do not change behavior, backend, tests, policy or configuration. The full product suite passes.",
+      "constraints": "One frontend file, copy only.",
+      "product": "product",
+      "target_file": "product/frontend/routes/index.tsx"
+    },
+    {
+      "id": "feature-scene-eyebrow",
+      "title": "Name the Three.js floor consistently",
+      "outcome": "The scene eyebrow describes the Three.js warehouse floor.",
+      "area": "warehouse",
+      "risk": "low",
+      "acceptance": "In product/frontend/routes/index.tsx, change the scene eyebrow from 'three.js / sorting floor' to 'three.js / warehouse floor'. Do not change behavior, backend, tests, policy or configuration. The full product suite passes.",
+      "constraints": "One frontend file, copy only.",
+      "product": "product",
+      "target_file": "product/frontend/routes/index.tsx"
+    },
+    {
+      "id": "feature-scene-title",
+      "title": "Title the live map as a warehouse map",
+      "outcome": "The scene title says warehouse map rather than parcel map.",
+      "area": "warehouse",
+      "risk": "low",
+      "acceptance": "In product/frontend/routes/index.tsx, change the scene heading from 'Live parcel map' to 'Live warehouse map'. Do not change behavior, backend, tests, policy or configuration. The full product suite passes.",
+      "constraints": "One frontend file, copy only.",
+      "product": "product",
+      "target_file": "product/frontend/routes/index.tsx"
+    },
+    {
+      "id": "feature-scene-loading",
+      "title": "Clarify the scene loading text",
+      "outcome": "The loading placeholder says it is loading the warehouse.",
+      "area": "warehouse",
+      "risk": "low",
+      "acceptance": "In product/frontend/routes/index.tsx, change the loading placeholder from 'Loading the floor…' to 'Loading the warehouse…'. Do not change behavior, backend, tests, policy or configuration. The full product suite passes.",
+      "constraints": "One frontend file, copy only.",
+      "product": "product",
+      "target_file": "product/frontend/routes/index.tsx"
+    },
+    {
+      "id": "feature-detail-label",
+      "title": "Label the selected row as an order",
+      "outcome": "The parcel detail label says selected order, matching the order ledger.",
+      "area": "warehouse",
+      "risk": "low",
+      "acceptance": "In product/frontend/routes/index.tsx, change the detail label from 'selected parcel' to 'selected order'. Do not change behavior, backend, tests, policy or configuration. The full product suite passes.",
+      "constraints": "One frontend file, copy only.",
+      "product": "product",
+      "target_file": "product/frontend/routes/index.tsx"
+    },
+    {
+      "id": "feature-detail-action",
+      "title": "Tell the operator to click an order",
+      "outcome": "The detail hint says click an order instead of click a parcel.",
+      "area": "warehouse",
+      "risk": "low",
+      "acceptance": "In product/frontend/routes/index.tsx, change the detail hint from 'Click a parcel' to 'Click an order'. Do not change behavior, backend, tests, policy or configuration. The full product suite passes.",
+      "constraints": "One frontend file, copy only.",
+      "product": "product",
+      "target_file": "product/frontend/routes/index.tsx"
+    },
+    {
+      "id": "feature-refund-empty",
+      "title": "Fix the empty refund plural",
+      "outcome": "The empty refund state reads no refunds yet.",
+      "area": "warehouse",
+      "risk": "low",
+      "acceptance": "In product/frontend/routes/index.tsx, change the empty state from 'No refund yet.' to 'No refunds yet.'. Do not change behavior, backend, tests, policy or configuration. The full product suite passes.",
+      "constraints": "One frontend file, copy only.",
+      "product": "product",
+      "target_file": "product/frontend/routes/index.tsx"
+    },
+    {
+      "id": "feature-refund-ticket-link",
+      "title": "Name the refund ticket link consistently",
+      "outcome": "The refund desk link uses the same Factory ticket wording as the hero.",
+      "area": "warehouse",
+      "risk": "low",
+      "acceptance": "In product/frontend/routes/index.tsx, change the refund desk link text from 'File an improvement ticket →' to 'File a Factory ticket →', keeping the link target unchanged. Do not change behavior, backend, tests, policy or configuration. The full product suite passes.",
+      "constraints": "One frontend file, copy only.",
+      "product": "product",
+      "target_file": "product/frontend/routes/index.tsx"
+    },
+    {
+      "id": "feature-orders-eyebrow",
+      "title": "Name the order ledger section",
+      "outcome": "The order section eyebrow says order ledger instead of a generic orders label.",
+      "area": "warehouse",
+      "risk": "low",
+      "acceptance": "In product/frontend/routes/index.tsx, change the orders eyebrow from 'hibernate / orders' to 'hibernate / order ledger'. Do not change behavior, backend, tests, policy or configuration. The full product suite passes.",
+      "constraints": "One frontend file, copy only.",
+      "product": "product",
+      "target_file": "product/frontend/routes/index.tsx"
+    },
+    {
+      "id": "feature-orders-title",
+      "title": "Title the section Orders and refunds",
+      "outcome": "The order section heading mentions refunds because the table carries refund reasons.",
+      "area": "warehouse",
+      "risk": "low",
+      "acceptance": "In product/frontend/routes/index.tsx, change the orders heading from 'Order ledger' to 'Orders and refunds'. Do not change behavior, backend, tests, policy or configuration. The full product suite passes.",
+      "constraints": "One frontend file, copy only.",
+      "product": "product",
+      "target_file": "product/frontend/routes/index.tsx"
+    },
+    {
+      "id": "feature-refund-note-header",
+      "title": "Name the refund reason column",
+      "outcome": "The table header says refund reason instead of refund note.",
+      "area": "warehouse",
+      "risk": "low",
+      "acceptance": "In product/frontend/routes/index.tsx, change the table header from 'refund note' to 'refund reason'. Do not change behavior, backend, tests, policy or configuration. The full product suite passes.",
+      "constraints": "One frontend file, copy only.",
+      "product": "product",
+      "target_file": "product/frontend/routes/index.tsx"
     }
   ]
 }

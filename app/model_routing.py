@@ -52,11 +52,11 @@ class ModelRouter:
         remaining = deadline - time.time()
         if remaining < 1:
             raise RoutingBlocked("AUTHORIZATION_EXPIRED", "The authorized autonomous work window expired; no model call started")
-        snapshot = self.ledger.budget_snapshot() if hasattr(self.ledger, "budget_snapshot") else {"exposure_usd": self.ledger.metrics()["cost"], "unsettled_attempts": 0}
+        snapshot = self.ledger.budget_snapshot() if hasattr(self.ledger, "budget_snapshot") else {"exposure_usd": self.ledger.metrics()["cost"], "daily_exposure_usd": self.ledger.metrics()["cost"], "unsettled_attempts": 0}
         if snapshot["unsettled_attempts"]:
             raise RoutingBlocked("EXPOSURE_HELD", "Unsettled inference exposure blocks new model calls; no automatic refund/retry")
-        if snapshot["exposure_usd"] >= effective_budget(self.policy["budget_usd"]):
-            raise RoutingBlocked("BUDGET_EXHAUSTED", "The reported local model budget is exhausted")
+        if snapshot.get("daily_exposure_usd", snapshot["exposure_usd"]) >= effective_budget(self.policy["budget_usd"]):
+            raise RoutingBlocked("BUDGET_EXHAUSTED", "Today's local model budget is exhausted; it resets at 00:00 UTC")
         return remaining
 
     def analyze(self, scenario, role):

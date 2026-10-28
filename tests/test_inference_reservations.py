@@ -1,6 +1,7 @@
 """Controlled accounting records, never a provider/billing attestation."""
 from concurrent.futures import ThreadPoolExecutor
 import copy
+from datetime import datetime, timedelta, timezone
 import json
 from pathlib import Path
 import sqlite3
@@ -58,9 +59,13 @@ def test_precise_usage_and_reservation_release_commit_once(runtime):
     assert not runtime.store.add_run(copy.deepcopy(run))
     assert runtime.store.mission(mission["id"])["cost_usd"] == .123456789
     assert runtime.store.attempt("run-controlled")["state"] == "settled"
-    assert runtime.store.budget_snapshot() == {"reported_usd": .123456789, "carried_usd": 0, "held_usd": 0,
-                                             "reconciled_usd": 0, "unsettled_attempts": 0,
-                                             "exposure_usd": .123456789}
+    snapshot = runtime.store.budget_snapshot()
+    assert snapshot.pop("day_start").endswith("T00:00:00+00:00")
+    assert snapshot == {"reported_usd": .123456789, "carried_usd": 0, "held_usd": 0,
+                        "reconciled_usd": 0, "unsettled_attempts": 0,
+                        "exposure_usd": .123456789,
+                        "daily_reported_usd": .123456789, "daily_held_usd": 0,
+                        "daily_reconciled_usd": 0, "daily_exposure_usd": .123456789}
     assert reserve(runtime, mission, "run-next")["reserved_usd"] == pytest.approx(2 - .123456789)
 
 
@@ -111,16 +116,38 @@ def test_expiry_does_not_authorize_a_dispatch_or_refund_an_existing_hold(runtime
     assert runtime.store.budget_snapshot()["held_usd"] == 2
 
 
-def test_carried_spend_is_immutable_and_counts_before_new_exposure(runtime):
+def test_daily_budget_blocks_at_the_ceiling_and_resets_at_utc_midnight(runtime, monkeypatch):
+    mission, _ = fixture_mission(runtime)
+    today = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    runtime.store._execute(
+        """INSERT INTO inference_attempts
+           (run_id,mission_id,agent,model,policy_digest,state,reserved_usd,held_usd,reconciled_usd,created_at)
+           VALUES(?,?,?,?,?,'reconciled',13.5,0,13.5,?)""",
+        ("run-daily-spend", mission["id"], "forge", MODEL, "sha256:" + "d" * 64, today),
+    )
+    assert runtime.store.budget_snapshot()["daily_exposure_usd"] == 13.5
+    with pytest.raises(InferenceBudgetError) as outcome:
+        runtime.store.reserve_attempt(run_id="run-daily-denied", mission_id=mission["id"], agent="forge",
+                                      model=MODEL, mission_limit=2, daily_budget=15)
+    assert outcome.value.code == "BUDGET_RESERVATION_DENIED"
+    tomorrow = (datetime.now(timezone.utc) + timedelta(days=1)).replace(
+        hour=0, minute=0, second=1, microsecond=0).isoformat(timespec="seconds")
+    monkeypatch.setattr("app.store.utc_now", lambda: tomorrow)
+    assert runtime.store.budget_snapshot()["daily_exposure_usd"] == 0
+    assert runtime.store.reserve_attempt(run_id="run-daily-next", mission_id=mission["id"], agent="forge",
+                                         model=MODEL, mission_limit=2, daily_budget=15)["reserved_usd"] == 2
+
+
+def test_carried_spend_is_immutable_and_stays_outside_the_daily_window(runtime):
     assert runtime.store.register_carried_usage(99, "c" * 64)
     assert not runtime.store.register_carried_usage(99, "c" * 64)
     with pytest.raises(ValueError, match="immutable"):
         runtime.store.register_carried_usage(0, "c" * 64)
     mission, _ = fixture_mission(runtime)
-    with pytest.raises(InferenceBudgetError) as outcome:
-        reserve(runtime, mission)
-    assert outcome.value.code == "BUDGET_RESERVATION_DENIED"
-    assert runtime.store.budget_snapshot()["exposure_usd"] == 99
+    snapshot = runtime.store.budget_snapshot()
+    assert snapshot["carried_usd"] == 99 and snapshot["exposure_usd"] == 99
+    assert snapshot["daily_exposure_usd"] == 0
+    assert reserve(runtime, mission)["reserved_usd"] == 2
 
 
 @pytest.mark.parametrize("change", ["unknown", "consumed", "usage_mismatch", "lease_mismatch", "executor_mismatch"])

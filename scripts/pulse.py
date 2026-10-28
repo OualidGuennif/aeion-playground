@@ -34,8 +34,10 @@ from app.pulse import (  # noqa: E402
     budget_stop,
     classify,
     delivery_summary,
+    is_daily_budget_stop,
     load_tickets,
     next_ticket,
+    next_utc_midnight,
     ticket_payload,
 )
 
@@ -159,9 +161,10 @@ def main() -> int:
     parser.add_argument("--base-url", default="http://127.0.0.1:8124")
     parser.add_argument("--interval-minutes", type=float, default=12.0,
                         help="Cadence between admissions; 12 = 5 per hour")
-    parser.add_argument("--max-runs", type=int, default=24, help="Hard cap for this process")
-    parser.add_argument("--max-exposure-usd", type=float, default=20.0,
-                        help="Stop before the authorized $30 ceiling")
+    parser.add_argument("--max-runs", type=int, default=0,
+                        help="Hard cap for this process; 0 = no run cap (the daily budget governs)")
+    parser.add_argument("--max-exposure-usd", type=float, default=15.0,
+                        help="Daily UTC exposure cap; resets at 00:00 UTC")
     parser.add_argument("--max-consecutive-failures", type=int, default=3)
     parser.add_argument("--mission-timeout-minutes", type=float, default=15.0)
     parser.add_argument("--stop-file", type=Path, default=ROOT / "runtime/pulse/stop")
@@ -198,10 +201,11 @@ def main() -> int:
     failures = int(state.get("consecutive_failures") or 0)
     state.update(state="starting", message="")
     save_state(state_file, state)
+    run_cap = "unlimited" if args.max_runs <= 0 else f"max {args.max_runs} runs"
     log(f"pulse starting · {len(tickets)} tickets · {args.interval_minutes:g} min cadence · "
-        f"exposure cap ${args.max_exposure_usd:.2f} · max {args.max_runs} runs", logfile)
+        f"daily cap ${args.max_exposure_usd:.2f} · {run_cap}", logfile)
 
-    while not STOP and not stop_file.exists() and runs < max(1, args.max_runs):
+    while not STOP and not stop_file.exists() and (args.max_runs <= 0 or runs < args.max_runs):
         snapshot = wait_for_cockpit(base, logfile, stop_file)
         if snapshot is None:
             state.update(state="cockpit_unavailable", message="cockpit snapshot unavailable")
@@ -211,8 +215,20 @@ def main() -> int:
         kpis = snapshot.get("kpis") or {}
         reason = budget_stop(kpis, args.max_exposure_usd)
         if reason:
+            if is_daily_budget_stop(reason):
+                reset = next_utc_midnight()
+                wait = max(1.0, (reset - datetime.now(timezone.utc)).total_seconds())
+                state.update(state="daily_pause", message=reason,
+                             exposure_usd=float(kpis.get("budget_used") or 0),
+                             budget_remaining=kpis.get("budget_remaining"),
+                             next_at=reset.isoformat(timespec="seconds"))
+                save_state(state_file, state)
+                log(f"daily budget pause: {reason}; resuming at {state['next_at']}", logfile)
+                if not sleep_until(time.monotonic() + wait, stop_file):
+                    break
+                continue
             state.update(state="budget_stop", message=reason,
-                         exposure_usd=float(kpis.get("budget_total", 0)) - float(kpis.get("budget_remaining", 0)),
+                         exposure_usd=float(kpis.get("budget_used") or 0),
                          budget_remaining=kpis.get("budget_remaining"))
             save_state(state_file, state)
             log(f"pulse stopped: {reason}", logfile)
@@ -231,7 +247,7 @@ def main() -> int:
         payload = ticket_payload(ticket)
         if args.dry_run:
             state.update(state="dry_run", last_ticket=ticket["id"],
-                         exposure_usd=float(kpis.get("budget_total", 0)) - float(kpis.get("budget_remaining", 0)),
+                         exposure_usd=float(kpis.get("budget_used") or 0),
                          budget_remaining=kpis.get("budget_remaining"))
             save_state(state_file, state)
             print(json.dumps({"dry_run": True, "ticket": ticket, "budget_stop": reason}, indent=2, ensure_ascii=False))
@@ -281,7 +297,7 @@ def main() -> int:
             kpis = fresh["kpis"]
         state.update(last_status=final_mission.get("status"), last_gate=final_mission.get("gate_reason_code"),
                      last_outcome=final_mission.get("outcome"), last_delivery=delivery,
-                     exposure_usd=float(kpis.get("budget_total", 0)) - float(kpis.get("budget_remaining", 0)),
+                     exposure_usd=float(kpis.get("budget_used") or 0),
                      budget_remaining=kpis.get("budget_remaining"), message="")
         if outcome == "completed":
             failures = 0

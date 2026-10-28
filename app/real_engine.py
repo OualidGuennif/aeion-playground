@@ -167,16 +167,16 @@ def _agent_budget_health(snapshot: dict[str, Any], ceiling: float | None,
 
     ``blocked`` means an inference exposure is unsettled and must be reconciled;
     ``paused`` means the agent is healthy but the next mission envelope does not
-    fit the local authorization ceiling. Either way no model call is permitted.
+    fit today's authorization ceiling. Either way no model call is permitted.
     """
     if snapshot.get("unsettled_attempts"):
         held = float(snapshot.get("held_usd") or 0)
         return "blocked", f"Unsettled inference exposure: ${held:.6f} held; reconcile before new calls"
-    exposure = float(snapshot.get("exposure_usd") or 0)
+    exposure = float(snapshot.get("daily_exposure_usd", snapshot.get("exposure_usd", 0)) or 0)
     if ceiling and exposure + envelope > ceiling:
         return "paused", (
-            f"Paid inference paused: ${exposure:.6f} exposure + ${envelope:.2f} "
-            f"envelope exceeds the ${ceiling:.2f} ceiling"
+            f"Paid inference paused: ${exposure:.6f} used today + ${envelope:.2f} "
+            f"envelope exceeds the ${ceiling:.2f} daily ceiling"
         )
     return None
 
@@ -746,8 +746,8 @@ class RealEngine:
                         self._block(mission_id, "TEST_EXECUTOR_CHANGED", "The canonical test executor changed after admission; no model or test call started.")
                     elif contract.get("routing") and contract["routing"]["digest"] != (load_routing_policy() or {}).get("digest"):
                         self._block(mission_id, "ROUTING_CHANGED", "The authorized model-routing policy changed after admission")
-                    elif admitted.get("kind") == "agent" and store.metrics()["cost"] >= settings.budget_usd:
-                        self._block(mission_id, "BUDGET_EXHAUSTED", "The recorded workspace budget is exhausted; no model call was started.")
+                    elif admitted.get("kind") == "agent" and store.budget_snapshot()["daily_exposure_usd"] >= settings.budget_usd:
+                        self._block(mission_id, "BUDGET_EXHAUSTED", "Today's recorded workspace budget is exhausted; no model call was started.")
                     elif store.get_kv(f"review_retry:{mission_id}"):
                         self._resume_review(mission_id, admitted)
                     else:
@@ -793,7 +793,8 @@ class RealEngine:
                         raise RoutingBlocked("POLICY_CHANGED", "The admitted Gate policy changed before inference")
                     attempt_id = "run-" + uuid.uuid4().hex
                     store.reserve_attempt(run_id=attempt_id, mission_id=mission_id, agent=agent_id, model=model,
-                                          mission_limit=sandbox.read_policy().get("limits", {}).get("budget_usd", 2))
+                                          mission_limit=sandbox.read_policy().get("limits", {}).get("budget_usd", 2),
+                                          daily_budget=settings.budget_usd)
                     overrides["run_id"] = attempt_id
                     overrides["on_lease"] = lambda identity, reserved=attempt_id: store.bind_attempt_lease(reserved, identity)
                 try:
@@ -2110,7 +2111,7 @@ class RealEngine:
             "id": "parceldesk-sandbox-policy/v1",
             "mode": "enforced",
             "quality_floor": "No sealed packet, no completion.",
-            "budget": f"${settings.budget_usd:.2f} local envelope",
+            "budget": f"${settings.budget_usd:.2f} daily envelope (UTC reset)",
             "rules": [
                 "Unknown, missing or failed evidence means NO.",
                 "Protected paths are denied before any other gate result.",

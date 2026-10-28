@@ -312,3 +312,16 @@ est la référence : toute décision doit pouvoir être rattachée à une ligne 
   aucun essai non réglé. Budget `18,272091 $ / 30 $`, reste `11,727909 $`. Le train
   4×/jour tourne (pid 18847), head `PD-072`, prochain cycle 15:24 UTC. Python système
   passé à **3.15.2** (python.org), le venv du projet reste **3.12.8**.
+
+- 2026-10-28 16:4x : **budget journalier 15 $/jour, reset automatique à 00:00 UTC** — le
+  plafond cumulé de 30 $ est remplacé par une fenêtre **UTC** : `budget_total=15`,
+  `budget_used` = exposition du jour, `budget_remaining` = reste du jour. L’exposition
+  lifetime reste affichée pour l’audit mais ne bloque plus. Les tentatives inconnues
+  restent chargées à la réservation complète et un essai non réglé bloque toujours.
+  Le pulse utilise `--max-runs 0 --max-exposure-usd 15` : à sec, il dort jusqu’à
+  `00:00 UTC` puis reprend seul. Tests complets : **478 passed, 15 skipped**. Au
+  redémarrage, le snapshot live donne `15.0 / 8.0476 / 6.9524` (total / utilisé /
+  reste) et **0** essai non réglé ; lifetime `18.272091`. **PD-074** (hero CTA) est
+  `CLEAN`, livré `ca77ccc3…`, exposition du jour `8.0515`. Pulse relancé (pid 62273,
+  37 tickets) ; train 4×/jour inchangé (pid 18847), prochain cycle 21:24 UTC.
+  `config/model-routing.json` et `.env` locaux passés à **15** (fichiers ignorés par Git).

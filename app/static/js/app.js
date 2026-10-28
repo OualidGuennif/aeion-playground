@@ -289,12 +289,12 @@
 
     return (
       '<div class="budget-block">' +
-      '<span class="mini-label">Local budget</span>' +
+      '<span class="mini-label">Daily budget (UTC)</span>' +
       '<div class="budget-top"><strong>' +
       money(kpis.budget_used, 2) +
       "</strong><span>of " +
       money(kpis.budget_total, 0) +
-      "</span></div>" +
+      " per day</span></div>" +
       meter(usedPercent, 'Budget used') +
       '<div class="budget-meta"><span>' +
       usedPercent.toFixed(1) +
@@ -452,7 +452,7 @@
     const health = service.health || {};
     setText("pc-service-status", service.available ? "connected" : "unavailable");
     setText("pc-service-detail", service.error || (health.url + " · " + (health.version || "unknown version") + " · embedded PostgreSQL"));
-    setText("pc-envelope", "of " + money(snapshot.kpis.budget_total) + " local envelope");
+    setText("pc-envelope", "of " + money(snapshot.kpis.budget_total) + " per day · resets 00:00 UTC");
     const issuesNode = document.getElementById("paperclip-issues");
     if (issuesNode) issuesNode.innerHTML = service.available && !service.error ? (service.issues || []).map(function (issue) {
       const prefix = (service.company || {}).issuePrefix || "PAR";
@@ -514,7 +514,7 @@
       const total = snapshot.kpis.budget_total;
       const usedPercent = Math.min(100, total ? (used / total) * 100 : 0);
       paperclipBudget.innerHTML =
-        '<div class="budget-block"><span class="mini-label">Local budget envelope</span>' +
+        '<div class="budget-block"><span class="mini-label">Daily budget envelope · UTC</span>' +
         '<div class="budget-top"><strong>' +
         money(used, 2) +
         "</strong><span>of " +
