@@ -76,9 +76,17 @@ pulse also stops on `SIGINT`/`SIGTERM`.
 ## What it admits
 
 `config/pulse-tickets.json` is an operator-editable backlog. The checked-in
-backlog contains twelve **frontend test-only** tickets. They use the same
+backlog contains **sixteen** tickets: twelve deterministic frontend test-only
+tickets, three small visible frontend features (refund-window days, high-value
+label, refund deadline) and one backend summary change. They use the same
 low-risk product path as PD-053, which completed autonomously with `CLEAN`:
 23/23 tests, two model runs, `$0.002819` and a local release.
+
+The three frontend features can pass the deterministic publication policy
+automatically when they stay within the file/line/critical-path bounds. The
+backend summary change touches backend production code, so it is sealed and
+delivered locally but **not published or deployed** until an operator approval
+file exists. See [the release gate](release-gate.md).
 
 Each ticket names exactly one new test file, imports an existing pure function
 from `product/frontend/lib/format.ts`, and adds deterministic assertions. The
@@ -122,8 +130,10 @@ cockpit. The API fields are `title`, `outcome`, `area`, `risk`, `acceptance`,
 - **No protection bypass:** the ticket still goes through the same policy,
   protected-path check, trusted tests, independent review and Gate. A weak
   ticket is blocked by the Gate like any other mission.
-- **Local only:** accepted releases are local Git artifacts. The pulse does
-  not push, deploy or open a GitHub PR.
+- **Local only:** the pulse admits missions and seals local releases. It does
+  not push or deploy. The separate release train applies the deterministic
+  publication policy before GitHub and deployment; critical changes wait for
+  the operator approval file.
 - **State:** `runtime/pulse/status.json` records used tickets, cursor, last
   mission, last Gate decision, last delivery and budget. `--reset-state`
   clears it; use that only when you intend to replay the backlog.
@@ -152,6 +162,19 @@ A blocked ticket is also useful: the Gate reason tells you whether the model
 produced an invalid diff, the tests failed, the patch touched a protected path
 or the worker report was unusable. That is the Factory being honest, not the
 demo being broken.
+
+## Publication and four daily deployments
+
+```sh
+.venv/bin/python scripts/redeploy.py --loop --interval-hours 6 --publish
+```
+
+Every six hours the train reads the current product head, applies
+`config/publication-policy.json`, publishes an `auto` release to GitHub,
+rebuilds the sealed web image, recreates `parceldesk-web`, checks `/` and
+`/api/refunds.csv`, and rolls back on failure. A `human` release is skipped
+until `scripts/approve_github.py` writes an approval file. Full rules and
+commands: [the release gate](release-gate.md).
 
 ## Measured baseline
 

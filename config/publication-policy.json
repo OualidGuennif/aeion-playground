@@ -1,0 +1,52 @@
+{
+  "schema": "aeion.publication-policy/v1",
+  "auto": {
+    "max_files": 4,
+    "max_diff_lines": 120,
+    "max_test_files": 25,
+    "max_test_lines": 400,
+    "auto_paths": [
+      "product/frontend/tests/",
+      "product/backend/src/test/",
+      "product/frontend/lib/",
+      "product/frontend/static/",
+      "product/frontend/components/",
+      "product/frontend/islands/",
+      "product/frontend/routes/index.tsx",
+      "product/frontend/routes/tickets.tsx",
+      "product/frontend/routes/pulls.tsx",
+      "product/README.md"
+    ],
+    "critical_paths": [
+      "product/backend/src/main/",
+      "product/backend/pom.xml",
+      "product/backend/Dockerfile",
+      "product/frontend/routes/api/",
+      "product/frontend/main.ts",
+      "product/frontend/fresh.gen.ts",
+      "product/frontend/fresh.config.ts",
+      "product/frontend/deno.json",
+      "product/frontend/Dockerfile",
+      "policy/",
+      "compose",
+      "Dockerfile"
+    ],
+    "protected_paths": [
+      "policy/",
+      ".github/",
+      "AGENTS.md",
+      "secrets/",
+      "app/",
+      "scripts/",
+      ".env"
+    ],
+    "human_risks": ["high", "critical"]
+  },
+  "approval": {
+    "max_age_hours": 24
+  },
+  "deploy": {
+    "allowed_decisions": ["auto", "human_approved"],
+    "health_paths": ["/", "/api/refunds.csv"]
+  }
+}

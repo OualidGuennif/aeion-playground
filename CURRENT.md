@@ -272,3 +272,18 @@ est la référence : toute décision doit pouvoir être rattachée à une ligne 
   `runtime/pulse/pid`), état dans `runtime/pulse/status.json`, logs dans
   `runtime/logs/pulse.out`. Tests unitaires du pulse : **6 passed**. Budget
   `10,217100 $ / 30 $`, 0 essai non réglé. Docs : `docs/autonomous-demo.md`, README.
+
+- 2026-10-28 08:5x : **release gate déterministe et train 4×/jour** — ajout de
+  `config/publication-policy.json` + `app/publication.py` : une release scellée est classée
+  `auto` (tests/UI dans les bornes), `human` (backend de production, proxy API, manifeste
+  Fresh, Dockerfiles, policy, compose, diff trop gros ou risque élevé) ou `deny` (packet non
+  scellé, tests incomplets, review non OK, chemin protégé). Le dry-run PD-056 est `auto`
+  (4 fichiers de tests, 34 lignes). **PD-065** (12 fichiers de tests, 117 lignes) a été
+  publié automatiquement : issue **#57**, PR **#58**, **8/8** checks, merge squash.
+  `scripts/redeploy.py` construit la release scellée, recrée `parceldesk-web`, vérifie `/`
+  et `/api/refunds.csv`, et rollback sur l'image précédente ; premier déploiement réel :
+  image `sha256:c86a6315…`, health OK. Le train `--loop --interval-hours 6 --publish` fera
+  4 cycles/jour. Le pulse a été étendu à 16 tickets (12 tests + 3 features frontend + 1
+  changement backend critique). **PD-066** a échoué sur un essai d'inférence inconnu
+  (`EXPOSURE_HELD`) ; réservation de 2 $ réconciliée, 0 essai non réglé. Budget
+  `12,244824 $ / 30 $`, head `PD-065` (les features suivantes arrivent).

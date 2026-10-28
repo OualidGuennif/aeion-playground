@@ -222,6 +222,30 @@ in [docs/autonomous-demo.md](docs/autonomous-demo.md).
 The UI already polls `/api/snapshot` every 1.2 seconds, so new missions and
 agent steps appear while the pulse runs. Paperclip gets one issue per mission.
 
+## Publish and deploy through deterministic gates
+
+A sealed mission is not automatically publishable. `config/publication-policy.json`
+adds a file-and-size gate: small test/UI changes can publish and deploy
+automatically; backend production code, the API proxy, the Fresh manifest,
+Dockerfiles and oversized diffs require an operator approval file; protected
+paths are denied. The same policy is applied to the actual GitHub PR diff.
+
+```sh
+# Dry-run one release against the policy
+.venv/bin/python scripts/deliver_github.py --mission PD-065 --auto --dry-run
+
+# Publish only if the policy says auto; waits for 8 checks and merges
+.venv/bin/python scripts/deliver_github.py --mission PD-065 --auto --wait --merge
+
+# Publish auto releases and redeploy the web image four times a day
+.venv/bin/python scripts/redeploy.py --loop --interval-hours 6 --publish
+```
+
+The deploy step builds the sealed release, recreates `parceldesk-web`, checks
+`/` and `/api/refunds.csv`, and rolls back to the previous image on failure.
+The full rule set, approval flow and measured evidence are in
+[docs/release-gate.md](docs/release-gate.md).
+
 ## Install and run
 
 Requires Python 3.12, Git and a running Docker Engine/Desktop with Linux containers.
