@@ -56,9 +56,9 @@ def load_routing_policy() -> dict | None:
 def effective_budget(policy_budget: float) -> float:
     """Apply the local `.env` cap without ever widening the signed policy.
 
-    ``AEION_BUDGET_USD`` is a hard cap on total recorded exposure. The routing
-    policy is the authorization and may be lower; the effective value is the
-    smaller of the two. An unset cap preserves the policy value.
+    ``AEION_BUDGET_USD`` is the UTC-day exposure cap. The routing policy is the
+    daily authorization and may be lower; the effective value is the smaller of
+    the two. An unset cap preserves the policy value.
     """
     raw = os.environ.get("AEION_BUDGET_USD", "").strip()
     if not raw:

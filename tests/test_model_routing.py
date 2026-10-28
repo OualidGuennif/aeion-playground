@@ -309,7 +309,7 @@ def test_agent_health_reports_budget_pause_before_a_stale_failure():
     assert _agent_budget_health({"unsettled_attempts": 1, "held_usd": 2.0, "exposure_usd": 8.0}, 10.0, 2.0) == (
         "blocked", "Unsettled inference exposure: $2.000000 held; reconcile before new calls")
     assert _agent_budget_health({"unsettled_attempts": 0, "exposure_usd": 8.162985}, 10.0, 2.0) == (
-        "paused", "Paid inference paused: $8.162985 exposure + $2.00 envelope exceeds the $10.00 ceiling")
+        "paused", "Paid inference paused: $8.162985 used today + $2.00 envelope exceeds the $10.00 daily ceiling")
 
 
 def test_env_budget_cap_can_only_lower_the_authorized_policy(monkeypatch):

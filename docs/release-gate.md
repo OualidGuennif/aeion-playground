@@ -144,4 +144,7 @@ touch runtime/redeploy/stop
   does not silently deploy backend code.
 - A model failure is not a policy failure. `blocked` missions are retained and
   never published.
-- The `$30` ceiling is total local exposure, not a monthly provider counter.
+- The `$15` ceiling is **per UTC day**, not lifetime and not a monthly provider
+  counter. Lifetime exposure stays visible for audit; the next UTC day resets
+  admission automatically. Unknown attempts remain charged at their full
+  reservation and still require operator reconciliation.
